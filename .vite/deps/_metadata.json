@@ -1,0 +1,70 @@
+{
+  "hash": "6354e0be",
+  "configHash": "3f4233ef",
+  "lockfileHash": "d532df62",
+  "browserHash": "1cc8ee5f",
+  "optimized": {
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/.pnpm/react@19.2.5/node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "e30dd291",
+      "needsInterop": true
+    },
+    "react": {
+      "src": "../../node_modules/.pnpm/react@19.2.5/node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "73c199a6",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/.pnpm/react-dom@19.2.5_react@19.2.5/node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "df57fe50",
+      "needsInterop": true
+    },
+    "lucide-react": {
+      "src": "../../node_modules/.pnpm/lucide-react@0.546.0_react@19.2.5/node_modules/lucide-react/dist/esm/lucide-react.js",
+      "file": "lucide-react.js",
+      "fileHash": "7b089ef1",
+      "needsInterop": false
+    },
+    "date-fns": {
+      "src": "../../node_modules/.pnpm/date-fns@4.1.0/node_modules/date-fns/index.js",
+      "file": "date-fns.js",
+      "fileHash": "f0f05ac5",
+      "needsInterop": false
+    },
+    "motion/react": {
+      "src": "../../node_modules/.pnpm/motion@12.38.0_react-dom@19.2.5_react@19.2.5__react@19.2.5/node_modules/motion/dist/es/react.mjs",
+      "file": "motion_react.js",
+      "fileHash": "e40354b1",
+      "needsInterop": false
+    },
+    "clsx": {
+      "src": "../../node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs",
+      "file": "clsx.js",
+      "fileHash": "c0381bdf",
+      "needsInterop": false
+    },
+    "tailwind-merge": {
+      "src": "../../node_modules/.pnpm/tailwind-merge@3.5.0/node_modules/tailwind-merge/dist/bundle-mjs.mjs",
+      "file": "tailwind-merge.js",
+      "fileHash": "efba48b5",
+      "needsInterop": false
+    },
+    "@hnw/date-tibetan": {
+      "src": "../../node_modules/.pnpm/@hnw+date-tibetan@1.0.2/node_modules/@hnw/date-tibetan/src/index.js",
+      "file": "@hnw_date-tibetan.js",
+      "fileHash": "6907f7e5",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-YLNJZV64": {
+      "file": "chunk-YLNJZV64.js"
+    },
+    "chunk-2TUXWMP5": {
+      "file": "chunk-2TUXWMP5.js"
+    }
+  }
+}
