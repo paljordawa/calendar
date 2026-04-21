@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Calendar as CalendarIcon, 
-  Moon, 
-  Sun, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
+  Moon,
+  Sun,
   Bell,
   Sparkles,
   Home,
@@ -29,15 +29,15 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterv
 import { motion, AnimatePresence } from 'motion/react';
 import { getTibetanDate, getTibetanYearInfo, FESTIVALS, TibetanDate, ANIMALS, ELEMENTS } from './lib/tibetanCalendar';
 import { cn, cn_id, UI_IDS } from './lib/utils';
-import { 
-  STICKERS, 
-  HOROSCOPE_RULES, 
-  ANIMAL_CHARACTERISTICS, 
-  ANIMAL_ICONS, 
-  PARKHA_ICONS, 
-  MEWA_ICONS, 
-  PARKHA_CHARACTERISTICS, 
-  MEWA_CHARACTERISTICS 
+import {
+  STICKERS,
+  HOROSCOPE_RULES,
+  ANIMAL_CHARACTERISTICS,
+  ANIMAL_ICONS,
+  PARKHA_ICONS,
+  MEWA_ICONS,
+  PARKHA_CHARACTERISTICS,
+  MEWA_CHARACTERISTICS
 } from './constants';
 
 type Tab = 'home' | 'calendar' | 'profile';
@@ -78,14 +78,14 @@ const getElementalHarmony = (birth: string | undefined, day: string) => {
 
 const getAnimalAffinity = (birth: string | undefined, day: string) => {
   if (!birth) return 'neutral';
-  
+
   const trines = [
     ['Rat', 'Dragon', 'Monkey'],
     ['Ox', 'Snake', 'Bird'],
     ['Tiger', 'Horse', 'Dog'],
     ['Rabbit', 'Sheep', 'Pig']
   ];
-  
+
   const oppositions: Record<string, string> = {
     'Rat': 'Horse', 'Horse': 'Rat',
     'Ox': 'Sheep', 'Sheep': 'Ox',
@@ -98,7 +98,7 @@ const getAnimalAffinity = (birth: string | undefined, day: string) => {
   if (birth === day) return 'same';
   if (oppositions[birth] === day) return 'conflict';
   if (trines.some(t => t.includes(birth) && t.includes(day))) return 'trine';
-  
+
   return 'neutral';
 };
 
@@ -118,9 +118,9 @@ export default function App() {
   const [showHeader, setShowHeader] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [direction, setDirection] = useState(0);
-  const [searchRange, setSearchRange] = useState({ 
-    start: format(new Date(), 'yyyy-MM-dd'), 
-    end: format(addMonths(new Date(), 1), 'yyyy-MM-dd') 
+  const [searchRange, setSearchRange] = useState({
+    start: format(new Date(), 'yyyy-MM-dd'),
+    end: format(addMonths(new Date(), 1), 'yyyy-MM-dd')
   });
   const [newFestival, setNewFestival] = useState({ name: '', date: format(new Date(), 'yyyy-MM-dd'), description: '' });
   const [horoscope, setHoroscope] = useState<string | null>(null);
@@ -162,7 +162,7 @@ export default function App() {
   }, [userData.language]);
 
   const STICKERS = [
-    '🕉️', '🧘', '🔥', '💧', '☀️', '🌙', '🏔️', '🏠', 
+    '🕉️', '🧘', '🔥', '💧', '☀️', '🌙', '🏔️', '🏠',
     '🎨', '💼', '💊', '✈️', '🍲', '💰', '🌳', '🕯️',
     '⚡', '🌈', '🏔️', '☸️', '🐚', '📿', '🏔️', '🥣'
   ];
@@ -172,10 +172,10 @@ export default function App() {
       setUserData(prev => ({ ...prev, birthDate: undefined }));
       return;
     }
-    
+
     const date = new Date(dateStr);
     const tib = getTibetanDate(date);
-    
+
     setUserData(prev => ({
       ...prev,
       birthDate: dateStr,
@@ -188,17 +188,17 @@ export default function App() {
 
   const addCustomFestival = () => {
     if (!newFestival.name || !newFestival.date) return;
-    
+
     const festival: CustomFestival = {
       id: Math.random().toString(36).substring(2, 9),
       ...newFestival
     };
-    
+
     setUserData(prev => ({
       ...prev,
       customFestivals: [...(prev.customFestivals || []), festival]
     }));
-    
+
     setIsFestivalSheetOpen(false);
     setNewFestival({ name: '', date: format(new Date(), 'yyyy-MM-dd'), description: '' });
   };
@@ -209,15 +209,15 @@ export default function App() {
       customFestivals: (prev.customFestivals || []).filter(f => f.id !== id)
     }));
   };
-  
+
   const generateHoroscope = useCallback(() => {
     setIsHoroscopeLoading(true);
-    
+
     // Artificial delay for "calculation" feel
     setTimeout(() => {
       const harmony = getElementalHarmony(userData.birthElement, tibCurrent.element);
       const rule = HOROSCOPE_RULES[harmony] || HOROSCOPE_RULES['neutral'];
-      
+
       const text = `${rule.title}: ${rule.text} ${rule.advice}`;
       setHoroscope(text);
       setIsHoroscopeLoading(false);
@@ -240,7 +240,7 @@ export default function App() {
       setCurrentDate(subMonths(currentDate, 1));
     }
   };
-  
+
   const handleNextMonth = () => {
     setDirection(1);
     if (calendarView === 'week') {
@@ -252,7 +252,7 @@ export default function App() {
 
   const handleMainScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const currentScrollY = e.currentTarget.scrollTop;
-    
+
     // Hide header on scroll down, show on scroll up
     // threshold of 50px to prevent jitter at the very top
     if (currentScrollY > lastScrollY && currentScrollY > 80) {
@@ -260,7 +260,7 @@ export default function App() {
     } else {
       if (!showHeader) setShowHeader(true);
     }
-    
+
     setLastScrollY(currentScrollY);
   };
 
@@ -294,7 +294,7 @@ export default function App() {
     try {
       const start = startOfDay(parseISO(searchRange.start));
       const end = startOfDay(parseISO(searchRange.end));
-      
+
       const interval = { start, end };
       const results: { date: Date; name: string; description: string; isCustom: boolean }[] = [];
 
@@ -302,7 +302,7 @@ export default function App() {
       // For performance, we might want to optimize this if the interval is huge
       // But for common date picker ranges (weeks/months), it's fine
       const days = eachDayOfInterval(interval);
-      
+
       days.forEach(date => {
         const td = getTibetanDate(date);
         const traditional = FESTIVALS.filter(f => f.month === td.month && f.day === td.day);
@@ -315,7 +315,7 @@ export default function App() {
         custom.forEach(f => {
           results.push({ date, name: f.name, description: f.description, isCustom: true });
         });
-        
+
         // Also check for notes
         const note = userData.notes[dateKey];
         if (note) {
@@ -354,19 +354,19 @@ export default function App() {
   const handleSetSticker = (emoji: string | undefined, label: string | undefined) => {
     setUserData(prev => ({
       ...prev,
-      stickers: { 
-        ...(prev.stickers || {}), 
-        [selectedDateKey]: { emoji, label } 
+      stickers: {
+        ...(prev.stickers || {}),
+        [selectedDateKey]: { emoji, label }
       }
     }));
   };
 
   const handleExportData = () => {
     const dataStr = JSON.stringify(userData, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+
     const exportFileDefaultName = `men_tsee_khang_backup_${format(new Date(), 'yyyy_MM_dd')}.json`;
-    
+
     const linkElement = document.createElement('a');
     linkElement.setAttribute('href', dataUri);
     linkElement.setAttribute('download', exportFileDefaultName);
@@ -676,71 +676,90 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen bg-bg-warm text-stone-900 font-sans overflow-hidden">
-      
+
+      {/* Prayer Flags Strip — 5 sacred elements: sky, air, fire, water, earth */}
+      <PrayerFlagsStrip />
+
       {/* Texture Overlay */}
       <div className="fixed inset-0 pointer-events-none opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] z-50"></div>
 
       {/* Main Content Area */}
-      <div 
+      <div
         onScroll={handleMainScroll}
         className="flex-1 overflow-y-auto pb-24 scroll-smooth"
       >
         {/* Global Branding Header */}
-        <motion.header 
+        <motion.header
           initial={false}
-          animate={{ 
+          animate={{
             y: showHeader ? 0 : -100,
             opacity: showHeader ? 1 : 0
           }}
-          transition={{ 
-            duration: 0.4, 
+          transition={{
+            duration: 0.4,
             ease: [0.16, 1, 0.3, 1], // Custom cubic-bezier for a "premium" smooth feeling
             delay: 0.1 // Adding the requested "little delay"
           }}
           className={cn(
-            "px-6 py-4 sticky top-0 z-40 transition-colors duration-500 backdrop-blur-md border-b",
-            activeTab === 'home' ? "bg-stone-50/80 border-stone-100" : "bg-white/80 border-stone-50",
+            "px-6 py-4 sticky top-[5px] z-40 bg-bg-warm",
             !showHeader && "pointer-events-none"
           )}
         >
           <div className="max-w-lg mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-stone-900 flex items-center justify-center font-bold text-white font-serif text-xl border-2 border-stone-800">
-                <span className="text-saffron">࿇</span>
+            {/* User Profile Header */}
+            <button
+              onClick={() => setActiveTab('profile')}
+              className="flex items-center gap-3 group active:scale-95 transition-transform"
+            >
+              {/* Avatar — shows initial or default symbol */}
+              <div className="w-10 h-10 rounded-full bg-stone-900 flex items-center justify-center shrink-0 border-2 border-stone-800 shadow-sm group-hover:border-saffron transition-colors">
+                {userData.name
+                  ? <span className="text-saffron font-black text-sm leading-none">{userData.name.charAt(0).toUpperCase()}</span>
+                  : <span className="text-saffron font-serif text-xl">࿇</span>
+                }
               </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-stone-950 uppercase tracking-[0.2em] leading-none">{t('Men-Tsee-Khang', 'བོད་གཞུང་སྨན་རྩིས་ཁང་།')}</span>
-                <span className="text-[8px] font-bold text-stone-400 uppercase tracking-widest mt-0.5">{t('Phugpa Tradition', 'ཕུག་ལུགས་རྩིས་རིག')}</span>
+              {/* Name + Sign */}
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-serif font-bold text-stone-900 leading-none truncate">
+                  {userData.name || 'Practitioner'}
+                </span>
+                <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest mt-1 truncate">
+                  {ANIMAL_ICONS[userData.birthAnimal || tibCurrent.animal]}{' '}
+                  {userData.birthAnimal || tibCurrent.animal}
+                  {' · '}
+                  {userData.birthElement || tibCurrent.element}
+                </span>
               </div>
-            </div>
+            </button>
             <div className="flex items-center gap-2">
-               <button 
-                  onClick={() => setIsSearchSheetOpen(true)}
-                  className="p-2.5 bg-white/50 rounded-2xl text-stone-400 hover:text-saffron transition-colors"
-                >
-                  <Search size={18} />
-               </button>
-               <button 
-                  onClick={() => setIsSettingsSheetOpen(true)}
-                  className="p-2.5 bg-white/50 rounded-2xl text-stone-400 hover:text-stone-900 transition-colors"
-               >
-                  <Settings size={18} />
-               </button>
+              <button
+                onClick={() => setIsSearchSheetOpen(true)}
+                className="p-2.5 bg-white/50 rounded-2xl text-stone-400 hover:text-saffron transition-colors"
+              >
+                <Search size={18} />
+              </button>
+              <button
+                onClick={() => setIsSettingsSheetOpen(true)}
+                className="p-2.5 bg-white/50 rounded-2xl text-stone-400 hover:text-stone-900 transition-colors"
+              >
+                <Settings size={18} />
+              </button>
             </div>
           </div>
         </motion.header>
 
         <AnimatePresence mode="wait">
           {activeTab === 'home' && (
-            <motion.div 
+            <motion.div
               key="home"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="max-w-lg mx-auto pb-32 pt-6"
+              className="max-w-lg mx-auto pb-32 pt-8"
             >
+
               {/* Home Sub-Tabs */}
-              <div className="px-6 mb-8">
+              <div className="px-6 mb-6">
                 <div className="flex bg-stone-100/50 p-1 rounded-2xl backdrop-blur-sm">
                   {[
                     { id: 'guidance', label: t('Day', 'ཉིན་མོ།'), icon: <Sun size={14} /> },
@@ -764,31 +783,79 @@ export default function App() {
 
               <div className="px-6 space-y-8">
                 {homeTab === 'guidance' && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="space-y-8"
+                    className="space-y-5"
                   >
                     {/* Today Card */}
                     <div id={UI_IDS.HOME.TODAY_CARD} className="relative rounded-3xl bg-stone-900 p-6 text-white overflow-hidden shadow-lg">
+                      {/* Dharma Wheel watermark */}
+                      <DharmaWheel className="absolute -right-10 -bottom-10 w-52 h-52 text-white/[0.055] pointer-events-none" />
                       <div className="relative space-y-4">
                         <div>
                           <p className="text-[8px] font-black uppercase tracking-[0.2em] text-stone-500 mb-1">{t('Phugpa Tradition', 'ཕུག་ལུགས་སྐར་རྩིས་རིག་པ།')}</p>
                           <h1 className="text-3xl font-serif font-black tracking-tight leading-tight">
-                            {format(new Date(), 'EEEE')}, <br/>
+                            {format(new Date(), 'EEEE')}, <br />
                             <span className="text-stone-400 font-light">{format(new Date(), 'MMM d')}</span>
                           </h1>
                         </div>
 
-                        <div className="pt-4 border-t border-white/5 flex gap-8">
-                          <div className="space-y-0.5">
-                              <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest">{t('Tshe', 'ཚེས།')}</p>
+                          <div className="pt-4 border-t border-white/5 flex gap-8">
+                            <div className="space-y-0.5">
+                              <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest">Lunar Day</p>
                               <p className="text-lg font-serif font-bold text-saffron">{tibCurrent.day}</p>
-                          </div>
-                          <div className="space-y-0.5">
-                              <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest">{t('Sign', 'རྟགས།')}</p>
+                            </div>
+                            <div className="space-y-0.5">
+                              <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest">Animal Sign</p>
                               <p className="text-lg font-serif font-bold">{ANIMAL_ICONS[tibCurrent.animal]} {tibCurrent.animal}</p>
+                            </div>
                           </div>
+
+                          {userData.birthAnimal && (
+                            <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                              <span className="text-[8px] font-black uppercase tracking-widest text-stone-500">Personal Resonance</span>
+                              <div className="flex items-center gap-2">
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider",
+                                  getElementalHarmony(userData.birthElement, tibCurrent.element) === 'life' ? "bg-turquoise/20 text-turquoise" :
+                                  getElementalHarmony(userData.birthElement, tibCurrent.element) === 'enemy' ? "bg-red-500/20 text-red-100" : "bg-white/10 text-stone-400"
+                                )}>
+                                  {getElementalHarmony(userData.birthElement, tibCurrent.element)} energy
+                                </span>
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider",
+                                  getAnimalAffinity(userData.birthAnimal, tibCurrent.animal) === 'trine' ? "bg-saffron/20 text-saffron" :
+                                  getAnimalAffinity(userData.birthAnimal, tibCurrent.animal) === 'conflict' ? "bg-red-500/20 text-red-100" : "bg-white/10 text-stone-400"
+                                )}>
+                                  {getAnimalAffinity(userData.birthAnimal, tibCurrent.animal)} affinity
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                    {/* Daily Wisdom Ticker */}
+                    <div className="flex items-center gap-3 py-2 overflow-hidden">
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-saffron animate-pulse inline-block" />
+                        <Star size={9} className="text-saffron" />
+                      </div>
+                      <div className="flex-1 overflow-hidden relative">
+                        <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-bg-warm to-transparent z-10 pointer-events-none" />
+                        <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-bg-warm to-transparent z-10 pointer-events-none" />
+                        <div className="flex animate-ticker" style={{ width: 'max-content' }}>
+                          {[0, 1].map(i => (
+                            <span key={i} className="text-[10px] text-stone-500 italic whitespace-nowrap pr-24">
+                              As the{' '}
+                              <span className="text-saffron not-italic font-bold">{tibCurrent.element}</span>
+                              {' '}energy flows through the{' '}
+                              {ANIMAL_ICONS[tibCurrent.animal]}{' '}{tibCurrent.animal}{' '}day
+                              {' — '}
+                              align your practice with presence and clarity.
+                            </span>
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -796,14 +863,17 @@ export default function App() {
                     {/* Dashboard Grid */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="p-4 bg-stone-50 rounded-2xl border border-stone-100/50">
-                        <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest mb-1">{t('Month', 'ཟླ་བ་')}</p>
+                        <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest mb-1">Lunar Month</p>
                         <p className="text-base font-serif font-bold text-stone-900">{tibCurrent.month}</p>
                       </div>
                       <div className="p-4 bg-stone-50 rounded-2xl border border-stone-100/50">
-                        <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest mb-1">{t('Rabjung', 'རབ་བྱུང་།')}</p>
+                        <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest mb-1">60-yr Cycle (Rabjung)</p>
                         <p className="text-base font-serif font-bold text-stone-900">{tibCurrent.rabjung}</p>
                       </div>
                     </div>
+
+                    {/* Lotus ornament divider */}
+                    <LotusDivider className="opacity-60" />
 
                     {/* Daily Tibetan Almanac (Lo-tho) - Home Integration */}
                     <section id={UI_IDS.HOME.ALMANAC_SECTION} className="space-y-3 pt-2">
@@ -813,7 +883,7 @@ export default function App() {
                         <div className="space-y-1 px-1">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-lg">{PARKHA_ICONS[tibCurrent.parkha]}</span>
-                            <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest">{t('Parkha', 'སྤར་ཁ།')}</p>
+                            <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest">Trigram (Parkha)</p>
                           </div>
                           <p className="text-sm font-serif font-black text-stone-900">{tibCurrent.parkha}</p>
                           <p className="text-[9px] text-stone-500 leading-relaxed line-clamp-1">{PARKHA_CHARACTERISTICS[tibCurrent.parkha]}</p>
@@ -822,7 +892,7 @@ export default function App() {
                         <div className="space-y-1 px-1">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-lg">{MEWA_ICONS[tibCurrent.mewa]}</span>
-                            <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest">{t('Mewa', 'སྨེ་བ།')}</p>
+                            <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest">Magic Square (Mewa)</p>
                           </div>
                           <p className="text-sm font-serif font-black text-stone-900">{tibCurrent.mewa}</p>
                           <p className="text-[9px] text-stone-500 leading-relaxed line-clamp-1">{MEWA_CHARACTERISTICS[tibCurrent.mewa]}</p>
@@ -830,13 +900,6 @@ export default function App() {
                       </div>
                     </section>
 
-                    {/* Daily Wisdom Section */}
-                    <section className="bg-amber-50/50 rounded-2xl p-4 border border-stone-100 flex gap-4 items-start">
-                      <Star size={16} className="text-saffron shrink-0 mt-0.5" />
-                      <p className="text-xs font-medium text-stone-800 leading-relaxed italic">
-                         "As the {tibCurrent.element} energy aligns with the {ANIMAL_ICONS[tibCurrent.animal]} {tibCurrent.animal} sign, practitioners are encouraged toward mindfulness."
-                      </p>
-                    </section>
 
                     {/* My Notes Highlights */}
                     {Object.keys(userData.notes).length > 0 && (
@@ -844,7 +907,7 @@ export default function App() {
                         <h3 className="text-[8px] font-black text-stone-400 uppercase tracking-widest px-1">My Notes</h3>
                         <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar px-1">
                           {Object.entries(userData.notes).map(([dateStr, note]) => (
-                            <button 
+                            <button
                               key={dateStr}
                               onClick={() => {
                                 setSelectedDate(parseISO(dateStr));
@@ -856,7 +919,7 @@ export default function App() {
                                 <span className="text-[8px] font-bold text-saffron uppercase tracking-widest">{format(parseISO(dateStr), 'MMM d')}</span>
                                 <StickyNote size={12} className="text-stone-300" />
                               </div>
-                              <p className="text-xs text-stone-600 line-clamp-1 leading-relaxed">{note}</p>
+                              <p className="text-xs text-stone-600 line-clamp-1 leading-relaxed break-all">{note}</p>
                             </button>
                           ))}
                         </div>
@@ -866,98 +929,97 @@ export default function App() {
                 )}
 
                 {homeTab === 'days' && (
-                   <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, x: 10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="space-y-8"
+                    className="space-y-6"
                   >
                     <header className="flex items-center justify-between">
-                        <h1 className="text-3xl font-serif font-black text-stone-950">{t('Grand', 'གནད་ཆེའི།')} <br/> <span className="text-stone-400 font-light italic">{t('Duchen Days', 'དུས་ཆེན་བཟང་པོ།')}</span></h1>
-                        <button 
-                          onClick={() => setIsFestivalSheetOpen(true)}
-                          className="p-4 bg-saffron text-white rounded-3xl active:scale-95 transition-transform"
-                        >
-                          <Plus size={24} />
-                        </button>
+                      <h1 className="text-3xl font-serif font-black text-stone-950">{t('Grand', 'གནད་ཆེའི།')} <br /> <span className="text-stone-400 font-light italic">{t('Duchen Days', 'དུས་ཆེན་བཟང་པོ།')}</span></h1>
+                      <button
+                        onClick={() => setIsFestivalSheetOpen(true)}
+                        className="p-4 bg-saffron text-white rounded-3xl active:scale-95 transition-transform"
+                      >
+                        <Plus size={24} />
+                      </button>
                     </header>
 
                     {/* Custom Festivals Section */}
                     {(userData.customFestivals && userData.customFestivals.length > 0) && (
                       <section className="space-y-4">
-                          <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">My Important Dates</h3>
-                          <div className="space-y-3">
-                            {userData.customFestivals.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((f) => (
-                              <div key={f.id} className="bg-amber-50/50 p-5 rounded-3xl flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-5 min-w-0">
-                                  <div className="w-12 h-12 shrink-0 rounded-2xl bg-saffron flex flex-col items-center justify-center text-white text-[10px] font-bold shadow-sm">
-                                      <span className="text-[8px] opacity-70">{format(parseISO(f.date), 'MMM')}</span>
-                                      <span className="text-lg leading-none">{format(parseISO(f.date), 'd')}</span>
-                                  </div>
-                                  <div className="min-w-0">
-                                      <h4 className="text-sm font-bold text-stone-900 truncate">{f.name}</h4>
-                                      <p className="text-[11px] text-stone-500 line-clamp-1 italic">{f.description}</p>
-                                  </div>
+                        <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">My Important Dates</h3>
+                        <div className="space-y-3">
+                          {userData.customFestivals.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((f) => (
+                            <div key={f.id} className="bg-amber-50/50 p-5 rounded-3xl flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-5 min-w-0">
+                                <div className="w-12 h-12 shrink-0 rounded-2xl bg-saffron flex flex-col items-center justify-center text-white text-[10px] font-bold shadow-sm">
+                                  <span className="text-[8px] opacity-70">{format(parseISO(f.date), 'MMM')}</span>
+                                  <span className="text-lg leading-none">{format(parseISO(f.date), 'd')}</span>
                                 </div>
-                                <button 
-                                  onClick={() => {
-                                    setUserData(prev => ({
-                                      ...prev,
-                                      customFestivals: prev.customFestivals?.filter(cf => cf.id !== f.id)
-                                    }));
-                                  }}
-                                  className="p-2 text-stone-300 hover:text-tibetan-red transition-colors"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
+                                <div className="min-w-0">
+                                  <h4 className="text-sm font-bold text-stone-900 truncate">{f.name}</h4>
+                                  <p className="text-[11px] text-stone-500 line-clamp-1 italic">{f.description}</p>
+                                </div>
                               </div>
-                            ))}
-                          </div>
+                              <button
+                                onClick={() => {
+                                  setUserData(prev => ({
+                                    ...prev,
+                                    customFestivals: prev.customFestivals?.filter(cf => cf.id !== f.id)
+                                  }));
+                                }}
+                                className="p-2 text-stone-300 hover:text-tibetan-red transition-colors"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </section>
                     )}
 
                     <div className="space-y-4">
-                        <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">Traditional Calendar</h3>
-                        <div className="space-y-3">
-                          {FESTIVALS.map((f, i) => (
-                            <div key={i} className="bg-white p-5 rounded-3xl flex items-center gap-5 border border-stone-50">
-                                <div className="w-12 h-12 shrink-0 rounded-2xl bg-stone-900 flex flex-col items-center justify-center text-white text-[10px] font-bold">
-                                  <span>M{f.month}</span>
-                                  <span className="text-lg leading-none mt-0.5">D{f.day}</span>
-                                </div>
-                                <div className="min-w-0">
-                                  <h4 className="text-sm font-bold text-stone-900 truncate">{f.name}</h4>
-                                  <p className="text-[11px] text-stone-400 line-clamp-1 italic">{f.description}</p>
-                                </div>
+                      <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">Traditional Calendar</h3>
+                      <div className="space-y-3">
+                        {FESTIVALS.map((f, i) => (
+                          <div key={i} className="bg-white p-5 rounded-3xl flex items-center gap-5 border border-stone-50">
+                            <div className="w-12 h-12 shrink-0 rounded-2xl bg-stone-900 flex flex-col items-center justify-center text-white text-[10px] font-bold">
+                              <span>M{f.month}</span>
+                              <span className="text-lg leading-none mt-0.5">D{f.day}</span>
                             </div>
-                          ))}
-                        </div>
+                            <div className="min-w-0">
+                              <h4 className="text-sm font-bold text-stone-900 truncate">{f.name}</h4>
+                              <p className="text-[11px] text-stone-400 line-clamp-1 italic">{f.description}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </motion.div>
                 )}
-
                 {homeTab === 'astro' && (
-                   <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="space-y-8"
+                    className="space-y-6"
                   >
                     <header className="space-y-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-3xl bg-stone-900 flex items-center justify-center text-white">
-                            <Compass size={24} className="animate-spin-slow" />
-                          </div>
-                          <h1 className="text-3xl font-serif font-black text-stone-950">{t('Astro-Science', 'སྐར་རྩིས་རིག་པ།')}</h1>
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-3xl bg-stone-900 flex items-center justify-center text-white">
+                          <Compass size={24} className="animate-spin-slow" />
                         </div>
-                        <p className="text-sm font-medium text-stone-400 leading-relaxed italic">
-                          The intersection of energy alignment based on the Men-Tsee-Khang Phugpa tradition.
-                        </p>
+                        <h1 className="text-3xl font-serif font-black text-stone-950">{t('Astro-Science', 'སྐར་རྩིས་རིག་པ།')}</h1>
+                      </div>
+                      <p className="text-sm font-medium text-stone-400 leading-relaxed italic">
+                        The intersection of cosmic energy aligned by the Men-Tsee-Khang Phugpa tradition — ancient Tibetan astro-science rooted in Buddhist cosmology.
+                      </p>
                     </header>
 
                     {/* Personalized Horoscope */}
                     <section className="space-y-3">
                       <div className="flex items-center justify-between px-1">
                         <h3 className="text-[8px] font-black text-stone-400 uppercase tracking-widest">{t('Personal Horoscope', 'རང་རེའི་བླ་རྟགས།')}</h3>
-                        <button 
+                        <button
                           onClick={() => { setHoroscope(null); generateHoroscope(); }}
                           className="text-[8px] font-bold text-saffron uppercase hover:underline"
                         >
@@ -976,12 +1038,12 @@ export default function App() {
                             <p className="text-xs text-stone-700 leading-relaxed italic">
                               {horoscope || "Your daily alignment is being calculated."}
                             </p>
-                            
+
                             <div className="flex items-center gap-2 pt-2 grayscale opacity-50">
-                               <div className="w-1 h-1 rounded-full bg-stone-400" />
-                               <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest">
-                                 {userData.birthElement || "Unset"} {userData.birthAnimal ? `${ANIMAL_ICONS[userData.birthAnimal]} ${userData.birthAnimal}` : "Sign"}
-                               </span>
+                              <div className="w-1 h-1 rounded-full bg-stone-400" />
+                              <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest">
+                                {userData.birthElement || "Unset"} {userData.birthAnimal ? `${ANIMAL_ICONS[userData.birthAnimal]} ${userData.birthAnimal}` : "Sign"}
+                              </span>
                             </div>
                           </div>
                         )}
@@ -991,36 +1053,36 @@ export default function App() {
                     {/* Dimensional Analysis Card */}
                     <div className="bg-stone-950 rounded-[40px] p-8 text-white relative overflow-hidden group">
                       <div className="absolute top-0 right-0 w-48 h-48 bg-turquoise/20 rounded-full blur-3xl -mr-20 -mt-20" />
-                      
+
                       <div className="relative space-y-6">
                         <div className="flex items-center justify-between">
                           <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-stone-500">{t("Today's Alignment", 'དེ་རིང་གི་རྩིས་འབྲས།')}</h2>
                           <div className="px-3 py-1 rounded-full bg-white/10 text-[9px] font-extrabold uppercase tracking-widest text-turquoise">
-                            Cycle {tibCurrent.rabjung}
+                            Rabjung #{tibCurrent.rabjung}
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-8">
                           <div className="space-y-4 border-r border-white/5 pr-4">
-                              <div className="space-y-1">
-                                <p className="text-[9px] font-black text-stone-500 uppercase tracking-widest">Primary Element</p>
-                                <p className="text-3xl font-serif font-black text-turquoise italic">{tibCurrent.element}</p>
-                              </div>
-                              <p className="text-[10px] text-stone-400 font-medium leading-relaxed">
-                                Fundamental energy flow for this current lunar day.
-                              </p>
+                            <div className="space-y-1">
+                              <p className="text-[9px] font-black text-stone-500 uppercase tracking-widest">Primary Element</p>
+                              <p className="text-3xl font-serif font-black text-turquoise italic">{tibCurrent.element}</p>
+                            </div>
+                            <p className="text-[10px] text-stone-400 font-medium leading-relaxed">
+                              Fundamental energy flow for this current lunar day.
+                            </p>
                           </div>
 
                           <div className="space-y-4">
                             <div className="space-y-1">
-                                <p className="text-[9px] font-black text-stone-500 uppercase tracking-widest">Animal Sign</p>
-                                <p className="text-3xl font-serif font-black text-saffron italic">
-                                  {ANIMAL_ICONS[tibCurrent.animal]} {tibCurrent.animal}
-                                </p>
-                              </div>
-                              <p className="text-[10px] text-stone-400 font-medium leading-relaxed">
-                                Influences social interactions and external success.
+                              <p className="text-[9px] font-black text-stone-500 uppercase tracking-widest">Animal Sign</p>
+                              <p className="text-3xl font-serif font-black text-saffron italic">
+                                {ANIMAL_ICONS[tibCurrent.animal]} {tibCurrent.animal}
                               </p>
+                            </div>
+                            <p className="text-[10px] text-stone-400 font-medium leading-relaxed">
+                              Influences social interactions and external success.
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -1031,7 +1093,7 @@ export default function App() {
                       <div className="flex items-center justify-between px-1">
                         <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{t('Daily Tibetan Almanac', 'ཉིན་རེའི་ཟླ་ཐོ།')}</h3>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[9px] font-bold text-stone-500 uppercase tracking-widest italic">Lo-tho Details</span>
+                          <span className="text-[9px] font-bold text-stone-500 uppercase tracking-widest italic">Almanac Details</span>
                         </div>
                       </div>
 
@@ -1041,7 +1103,7 @@ export default function App() {
                             <div className="w-8 h-8 rounded-xl bg-stone-900 flex items-center justify-center text-white text-xs font-serif italic">
                               {PARKHA_ICONS[tibCurrent.parkha]}
                             </div>
-                            <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Parkha</p>
+                            <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Trigram (Parkha)</p>
                           </div>
                           <div>
                             <p className="text-xl font-serif font-black text-stone-900">{tibCurrent.parkha}</p>
@@ -1056,7 +1118,7 @@ export default function App() {
                             <div className="w-8 h-8 rounded-xl bg-saffron flex items-center justify-center text-white text-xs font-serif italic">
                               {MEWA_ICONS[tibCurrent.mewa]}
                             </div>
-                            <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Mewa</p>
+                            <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Magic Square (Mewa)</p>
                           </div>
                           <div>
                             <p className="text-xl font-serif font-black text-stone-900">{tibCurrent.mewa}</p>
@@ -1066,6 +1128,26 @@ export default function App() {
                           </div>
                         </div>
                       </div>
+
+                      {userData.birthAnimal && (
+                        <div className="p-5 bg-stone-900 rounded-[30px] border border-stone-800 flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center">
+                              <Star size={18} className="text-saffron" />
+                            </div>
+                            <div>
+                              <h4 className="text-[10px] font-black text-stone-500 uppercase tracking-widest">Your Daily Destiny</h4>
+                              <p className="text-xs font-serif font-bold text-white leading-none mt-1">
+                                {HOROSCOPE_RULES[getElementalHarmony(userData.birthElement, tibCurrent.element)]?.title || "Neutral Flow"}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                             <p className="text-[8px] font-black text-stone-600 uppercase tracking-widest">Affinity</p>
+                             <p className="text-[10px] font-bold text-turquoise uppercase tracking-wider">{getAnimalAffinity(userData.birthAnimal, tibCurrent.animal)}</p>
+                          </div>
+                        </div>
+                      )}
                     </section>
 
                     {/* Annual Resonance Section */}
@@ -1077,12 +1159,12 @@ export default function App() {
 
                       <div className="flex items-center gap-4 p-4 bg-stone-50 rounded-2xl border border-stone-100/50">
                         <div className="w-12 h-12 rounded-xl bg-white border border-stone-100 flex items-center justify-center overflow-hidden shrink-0">
-                           <img 
-                             src={`https://picsum.photos/seed/${tibCurrent.animal.toLowerCase()}/100/100`}
-                             alt={tibCurrent.animal}
-                             className="w-full h-full object-cover grayscale opacity-60"
-                             referrerPolicy="no-referrer"
-                           />
+                          <img
+                            src={`https://picsum.photos/seed/${tibCurrent.animal.toLowerCase()}/100/100`}
+                            alt={tibCurrent.animal}
+                            className="w-full h-full object-cover grayscale opacity-60"
+                            referrerPolicy="no-referrer"
+                          />
                         </div>
                         <div className="min-w-0">
                           <h4 className="text-sm font-serif font-black text-stone-950 truncate">
@@ -1101,7 +1183,7 @@ export default function App() {
           )}
 
           {activeTab === 'calendar' && (
-            <motion.div 
+            <motion.div
               key="calendar"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -1110,15 +1192,15 @@ export default function App() {
             >
               <header className="flex items-center justify-between mb-6">
                 <div>
-                    <h2 className="text-[8px] font-black text-saffron uppercase tracking-widest leading-none mb-1">
-                        Year {tibSelected.year} • {tibSelected.yearName}
-                    </h2>
-                    <h2 className="text-2xl font-serif font-black text-stone-950">
-                      {calendarView === 'month' ? format(currentDate, 'MMMM yyyy') : 'Annual Cycle'}
-                    </h2>
+                  <h2 className="text-[8px] font-black text-saffron uppercase tracking-widest leading-none mb-1">
+                    Tib. Year {tibSelected.year} • {tibSelected.yearName}
+                  </h2>
+                  <h2 className="text-2xl font-serif font-black text-stone-950">
+                    {calendarView === 'month' ? format(currentDate, 'MMMM yyyy') : 'Annual Cycle'}
+                  </h2>
                 </div>
                 <div className="flex bg-stone-100/50 p-1 rounded-xl">
-                  <button 
+                  <button
                     onClick={() => setCalendarView('week')}
                     className={cn(
                       "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
@@ -1127,7 +1209,7 @@ export default function App() {
                   >
                     Week
                   </button>
-                  <button 
+                  <button
                     onClick={() => setCalendarView('month')}
                     className={cn(
                       "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
@@ -1136,7 +1218,7 @@ export default function App() {
                   >
                     Month
                   </button>
-                  <button 
+                  <button
                     onClick={() => setCalendarView('year')}
                     className={cn(
                       "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
@@ -1152,8 +1234,8 @@ export default function App() {
                 <div className="space-y-6 overflow-hidden">
                   <div className="flex items-center justify-between mb-4 px-1">
                     <div className="flex gap-2">
-                        <button onClick={handlePrevMonth} className="p-3 bg-white rounded-2xl active:scale-95 transition-transform"><ChevronLeft size={16} /></button>
-                        <button onClick={handleNextMonth} className="p-3 bg-white rounded-2xl active:scale-95 transition-transform"><ChevronRight size={16} /></button>
+                      <button onClick={handlePrevMonth} className="p-3 bg-white rounded-2xl active:scale-95 transition-transform"><ChevronLeft size={16} /></button>
+                      <button onClick={handleNextMonth} className="p-3 bg-white rounded-2xl active:scale-95 transition-transform"><ChevronRight size={16} /></button>
                     </div>
                     <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
                       {format(weekDays[0], 'MMM d')} - {format(weekDays[6], 'MMM d')}
@@ -1194,7 +1276,7 @@ export default function App() {
                           const allEvents = [...dayFestivals, ...customFestivals];
 
                           return (
-                            <motion.div 
+                            <motion.div
                               key={dateKey}
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
@@ -1216,7 +1298,7 @@ export default function App() {
                                   </div>
                                   <div>
                                     <p className={cn("text-[10px] font-bold uppercase tracking-widest", isSelected ? "text-stone-400" : "text-stone-300")}>
-                                      Tshe {tib.day}
+                                      Lunar Day {tib.day}
                                     </p>
                                     <div className="flex items-center gap-2 mt-1">
                                       <h4 className="text-sm font-serif font-bold">
@@ -1226,19 +1308,19 @@ export default function App() {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                   {sticker?.emoji && <span className="text-lg">{sticker.emoji}</span>}
-                                   {note && <div className={cn("w-1.5 h-1.5 rounded-full", isSelected ? "bg-turquoise" : "bg-turquoise/40")} />}
-                                   {allEvents.length > 1 && (
-                                     <div className="px-2 py-1 bg-saffron/10 text-saffron rounded-full text-[8px] font-black uppercase">
-                                       +{allEvents.length - 1} Events
-                                     </div>
-                                   )}
+                                  {sticker?.emoji && <span className="text-lg">{sticker.emoji}</span>}
+                                  {note && <div className={cn("w-1.5 h-1.5 rounded-full", isSelected ? "bg-turquoise" : "bg-turquoise/40")} />}
+                                  {allEvents.length > 1 && (
+                                    <div className="px-2 py-1 bg-saffron/10 text-saffron rounded-full text-[8px] font-black uppercase">
+                                      +{allEvents.length - 1} Events
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                              
+
                               {note && (
                                 <p className={cn(
-                                  "text-[11px] font-medium mt-3 px-1 leading-relaxed line-clamp-1 border-l-2 pl-3",
+                                  "text-[11px] font-medium mt-3 px-1 leading-relaxed line-clamp-1 border-l-2 pl-3 break-all",
                                   isSelected ? "text-stone-400 border-white/20" : "text-stone-400 border-stone-100"
                                 )}>
                                   {note}
@@ -1258,10 +1340,10 @@ export default function App() {
                   <div className="overflow-hidden">
                     <div className="flex items-center justify-between mb-4 px-1">
                       <div className="flex gap-2">
-                          <button onClick={handlePrevMonth} className="px-3 py-2 bg-stone-50 rounded-xl active:scale-95 transition-transform"><ChevronLeft size={16} /></button>
-                          <button onClick={handleNextMonth} className="px-3 py-2 bg-stone-50 rounded-xl active:scale-95 transition-transform"><ChevronRight size={16} /></button>
+                        <button onClick={handlePrevMonth} className="px-3 py-2 bg-stone-50 rounded-xl active:scale-95 transition-transform"><ChevronLeft size={16} /></button>
+                        <button onClick={handleNextMonth} className="px-3 py-2 bg-stone-50 rounded-xl active:scale-95 transition-transform"><ChevronRight size={16} /></button>
                       </div>
-                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Month {tibSelected.month}</span>
+                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Lunar Month {tibSelected.month}</span>
                     </div>
 
                     <AnimatePresence mode="popLayout" custom={direction} initial={false}>
@@ -1283,72 +1365,72 @@ export default function App() {
                             <div key={`pad-${i}`} className="bg-stone-50/50 aspect-square" />
                           ))}
                           {monthDays.map((date, idx) => {
-                              const isSelected = isSameDay(date, selectedDate);
-                              const isToday = isDateToday(date);
-                              const tib = getTibetanDate(date);
-                              
-                              // Detect skipped day by comparing with previous day
-                              let isSkippedBefore = false;
-                              if (idx > 0) {
-                                const prevTib = getTibetanDate(monthDays[idx - 1]);
-                                if (tib.day > prevTib.day + 1 || (tib.day === 1 && prevTib.day < 30 && prevTib.day !== 0)) {
-                                  isSkippedBefore = true;
-                                }
+                            const isSelected = isSameDay(date, selectedDate);
+                            const isToday = isDateToday(date);
+                            const tib = getTibetanDate(date);
+
+                            // Detect skipped day by comparing with previous day
+                            let isSkippedBefore = false;
+                            if (idx > 0) {
+                              const prevTib = getTibetanDate(monthDays[idx - 1]);
+                              if (tib.day > prevTib.day + 1 || (tib.day === 1 && prevTib.day < 30 && prevTib.day !== 0)) {
+                                isSkippedBefore = true;
                               }
+                            }
 
-                              const dateKey = format(date, 'yyyy-MM-dd');
-                              const hasFestival = FESTIVALS.some(f => f.month === tib.month && f.day === tib.day);
-                              const hasCustomFestival = userData.customFestivals?.some(f => f.date === dateKey);
-                              const hasNote = userData.notes[dateKey];
-                              const hasReminder = userData.reminders[dateKey];
-                              const sticker = userData.stickers?.[dateKey];
+                            const dateKey = format(date, 'yyyy-MM-dd');
+                            const hasFestival = FESTIVALS.some(f => f.month === tib.month && f.day === tib.day);
+                            const hasCustomFestival = userData.customFestivals?.some(f => f.date === dateKey);
+                            const hasNote = userData.notes[dateKey];
+                            const hasReminder = userData.reminders[dateKey];
+                            const sticker = userData.stickers?.[dateKey];
 
-                              return (
-                                  <button
-                                      key={date.toISOString()}
-                                      onClick={() => setSelectedDate(date)}
-                                      className={cn(
-                                          "relative aspect-square flex flex-col items-center justify-center transition-all focus:outline-none",
-                                          isSelected ? "bg-amber-50" : "bg-white",
-                                      )}
-                                  >
-                                      <span className={cn(
-                                          "text-sm font-serif font-bold",
-                                          isSelected ? "text-saffron" : (isToday ? "text-stone-950 underline decoration-saffron decoration-2" : "text-stone-400")
-                                      )}>{format(date, 'd')}</span>
-                                      
-                                      <div className="flex items-center gap-1">
-                                        <span className={cn("text-[7px] font-black uppercase", isSelected ? "text-stone-800" : "text-stone-300")}>
-                                          {tib.day}
-                                          {tib.isDoubleDay && "⁺"}
-                                        </span>
-                                      </div>
-                                      
-                                      {/* Sticker/Label Display */}
-                                      {sticker && (
-                                        <div className="absolute top-1 left-1 pointer-events-none flex flex-col items-start gap-0.5 z-20">
-                                          {sticker.emoji && (
-                                            <span className="text-[12px] leading-none drop-shadow-sm">
-                                              {sticker.emoji}
-                                            </span>
-                                          )}
-                                          {sticker.label && (
-                                            <span className="px-1 py-0.5 bg-saffron/90 text-white text-[5px] font-black uppercase tracking-tighter rounded-sm truncate max-w-[28px] leading-none shadow-sm">
-                                              {sticker.label}
-                                            </span>
-                                          )}
-                                        </div>
-                                      )}
+                            return (
+                              <button
+                                key={date.toISOString()}
+                                onClick={() => setSelectedDate(date)}
+                                className={cn(
+                                  "relative aspect-square flex flex-col items-center justify-center transition-all focus:outline-none",
+                                  isSelected ? "bg-amber-50" : "bg-white",
+                                )}
+                              >
+                                <span className={cn(
+                                  "text-sm font-serif font-bold",
+                                  isSelected ? "text-saffron" : (isToday ? "text-stone-950 underline decoration-saffron decoration-2" : "text-stone-400")
+                                )}>{format(date, 'd')}</span>
 
-                                      <div className="absolute top-1 right-1 flex flex-col items-center gap-0.5">
-                                        {(hasFestival || hasCustomFestival) && <div className="w-1 h-1 rounded-full bg-tibetan-red" />}
-                                        {hasNote && <div className="w-1 h-1 rounded-full bg-turquoise" />}
-                                      </div>
-                                      {hasReminder && (
-                                        <div className="absolute bottom-1 w-3 h-0.5 bg-saffron/40 rounded-full" />
-                                      )}
-                                  </button>
-                              );
+                                <div className="flex items-center gap-1">
+                                  <span className={cn("text-[7px] font-black uppercase", isSelected ? "text-stone-800" : "text-stone-300")}>
+                                    {tib.day}
+                                    {tib.isDoubleDay && "⁺"}
+                                  </span>
+                                </div>
+
+                                {/* Sticker/Label Display */}
+                                {sticker && (
+                                  <div className="absolute top-1 left-1 pointer-events-none flex flex-col items-start gap-0.5 z-20">
+                                    {sticker.emoji && (
+                                      <span className="text-[12px] leading-none drop-shadow-sm">
+                                        {sticker.emoji}
+                                      </span>
+                                    )}
+                                    {sticker.label && (
+                                      <span className="px-1 py-0.5 bg-saffron/90 text-white text-[5px] font-black uppercase tracking-tighter rounded-sm truncate max-w-[28px] leading-none shadow-sm">
+                                        {sticker.label}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+
+                                <div className="absolute top-1 right-1 flex flex-col items-center gap-0.5">
+                                  {(hasFestival || hasCustomFestival) && <div className="w-1 h-1 rounded-full bg-tibetan-red" />}
+                                  {hasNote && <div className="w-1 h-1 rounded-full bg-turquoise" />}
+                                </div>
+                                {hasReminder && (
+                                  <div className="absolute bottom-1 w-3 h-0.5 bg-saffron/40 rounded-full" />
+                                )}
+                              </button>
+                            );
                           })}
                         </div>
                       </motion.div>
@@ -1363,11 +1445,11 @@ export default function App() {
                         <div>
                           <h3 className="text-base font-serif font-bold leading-none">{format(selectedDate, 'EEEE')}</h3>
                           <p className="text-[9px] text-stone-400 font-bold uppercase tracking-widest mt-1">
-                            Tshe {tibSelected.day} • {ANIMAL_ICONS[tibSelected.animal]} {tibSelected.animal}
+                            Lunar Day {tibSelected.day} • {ANIMAL_ICONS[tibSelected.animal]} {tibSelected.animal}
                           </p>
                         </div>
                       </div>
-                      <button 
+                      <button
                         onClick={() => setIsNoteSheetOpen(true)}
                         className="p-2.5 bg-stone-50 rounded-xl text-stone-400 hover:text-stone-600 transition-colors"
                       >
@@ -1377,21 +1459,21 @@ export default function App() {
 
                     {/* Display existing note/reminder/custom festival if any */}
                     {(currentNote || currentReminder || customFestivalToday) && (
-                      <motion.div 
+                      <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         className="space-y-4"
                       >
                         {customFestivalToday && (
                           <div className="bg-amber-50 p-4 rounded-2xl space-y-2">
-                             <div className="flex items-center justify-between">
-                                <span className="text-[9px] font-black text-saffron uppercase tracking-widest">Custom Event</span>
-                                <CalendarIcon size={12} className="text-saffron" />
-                             </div>
-                             <h4 className="text-sm font-bold text-stone-900">{customFestivalToday.name}</h4>
-                             {customFestivalToday.description && (
-                               <p className="text-[11px] text-stone-500 italic">{customFestivalToday.description}</p>
-                             )}
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9px] font-black text-saffron uppercase tracking-widest">Custom Event</span>
+                              <CalendarIcon size={12} className="text-saffron" />
+                            </div>
+                            <h4 className="text-sm font-bold text-stone-900 break-words">{customFestivalToday.name}</h4>
+                            {customFestivalToday.description && (
+                              <p className="text-[11px] text-stone-500 italic whitespace-pre-wrap break-words">{customFestivalToday.description}</p>
+                            )}
                           </div>
                         )}
                         {currentReminder && (
@@ -1406,7 +1488,7 @@ export default function App() {
                               <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest">My Notes</span>
                               <StickyNote size={12} className="text-stone-300" />
                             </div>
-                            <p className="text-xs font-medium text-stone-600 leading-relaxed">{currentNote}</p>
+                            <p className="text-xs font-medium text-stone-600 leading-relaxed whitespace-pre-wrap break-words">{currentNote}</p>
                           </div>
                         )}
                       </motion.div>
@@ -1414,147 +1496,147 @@ export default function App() {
 
                     {/* Personalized Alignment info */}
                     {userData.birthElement && (
-                       <div className="space-y-4">
-                          <div className={cn(
-                            "p-6 rounded-[32px] transition-all duration-500 relative overflow-hidden group",
-                            (() => {
-                              const h = getElementalHarmony(userData.birthElement, tibSelected.element);
-                              const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
-                              if (h === 'life' || h === 'son' || a === 'trine') return "bg-emerald-50/40 border border-emerald-100/50";
-                              if (h === 'enemy' || a === 'conflict') return "bg-red-50/20 border border-red-100/20";
-                              return "bg-stone-50/50 border border-stone-100/30";
-                            })()
-                          )}>
-                             {/* Decorative Background Icon */}
-                             <div className="absolute -right-2 -bottom-2 opacity-[0.03] group-hover:scale-110 transition-transform duration-700">
-                               <Compass size={80} />
-                             </div>
+                      <div className="space-y-4">
+                        <div className={cn(
+                          "p-6 rounded-[32px] transition-all duration-500 relative overflow-hidden group",
+                          (() => {
+                            const h = getElementalHarmony(userData.birthElement, tibSelected.element);
+                            const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
+                            if (h === 'life' || h === 'son' || a === 'trine') return "bg-emerald-50/40 border border-emerald-100/50";
+                            if (h === 'enemy' || a === 'conflict') return "bg-red-50/20 border border-red-100/20";
+                            return "bg-stone-50/50 border border-stone-100/30";
+                          })()
+                        )}>
+                          {/* Decorative Background Icon */}
+                          <div className="absolute -right-2 -bottom-2 opacity-[0.03] group-hover:scale-110 transition-transform duration-700">
+                            <Compass size={80} />
+                          </div>
 
-                             <div className="relative space-y-4">
+                          <div className="relative space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={cn(
+                                  "w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-sm",
+                                  (() => {
+                                    const h = getElementalHarmony(userData.birthElement, tibSelected.element);
+                                    if (h === 'life' || h === 'son') return "bg-emerald-500";
+                                    if (h === 'enemy') return "bg-red-500";
+                                    return "bg-stone-900";
+                                  })()
+                                )}>
+                                  <Sparkles size={18} />
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-black text-stone-950 uppercase tracking-[0.2em] leading-none mb-1">Sacred Alignment</p>
+                                  <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest leading-none">Birth Chart Resonance</p>
+                                </div>
+                              </div>
+
+                              {/* Status Badge */}
+                              <div className={cn(
+                                "px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest shadow-sm flex items-center gap-2",
+                                (() => {
+                                  const h = getElementalHarmony(userData.birthElement, tibSelected.element);
+                                  const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
+                                  if (h === 'life' || h === 'son' || a === 'trine') return "bg-emerald-500 text-white";
+                                  if (h === 'enemy' || a === 'conflict') return "bg-red-500 text-white";
+                                  return "bg-stone-100 text-stone-500";
+                                })()
+                              )}>
+                                {(() => {
+                                  const h = getElementalHarmony(userData.birthElement, tibSelected.element);
+                                  const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
+                                  if (h === 'life' || h === 'son' || a === 'trine') return <><Sparkles size={10} /> Highly Supportive</>;
+                                  if (h === 'enemy' || a === 'conflict') return <><Info size={10} /> Potentially Opposed</>;
+                                  return <><Compass size={10} /> Balanced Alignment</>;
+                                })()}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                              <div className="bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-white/50">
+                                <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest mb-1.5">Energy (Element)</p>
                                 <div className="flex items-center justify-between">
-                                   <div className="flex items-center gap-3">
-                                      <div className={cn(
-                                        "w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-sm",
-                                        (() => {
-                                          const h = getElementalHarmony(userData.birthElement, tibSelected.element);
-                                          if (h === 'life' || h === 'son') return "bg-emerald-500";
-                                          if (h === 'enemy') return "bg-red-500";
-                                          return "bg-stone-900";
-                                        })()
-                                      )}>
-                                         <Sparkles size={18} />
-                                      </div>
-                                      <div>
-                                         <p className="text-[10px] font-black text-stone-950 uppercase tracking-[0.2em] leading-none mb-1">Sacred Alignment</p>
-                                         <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest leading-none">Birth Chart Resonance</p>
-                                      </div>
-                                   </div>
-                                   
-                                   {/* Status Badge */}
-                                   <div className={cn(
-                                     "px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest shadow-sm flex items-center gap-2",
-                                     (() => {
-                                       const h = getElementalHarmony(userData.birthElement, tibSelected.element);
-                                       const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
-                                       if (h === 'life' || h === 'son' || a === 'trine') return "bg-emerald-500 text-white";
-                                       if (h === 'enemy' || a === 'conflict') return "bg-red-500 text-white";
-                                       return "bg-stone-100 text-stone-500";
-                                     })()
-                                   )}>
-                                     {(() => {
-                                       const h = getElementalHarmony(userData.birthElement, tibSelected.element);
-                                       const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
-                                       if (h === 'life' || h === 'son' || a === 'trine') return <><Sparkles size={10} /> Highly Supportive</>;
-                                       if (h === 'enemy' || a === 'conflict') return <><Info size={10} /> Potentially Opposed</>;
-                                       return <><Compass size={10} /> Balanced Alignment</>;
-                                     })()}
-                                   </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3 pt-2">
-                                   <div className="bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-white/50">
-                                      <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest mb-1.5">Energy (Element)</p>
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-xs font-bold text-stone-900">
-                                            {(() => {
-                                               const h = getElementalHarmony(userData.birthElement, tibSelected.element);
-                                               if (h === 'life') return 'Nourishing';
-                                               if (h === 'same') return 'Equanimous';
-                                               if (h === 'son') return 'Prosperous';
-                                               if (h === 'enemy') return 'Friction';
-                                               return 'Neutral';
-                                            })()}
-                                        </span>
-                                        <div className={cn("w-2 h-2 rounded-full", (() => {
-                                            const h = getElementalHarmony(userData.birthElement, tibSelected.element);
-                                            if (h === 'life' || h === 'son') return "bg-emerald-500";
-                                            if (h === 'enemy') return "bg-red-500";
-                                            return "bg-stone-300";
-                                         })())} />
-                                      </div>
-                                   </div>
-
-                                   <div className="bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-white/50">
-                                      <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest mb-1.5">Social (Animal)</p>
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-xs font-bold text-stone-900">
-                                            {(() => {
-                                               const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
-                                               if (a === 'trine') return 'Auspicious';
-                                               if (a === 'same') return 'Stable';
-                                               if (a === 'conflict') return 'Sensitive';
-                                               return 'Neutral';
-                                            })()}
-                                        </span>
-                                        <div className={cn("w-2 h-2 rounded-full", (() => {
-                                            const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
-                                            if (a === 'trine' || a === 'same') return "bg-emerald-500";
-                                            if (a === 'conflict') return "bg-red-500";
-                                            return "bg-stone-300";
-                                         })())} />
-                                      </div>
-                                   </div>
-                                </div>
-
-                                {/* Dynamic Insight */}
-                                <div className="pt-2 px-1">
-                                  <p className="text-[11px] text-stone-600 font-medium leading-relaxed italic">
+                                  <span className="text-xs font-bold text-stone-900">
                                     {(() => {
                                       const h = getElementalHarmony(userData.birthElement, tibSelected.element);
-                                      const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
-                                      if (h === 'life') return "The day's energy acts as your celestial 'Mother'. Perfect for starting projects or seeking blessings.";
-                                      if (h === 'enemy') return "Cosmic friction detected. Practice patience and avoid major social confrontations today.";
-                                      if (h === 'son') return "A day of prosperity where your inner energy supports external growth. High success likelihood.";
-                                      if (a === 'conflict') return "Social interactions may feel tense. Focus on internal work and move with gentleness.";
-                                      return "Celestial energies are stable. A balanced time for routine spiritual practice and quiet awareness.";
+                                      if (h === 'life') return 'Nourishing';
+                                      if (h === 'same') return 'Equanimous';
+                                      if (h === 'son') return 'Prosperous';
+                                      if (h === 'enemy') return 'Friction';
+                                      return 'Neutral';
                                     })()}
-                                  </p>
+                                  </span>
+                                  <div className={cn("w-2 h-2 rounded-full", (() => {
+                                    const h = getElementalHarmony(userData.birthElement, tibSelected.element);
+                                    if (h === 'life' || h === 'son') return "bg-emerald-500";
+                                    if (h === 'enemy') return "bg-red-500";
+                                    return "bg-stone-300";
+                                  })())} />
                                 </div>
-                             </div>
+                              </div>
+
+                              <div className="bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-white/50">
+                                <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest mb-1.5">Social (Animal)</p>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-stone-900">
+                                    {(() => {
+                                      const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
+                                      if (a === 'trine') return 'Auspicious';
+                                      if (a === 'same') return 'Stable';
+                                      if (a === 'conflict') return 'Sensitive';
+                                      return 'Neutral';
+                                    })()}
+                                  </span>
+                                  <div className={cn("w-2 h-2 rounded-full", (() => {
+                                    const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
+                                    if (a === 'trine' || a === 'same') return "bg-emerald-500";
+                                    if (a === 'conflict') return "bg-red-500";
+                                    return "bg-stone-300";
+                                  })())} />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Dynamic Insight */}
+                            <div className="pt-2 px-1">
+                              <p className="text-[11px] text-stone-600 font-medium leading-relaxed italic">
+                                {(() => {
+                                  const h = getElementalHarmony(userData.birthElement, tibSelected.element);
+                                  const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
+                                  if (h === 'life') return "The day's energy acts as your celestial 'Mother'. Perfect for starting projects or seeking blessings.";
+                                  if (h === 'enemy') return "Cosmic friction detected. Practice patience and avoid major social confrontations today.";
+                                  if (h === 'son') return "A day of prosperity where your inner energy supports external growth. High success likelihood.";
+                                  if (a === 'conflict') return "Social interactions may feel tense. Focus on internal work and move with gentleness.";
+                                  return "Celestial energies are stable. A balanced time for routine spiritual practice and quiet awareness.";
+                                })()}
+                              </p>
+                            </div>
                           </div>
-                       </div>
+                        </div>
+                      </div>
                     )}
 
                     <div className="grid grid-cols-2 gap-4 border-t border-stone-50 pt-6">
-                        <div className="space-y-1">
-                            <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Trigram (Parkha)</p>
-                            <p className="text-xs font-bold text-stone-900">{PARKHA_ICONS[tibSelected.parkha]} {tibSelected.parkha}</p>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Magic Sq (Mewa)</p>
-                            <p className="text-xs font-bold text-stone-900">{MEWA_ICONS[tibSelected.mewa]} {tibSelected.mewa}</p>
-                        </div>
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Trigram (Parkha)</p>
+                        <p className="text-xs font-bold text-stone-900">{PARKHA_ICONS[tibSelected.parkha]} {tibSelected.parkha}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Magic Sq (Mewa)</p>
+                        <p className="text-xs font-bold text-stone-900">{MEWA_ICONS[tibSelected.mewa]} {tibSelected.mewa}</p>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 border-t border-stone-50 pt-6">
-                        <div className="space-y-1">
-                            <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Identity</p>
-                            <p className="text-xs font-bold text-amber-800">{tibSelected.yearName}</p>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Logic</p>
-                            <p className="text-xs font-bold text-stone-800">{tibSelected.gender} • Month {tibSelected.month}</p>
-                        </div>
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Identity</p>
+                        <p className="text-xs font-bold text-amber-800">{tibSelected.yearName}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Logic</p>
+                        <p className="text-xs font-bold text-stone-800">{tibSelected.gender} • Month {tibSelected.month}</p>
+                      </div>
                     </div>
                   </div>
                 </>
@@ -1601,7 +1683,7 @@ export default function App() {
                                   {monthFestivals.map((_, i) => <div key={i} className="w-1.5 h-1.5 rounded-full bg-tibetan-red" />)}
                                 </div>
                               </div>
-                              
+
                               {monthFestivals.length > 0 ? (
                                 <div className="space-y-2">
                                   {monthFestivals.map((f, i) => (
@@ -1634,85 +1716,87 @@ export default function App() {
           )}
 
           {activeTab === 'profile' && (
-            <motion.div 
-               key="profile"
-               initial={{ opacity: 0, y: 10 }}
-               animate={{ opacity: 1, y: 0 }}
-               exit={{ opacity: 0, y: 10 }}
-               className="px-6 py-10 max-w-lg mx-auto pb-32 space-y-8"
+            <motion.div
+              key="profile"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="px-6 py-10 max-w-lg mx-auto pb-32 space-y-8"
             >
-               {/* Minimal Social Profile Header */}
-               <header className="flex flex-col items-center text-center space-y-4">
-                  <div className="w-20 h-20 rounded-full bg-stone-900 flex items-center justify-center text-stone-100 text-3xl font-serif">
-                    <span className="text-saffron">࿇</span>
+              {/* Minimal Social Profile Header */}
+              <header className="flex flex-col items-center text-center space-y-4 relative py-4">
+                {/* Endless Knot (Palbu) — symbol of interdependence */}
+                <EndlessKnot className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-52 h-52 text-stone-300/50 pointer-events-none" />
+                <div className="w-20 h-20 rounded-full bg-stone-900 flex items-center justify-center text-stone-100 text-3xl font-serif relative z-10">
+                  <span className="text-saffron">࿇</span>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-center gap-2">
+                    <h1 className="text-2xl font-serif font-black text-stone-950 tracking-tight">
+                      {userData.name ? userData.name : 'Practitioner'}
+                    </h1>
+                    <button
+                      onClick={() => setIsProfileSheetOpen(true)}
+                      className="p-1 text-stone-300 hover:text-saffron transition-colors"
+                    >
+                      <Pencil size={16} />
+                    </button>
                   </div>
+                  <p className="text-[10px] font-black text-stone-300 uppercase tracking-[0.2em]">Active Alignment</p>
+                </div>
+              </header>
 
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-center gap-2">
-                      <h1 className="text-2xl font-serif font-black text-stone-950 tracking-tight">
-                        {userData.name ? userData.name : 'Practitioner'}
-                      </h1>
-                      <button 
-                        onClick={() => setIsProfileSheetOpen(true)}
-                        className="p-1 text-stone-300 hover:text-saffron transition-colors"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                    </div>
-                    <p className="text-[10px] font-black text-stone-300 uppercase tracking-[0.2em]">Active Alignment</p>
-                  </div>
-               </header>
-
-               {/* Profile Info - Seamless List Style */}
-               <section className="space-y-6 pt-4 border-t border-stone-100">
-                  <div className="space-y-5">
-                    <div className="flex items-center justify-between group">
-                      <div className="flex items-center gap-4">
-                        <CalendarIcon size={16} className="text-stone-300 group-hover:text-saffron transition-colors" />
-                        <div>
-                          <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">Birth Date</p>
-                          <p className="text-xs font-bold text-stone-800">
-                            {userData.birthDate ? format(parseISO(userData.birthDate), 'MMMM do, yyyy') : 'Establish alignment'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between group">
-                      <div className="flex items-center gap-4">
-                        <p className="w-4 text-center text-stone-300 group-hover:text-saffron transition-colors text-lg font-serif">
-                          {userData.birthAnimal ? ANIMAL_ICONS[userData.birthAnimal] : '🐾'}
+              {/* Profile Info - Seamless List Style */}
+              <section className="space-y-6 pt-4 border-t border-stone-100">
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <CalendarIcon size={16} className="text-stone-300 group-hover:text-saffron transition-colors" />
+                      <div>
+                        <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">Birth Date</p>
+                        <p className="text-xs font-bold text-stone-800">
+                          {userData.birthDate ? format(parseISO(userData.birthDate), 'MMMM do, yyyy') : 'Establish alignment'}
                         </p>
-                        <div>
-                          <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">Animal Sign</p>
-                          <p className="text-xs font-bold text-stone-800">
-                            {userData.birthAnimal || 'Uncalculated'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between group">
-                      <div className="flex items-center gap-4">
-                        <div className="w-4 h-4 rounded-full border border-stone-300 group-hover:border-saffron transition-colors flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 rounded-full bg-stone-300 group-hover:bg-saffron transition-colors" />
-                        </div>
-                        <div>
-                          <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">Primary Element</p>
-                          <p className="text-xs font-bold text-stone-800">
-                            {userData.birthElement || 'Uncalculated'}
-                          </p>
-                        </div>
                       </div>
                     </div>
                   </div>
-               </section>
 
-               <div className="pt-8 text-center opacity-40">
-                  <p className="text-[9px] text-stone-400 font-medium italic max-w-[180px] mx-auto leading-relaxed">
-                    Honor the path of your arrival.
-                  </p>
-               </div>
+                  <div className="flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <p className="w-4 text-center text-stone-300 group-hover:text-saffron transition-colors text-lg font-serif">
+                        {userData.birthAnimal ? ANIMAL_ICONS[userData.birthAnimal] : '🐾'}
+                      </p>
+                      <div>
+                        <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">Animal Sign</p>
+                        <p className="text-xs font-bold text-stone-800">
+                          {userData.birthAnimal || 'Uncalculated'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-4 h-4 rounded-full border border-stone-300 group-hover:border-saffron transition-colors flex items-center justify-center">
+                        <div className="w-1.5 h-1.5 rounded-full bg-stone-300 group-hover:bg-saffron transition-colors" />
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">Primary Element</p>
+                        <p className="text-xs font-bold text-stone-800">
+                          {userData.birthElement || 'Uncalculated'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <div className="pt-8 text-center opacity-40">
+                <p className="text-[9px] text-stone-400 font-medium italic max-w-[180px] mx-auto leading-relaxed">
+                  Honor the path of your arrival.
+                </p>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -1722,14 +1806,14 @@ export default function App() {
       <AnimatePresence>
         {isProfileSheetOpen && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsProfileSheetOpen(false)}
               className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[100]"
             />
-            <motion.div 
+            <motion.div
               initial={{ y: '105%' }}
               animate={{ y: 0 }}
               exit={{ y: '105%' }}
@@ -1737,7 +1821,7 @@ export default function App() {
               className="fixed bottom-0 inset-x-0 bg-white rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe overflow-y-auto max-h-[90vh]"
             >
               <div className="w-12 h-1.5 bg-stone-100 rounded-full mx-auto" />
-              
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-stone-900 flex items-center justify-center text-white">
@@ -1757,23 +1841,23 @@ export default function App() {
                 <section className="space-y-4">
                   <div className="bg-stone-50 rounded-[32px] p-6 space-y-6 border border-stone-100/30">
                     <div className="space-y-2">
-                        <label className="text-[9px] font-black text-stone-400 uppercase px-1">Dharma Name</label>
-                        <input 
-                            type="text"
-                            placeholder="Enter name"
-                            value={userData.name || ''}
-                            onChange={(e) => setUserData(prev => ({ ...prev, name: e.target.value }))}
-                            className="w-full bg-white rounded-2xl p-4 text-xs font-bold outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm"
-                        />
+                      <label className="text-[9px] font-black text-stone-400 uppercase px-1">Dharma Name</label>
+                      <input
+                        type="text"
+                        placeholder="Enter name"
+                        value={userData.name || ''}
+                        onChange={(e) => setUserData(prev => ({ ...prev, name: e.target.value }))}
+                        className="w-full bg-white rounded-2xl p-4 text-xs font-bold outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm"
+                      />
                     </div>
 
                     <div className="space-y-2">
                       <label className="text-[9px] font-black text-stone-400 uppercase px-1">Birth Date</label>
-                      <input 
-                          type="date"
-                          value={userData.birthDate || ''}
-                          onChange={(e) => handleBirthDateChange(e.target.value)}
-                          className="w-full bg-white rounded-2xl p-4 text-xs font-bold outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm"
+                      <input
+                        type="date"
+                        value={userData.birthDate || ''}
+                        onChange={(e) => handleBirthDateChange(e.target.value)}
+                        className="w-full bg-white rounded-2xl p-4 text-xs font-bold outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm"
                       />
                     </div>
 
@@ -1781,7 +1865,7 @@ export default function App() {
                       <div className="space-y-2">
                         <label className="text-[9px] font-black text-stone-400 uppercase px-1">Birth Animal</label>
                         <div className="relative">
-                          <select 
+                          <select
                             value={userData.birthAnimal || ''}
                             onChange={(e) => {
                               setUserData(prev => ({ ...prev, birthAnimal: e.target.value }));
@@ -1798,7 +1882,7 @@ export default function App() {
                       <div className="space-y-2">
                         <label className="text-[9px] font-black text-stone-400 uppercase px-1">Birth Element</label>
                         <div className="relative">
-                          <select 
+                          <select
                             value={userData.birthElement || ''}
                             onChange={(e) => {
                               setUserData(prev => ({ ...prev, birthElement: e.target.value }));
@@ -1816,7 +1900,7 @@ export default function App() {
                   </div>
                 </section>
 
-                <button 
+                <button
                   onClick={() => setIsProfileSheetOpen(false)}
                   className="w-full bg-stone-900 text-white p-6 rounded-[32px] font-black uppercase tracking-[0.2em] text-xs active:scale-[0.98] transition-all"
                 >
@@ -1828,7 +1912,7 @@ export default function App() {
         )}
 
         {isSettingsSheetOpen && (
-          <motion.div 
+          <motion.div
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -1846,8 +1930,8 @@ export default function App() {
                   <p className="text-[9px] text-stone-400 font-bold uppercase tracking-widest leading-none">System & Alignment</p>
                 </div>
               </div>
-              <button 
-                onClick={() => setIsSettingsSheetOpen(false)} 
+              <button
+                onClick={() => setIsSettingsSheetOpen(false)}
                 className="w-10 h-10 flex items-center justify-center bg-stone-100 rounded-full text-stone-500 hover:bg-stone-200 transition-colors"
               >
                 <X size={18} />
@@ -1866,7 +1950,7 @@ export default function App() {
                       <span className="text-[11px] font-bold text-stone-700">Light Mode</span>
                     </div>
                     <div className="w-10 h-5 bg-saffron rounded-full relative">
-                       <div className="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-sm" />
+                      <div className="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-sm" />
                     </div>
                   </div>
                 </div>
@@ -1874,7 +1958,7 @@ export default function App() {
                 <div id={UI_IDS.SETTINGS.LANGUAGE_SELECTOR} className="p-4 bg-white/60 rounded-[28px] border border-white/40 space-y-4">
                   <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">{t('Language Selection', 'སྐད་ཡིག་འདམ་ཀ')}</h3>
                   <div className="grid grid-cols-2 gap-2">
-                    <button 
+                    <button
                       onClick={() => setUserData(prev => ({ ...prev, language: 'English' }))}
                       className={cn(
                         "flex items-center justify-between p-3 rounded-2xl border transition-all",
@@ -1884,7 +1968,7 @@ export default function App() {
                       <span className="text-[11px] font-bold">English</span>
                       {userData.language !== 'Tibetan' && <Check size={12} className="text-saffron" />}
                     </button>
-                    <button 
+                    <button
                       onClick={() => setUserData(prev => ({ ...prev, language: 'Tibetan' }))}
                       className={cn(
                         "flex items-center justify-between p-3 rounded-2xl border transition-all",
@@ -1907,58 +1991,58 @@ export default function App() {
                 </div>
 
                 <div className="p-4 bg-white/60 rounded-[28px] border border-white/40 space-y-3">
-                   <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">Sync & Alignment</h3>
-                   <div className="grid grid-cols-2 gap-2">
-                     <button 
+                  <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">Sync & Alignment</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
                       onClick={handleExportData}
                       className="flex flex-col items-center gap-1.5 p-4 bg-stone-50/50 rounded-2xl border border-stone-100/30 hover:border-saffron/20 group transition-all"
-                     >
-                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-stone-400 group-hover:text-saffron shadow-sm transition-colors">
-                          <Compass size={16} />
-                        </div>
-                        <span className="text-[9px] font-black text-stone-900 uppercase tracking-tight">Export Profile</span>
-                     </button>
-                     <label className="flex flex-col items-center gap-1.5 p-4 bg-stone-50/50 rounded-2xl border border-stone-100/30 hover:border-saffron/20 group transition-all cursor-pointer">
-                        <input 
-                          type="file" 
-                          accept=".json"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleImportData(file);
-                          }}
-                          className="hidden" 
-                        />
-                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-stone-400 group-hover:text-saffron shadow-sm transition-colors">
-                          <Loader2 size={16} />
-                        </div>
-                        <span className="text-[9px] font-black text-stone-900 uppercase tracking-tight">Restore Data</span>
-                     </label>
-                   </div>
-                   <p className="text-[8px] text-stone-400 italic text-center">Back up your alignment history locally.</p>
+                    >
+                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-stone-400 group-hover:text-saffron shadow-sm transition-colors">
+                        <Compass size={16} />
+                      </div>
+                      <span className="text-[9px] font-black text-stone-900 uppercase tracking-tight">Export Profile</span>
+                    </button>
+                    <label className="flex flex-col items-center gap-1.5 p-4 bg-stone-50/50 rounded-2xl border border-stone-100/30 hover:border-saffron/20 group transition-all cursor-pointer">
+                      <input
+                        type="file"
+                        accept=".json"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImportData(file);
+                        }}
+                        className="hidden"
+                      />
+                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-stone-400 group-hover:text-saffron shadow-sm transition-colors">
+                        <Loader2 size={16} />
+                      </div>
+                      <span className="text-[9px] font-black text-stone-900 uppercase tracking-tight">Restore Data</span>
+                    </label>
+                  </div>
+                  <p className="text-[8px] text-stone-400 italic text-center">Back up your alignment history locally.</p>
                 </div>
 
                 <div className="p-4 bg-stone-50/30 rounded-[28px] border border-stone-100/50 space-y-3">
-                   <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">Danger Zone</h3>
-                   <button 
-                     onClick={() => setIsPrivacySheetOpen(true)}
-                     className="w-full flex items-center justify-between p-3 bg-white rounded-2xl text-stone-600 border border-stone-100/50 hover:bg-stone-50 transition-colors mb-2"
-                   >
-                     <span className="text-[11px] font-bold">Privacy Policy</span>
-                     <Info size={14} />
-                   </button>
-                   <button 
+                  <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">Danger Zone</h3>
+                  <button
+                    onClick={() => setIsPrivacySheetOpen(true)}
+                    className="w-full flex items-center justify-between p-3 bg-white rounded-2xl text-stone-600 border border-stone-100/50 hover:bg-stone-50 transition-colors mb-2"
+                  >
+                    <span className="text-[11px] font-bold">Privacy Policy</span>
+                    <Info size={14} />
+                  </button>
+                  <button
                     onClick={() => {
-                      if(window.confirm('Are you sure you want to clear all personal data? This cannot be undone.')) {
+                      if (window.confirm('Are you sure you want to clear all personal data? This cannot be undone.')) {
                         setUserData({ notes: {}, reminders: {} });
                         localStorage.removeItem('men_tsee_khang_user_data');
                         window.location.reload();
                       }
                     }}
                     className="w-full flex items-center justify-between p-3 bg-white rounded-2xl text-red-500 border border-red-100/50 hover:bg-red-50/50 transition-colors"
-                   >
-                     <span className="text-[11px] font-bold">Clear All System Cache</span>
-                     <Trash2 size={14} />
-                   </button>
+                  >
+                    <span className="text-[11px] font-bold">Clear All System Cache</span>
+                    <Trash2 size={14} />
+                  </button>
                 </div>
 
                 <div className="py-2 text-center">
@@ -1971,14 +2055,14 @@ export default function App() {
 
         {isPrivacySheetOpen && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsPrivacySheetOpen(false)}
               className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[200]"
             />
-            <motion.div 
+            <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
@@ -1986,7 +2070,7 @@ export default function App() {
               className="fixed bottom-0 inset-x-0 bg-bg-warm rounded-t-[40px] z-[201] p-8 space-y-8 max-w-lg mx-auto pb-safe flex flex-col h-[70vh]"
             >
               <div className="w-12 h-1.5 bg-stone-200/50 rounded-full mx-auto flex-shrink-0" />
-              
+
               <div className="flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-stone-900 flex items-center justify-center text-white">
@@ -2033,14 +2117,14 @@ export default function App() {
 
         {isSearchSheetOpen && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsSearchSheetOpen(false)}
               className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[100]"
             />
-            <motion.div 
+            <motion.div
               initial={{ y: '105%' }}
               animate={{ y: 0 }}
               exit={{ y: '105%' }}
@@ -2048,7 +2132,7 @@ export default function App() {
               className="fixed bottom-0 inset-x-0 bg-bg-warm rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe flex flex-col h-[85vh]"
             >
               <div className="w-12 h-1.5 bg-stone-200/50 rounded-full mx-auto flex-shrink-0" />
-              
+
               <div className="flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-stone-900 flex items-center justify-center text-white">
@@ -2068,7 +2152,7 @@ export default function App() {
               <div className="grid grid-cols-2 gap-4 flex-shrink-0">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">Start Date</label>
-                  <input 
+                  <input
                     type="date"
                     value={searchRange.start}
                     onChange={(e) => setSearchRange(prev => ({ ...prev, start: e.target.value }))}
@@ -2077,7 +2161,7 @@ export default function App() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">End Date</label>
-                  <input 
+                  <input
                     type="date"
                     value={searchRange.end}
                     onChange={(e) => setSearchRange(prev => ({ ...prev, end: e.target.value }))}
@@ -2104,7 +2188,7 @@ export default function App() {
                 ) : (
                   <div className="space-y-3">
                     {searchResults.map((result, i) => (
-                      <motion.div 
+                      <motion.div
                         key={i}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -2148,14 +2232,14 @@ export default function App() {
 
         {isFestivalSheetOpen && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsFestivalSheetOpen(false)}
               className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[100]"
             />
-            <motion.div 
+            <motion.div
               initial={{ y: '105%' }}
               animate={{ y: 0 }}
               exit={{ y: '105%' }}
@@ -2163,7 +2247,7 @@ export default function App() {
               className="fixed bottom-0 inset-x-0 bg-white rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe"
             >
               <div className="w-12 h-1.5 bg-stone-100 rounded-full mx-auto" />
-              
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-saffron flex items-center justify-center text-white">
@@ -2182,7 +2266,7 @@ export default function App() {
               <div className="space-y-6">
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-stone-400 uppercase px-1">Event Name</label>
-                  <input 
+                  <input
                     type="text"
                     placeholder="e.g., Birthday, Special Prayer"
                     value={newFestival.name}
@@ -2193,7 +2277,7 @@ export default function App() {
 
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-stone-400 uppercase px-1">Date</label>
-                  <input 
+                  <input
                     type="date"
                     value={newFestival.date}
                     onChange={(e) => setNewFestival(prev => ({ ...prev, date: e.target.value }))}
@@ -2203,7 +2287,7 @@ export default function App() {
 
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-stone-400 uppercase px-1">Short Description</label>
-                  <textarea 
+                  <textarea
                     placeholder="Adding context to this day..."
                     value={newFestival.description}
                     onChange={(e) => setNewFestival(prev => ({ ...prev, description: e.target.value }))}
@@ -2212,7 +2296,7 @@ export default function App() {
                   />
                 </div>
 
-                <button 
+                <button
                   onClick={addCustomFestival}
                   disabled={!newFestival.name || !newFestival.date}
                   className="w-full bg-stone-900 text-white p-5 rounded-3xl font-black uppercase tracking-[0.2em] text-xs disabled:opacity-50 active:scale-[0.98] transition-all"
@@ -2226,22 +2310,22 @@ export default function App() {
 
         {isNoteSheetOpen && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsNoteSheetOpen(false)}
               className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[100]"
             />
-            <motion.div 
+            <motion.div
               initial={{ y: '105%' }}
               animate={{ y: 0 }}
               exit={{ y: '105%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 inset-x-0 bg-white rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe"
+              className="fixed bottom-0 inset-x-0 bg-white rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe max-h-[90vh] overflow-y-auto"
             >
               <div className="w-12 h-1.5 bg-stone-100 rounded-full mx-auto" />
-              
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-saffron flex items-center justify-center text-white">
@@ -2258,7 +2342,7 @@ export default function App() {
               </div>
 
               {/* Reminder Toggle */}
-              <button 
+              <button
                 onClick={toggleReminder}
                 className={cn(
                   "w-full p-6 rounded-3xl border flex items-center justify-between transition-all duration-300",
@@ -2280,7 +2364,7 @@ export default function App() {
               {/* Note Input */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">Personal Notes</label>
-                <textarea 
+                <textarea
                   value={currentNote}
                   onChange={(e) => handleSaveNote(e.target.value)}
                   placeholder="Enter your notes here..."
@@ -2296,7 +2380,7 @@ export default function App() {
                     <p className="text-[8px] text-stone-300 font-bold uppercase tracking-widest">Personalize the calendar view</p>
                   </div>
                   {(currentSticker.emoji || currentSticker.label) && (
-                    <button 
+                    <button
                       onClick={() => handleSetSticker(undefined, undefined)}
                       className="text-[9px] font-black text-stone-400 uppercase bg-stone-50 px-3 py-1 rounded-lg hover:text-tibetan-red hover:bg-red-50 transition-all"
                     >
@@ -2304,16 +2388,16 @@ export default function App() {
                     </button>
                   )}
                 </div>
-                
+
                 <div className="grid grid-cols-6 gap-2 bg-stone-50/50 p-4 rounded-3xl">
                   {STICKERS.map(s => (
-                    <button 
+                    <button
                       key={s}
                       onClick={() => handleSetSticker(s, currentSticker.label)}
                       className={cn(
                         "aspect-square rounded-2xl flex items-center justify-center text-xl transition-all duration-300",
-                        currentSticker.emoji === s 
-                          ? "bg-white scale-110 shadow-md ring-2 ring-saffron/20" 
+                        currentSticker.emoji === s
+                          ? "bg-white scale-110 shadow-md ring-2 ring-saffron/20"
                           : "bg-white/50 hover:bg-white text-stone-300 hover:text-stone-900"
                       )}
                     >
@@ -2323,7 +2407,7 @@ export default function App() {
                 </div>
 
                 <div className="relative group">
-                  <input 
+                  <input
                     type="text"
                     maxLength={12}
                     placeholder="Short label (e.g., RETREAT)"
@@ -2338,13 +2422,13 @@ export default function App() {
               </div>
 
               <div className="flex gap-4 pt-4 pb-4">
-                <button 
+                <button
                   onClick={handleDeleteNote}
                   className="p-4 bg-red-50 text-red-500 rounded-3xl hover:bg-red-100 transition-colors"
                 >
                   <Trash2 size={24} />
                 </button>
-                <button 
+                <button
                   onClick={() => setIsNoteSheetOpen(false)}
                   className="flex-1 p-6 bg-stone-900 text-white rounded-3xl font-bold uppercase text-xs tracking-widest active:scale-95 transition-transform"
                 >
@@ -2370,10 +2454,126 @@ export default function App() {
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         textarea:focus { box-shadow: none; }
+        @keyframes prayer-wave { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .prayer-flag-wave { animation: prayer-wave 4s ease-in-out infinite; }
+        @keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .animate-ticker { animation: ticker-scroll 26s linear infinite; }
+        .tibetan-diamond-bg {
+          background-image: url("data:image/svg+xml,%3Csvg width='28' height='28' viewBox='0 0 28 28' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M14 1 L27 14 L14 27 L1 14 Z' fill='none' stroke='rgba(217%2C119%2C6%2C0.07)' stroke-width='0.5'/%3E%3Cpath d='M14 8 L20 14 L14 20 L8 14 Z' fill='none' stroke='rgba(217%2C119%2C6%2C0.05)' stroke-width='0.5'/%3E%3C/svg%3E");
+          background-size: 28px 28px;
+        }
       `}</style>
     </div>
   );
 }
+
+// ── Tibetan Design Elements ────────────────────────────────────────────────
+
+/** 8-spoke Dharma Wheel (Dharmachakra) — sacred wheel of Buddhist law */
+function DharmaWheel({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+      {/* Outer ring */}
+      <circle cx="50" cy="50" r="46" stroke="currentColor" strokeWidth="2.5" />
+      {/* Inner hub ring */}
+      <circle cx="50" cy="50" r="18" stroke="currentColor" strokeWidth="1.5" />
+      {/* Center hub */}
+      <circle cx="50" cy="50" r="6" fill="currentColor" />
+      {/* 8 spokes + rim knobs */}
+      {Array.from({ length: 8 }, (_, i) => {
+        const a = (i * 45 - 90) * (Math.PI / 180);
+        return (
+          <g key={i}>
+            <line x1="50" y1="50" x2={50 + 40 * Math.cos(a)} y2={50 + 40 * Math.sin(a)}
+              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+            <circle cx={50 + 44 * Math.cos(a)} cy={50 + 44 * Math.sin(a)} r="2.5" fill="currentColor" />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/** Lotus Ornament Divider — 8-petal sacred lotus (Padma) */
+function LotusDivider({ className }: { className?: string }) {
+  return (
+    <div className={cn('flex items-center gap-4 py-1', className)}>
+      <div className="flex-1 h-px bg-gradient-to-r from-transparent via-stone-200 to-stone-200" />
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" className="text-saffron shrink-0">
+        {Array.from({ length: 8 }, (_, i) => {
+          const a = (i * 45 - 90) * (Math.PI / 180);
+          const cx = 16 + 7.5 * Math.cos(a);
+          const cy = 16 + 7.5 * Math.sin(a);
+          return (
+            <ellipse key={i} cx={cx} cy={cy} rx="3" ry="6"
+              transform={`rotate(${i * 45},${cx},${cy})`}
+              stroke="currentColor" strokeWidth="0.8"
+              fill="currentColor" fillOpacity="0.2" />
+          );
+        })}
+        <circle cx="16" cy="16" r="3.5" fill="currentColor" fillOpacity="0.55" />
+      </svg>
+      <div className="flex-1 h-px bg-gradient-to-l from-transparent via-stone-200 to-stone-200" />
+    </div>
+  );
+}
+
+/** Prayer Flags Strip — 5 colours representing sky, air, fire, water, earth */
+function PrayerFlagsStrip() {
+  const flags = [
+    '#1B5EAE', // blue  — sky / wind (རླུང་རྟ)
+    '#DEDAD4', // white — air / clouds
+    '#B83028', // red   — fire
+    '#3A7D44', // green — water
+    '#D97706', // yellow/saffron — earth
+  ];
+  return (
+    <div className="fixed top-0 inset-x-0 z-[55] flex h-[5px] pointer-events-none overflow-hidden">
+      {flags.map((c, i) => (
+        <div
+          key={i}
+          className="flex-1 prayer-flag-wave"
+          style={{ backgroundColor: c, animationDelay: `${i * 0.55}s` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Endless Knot (དཔལ་བེའུ / Palbu) — symbol of interdependence and infinite wisdom */
+function EndlessKnot({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+      {/* Outer diamond */}
+      <path d="M40 5 L75 40 L40 75 L5 40 Z"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Inner diamond */}
+      <path d="M40 20 L60 40 L40 60 L20 40 Z"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Cardinal cross strands */}
+      <line x1="40" y1="5" x2="40" y2="75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="5" y1="40" x2="75" y2="40" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      {/* Diagonal cross */}
+      <line x1="17" y1="17" x2="63" y2="63" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeDasharray="2 4" />
+      <line x1="63" y1="17" x2="17" y2="63" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeDasharray="2 4" />
+      {/* Cardinal loop circles */}
+      <circle cx="40" cy="5" r="4" stroke="currentColor" strokeWidth="1.8" fill="none" />
+      <circle cx="75" cy="40" r="4" stroke="currentColor" strokeWidth="1.8" fill="none" />
+      <circle cx="40" cy="75" r="4" stroke="currentColor" strokeWidth="1.8" fill="none" />
+      <circle cx="5" cy="40" r="4" stroke="currentColor" strokeWidth="1.8" fill="none" />
+      {/* Corner loop circles */}
+      <circle cx="17" cy="17" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <circle cx="63" cy="17" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <circle cx="17" cy="63" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <circle cx="63" cy="63" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      {/* Centre medallion */}
+      <circle cx="40" cy="40" r="7" stroke="currentColor" strokeWidth="1.8" fill="none" />
+      <circle cx="40" cy="40" r="2.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+// ── Navigation ───────────────────────────────────────────────────────────────
 
 function NavButton({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) {
   return (
