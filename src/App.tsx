@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -23,12 +23,14 @@ import {
   ChevronDown,
   User,
   Search,
-  Pencil
+  Pencil,
+  Share
 } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday as isDateToday, parseISO, isWithinInterval, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
-import { getTibetanDate, getTibetanYearInfo, FESTIVALS, TibetanDate, ANIMALS, ELEMENTS, COMBINATIONS } from './lib/tibetanCalendar';
+import { getTibetanDate, getTibetanYearInfo, FESTIVALS, MONTHLY_OBSERVANCES, TibetanDate, ANIMALS, ELEMENTS, COMBINATIONS } from './lib/tibetanCalendar';
 import { cn, cn_id, UI_IDS, toTibetanNumerals } from './lib/utils';
+import { DATABASE_2026 } from './lib/database2026';
 import {
   STICKERS,
   HOROSCOPE_RULES,
@@ -39,7 +41,14 @@ import {
   PARKHA_CHARACTERISTICS,
   MEWA_CHARACTERISTICS,
   TIBETAN_ANIMALS,
-  TIBETAN_ELEMENTS
+  TIBETAN_ELEMENTS,
+  MENTSKHANG_SYMBOLS,
+  ELEMENT_CHARACTERISTICS,
+  DHUN_ZUR,
+  POWER_DAYS,
+  VITALITY_RELATIONS,
+  UI_LABELS,
+  TIBETAN_WEEKDAYS
 } from './constants';
 
 type Tab = 'home' | 'calendar' | 'profile';
@@ -128,9 +137,10 @@ export default function App() {
     start: format(new Date(), 'yyyy-MM-dd'),
     end: format(addMonths(new Date(), 1), 'yyyy-MM-dd')
   });
+  const todayRef = useRef<HTMLDivElement>(null);
+  const [showJumpToday, setShowJumpToday] = useState(false);
+  const [festivalSearch, setFestivalSearch] = useState('');
   const [newFestival, setNewFestival] = useState({ name: '', date: format(new Date(), 'yyyy-MM-dd'), description: '' });
-  const [horoscope, setHoroscope] = useState<string | null>(null);
-  const [isHoroscopeLoading, setIsHoroscopeLoading] = useState(false);
   const [userData, setUserData] = useState<UserData>(() => {
     const saved = localStorage.getItem('men_tsee_khang_user_data');
     const defaults = { notes: {}, reminders: {}, stickers: {} };
@@ -144,9 +154,76 @@ export default function App() {
     return defaults;
   });
 
+  const sortedFestivals = useMemo(() => {
+    const today = startOfDay(new Date());
+    const dbEntries = Object.entries(DATABASE_2026);
+
+    return [...FESTIVALS].sort((a, b) => {
+      const aDateStr = dbEntries.find(([_, d]) => d.tibMonth === a.month && d.tibDay === a.day)?.[0];
+      const bDateStr = dbEntries.find(([_, d]) => d.tibMonth === b.month && d.tibDay === b.day)?.[0];
+
+      const aDate = aDateStr ? startOfDay(new Date(aDateStr)) : new Date(2099, 11, 31);
+      const bDate = bDateStr ? startOfDay(new Date(bDateStr)) : new Date(2099, 11, 31);
+
+      const isAPast = aDate < today;
+      const isBPast = bDate < today;
+
+      if (isAPast && !isBPast) return 1;
+      if (!isAPast && isBPast) return -1;
+
+      return aDate.getTime() - bDate.getTime();
+    });
+  }, []);
+
+  const powerDays = useMemo(() => {
+    if (!userData.birthAnimal) return null;
+    return POWER_DAYS[userData.birthAnimal];
+  }, [userData.birthAnimal]);
+
+  const yearlyHoroscope = useMemo(() => {
+    if (!userData.birthAnimal || !userData.birthElement) return null;
+
+    const yearAnimal = "Horse";
+    const yearElement = "Fire";
+
+    const isDhunZur = DHUN_ZUR[userData.birthAnimal]?.opposite === yearAnimal;
+
+    const getRelation = (e1: string, e2: string) => {
+      const relation = VITALITY_RELATIONS[e1];
+      if (!relation) return 'neutral';
+      if (relation.mother === e2) return 'mother';
+      if (relation.son === e2) return 'son';
+      if (relation.enemy === e2) return 'enemy';
+      if (e1 === e2) return 'same';
+      return 'neutral';
+    };
+
+    return {
+      isDhunZur,
+      scores: {
+        vitality: getRelation(userData.birthElement, yearElement),
+        body: getRelation(userData.birthElement, yearElement),
+        power: getRelation(userData.birthElement, yearElement),
+        luck: userData.birthAnimal === yearAnimal ? 'same' : (isDhunZur ? 'enemy' : 'neutral')
+      }
+    };
+  }, [userData.birthAnimal, userData.birthElement]);
+
   useEffect(() => {
     localStorage.setItem('men_tsee_khang_user_data', JSON.stringify(userData));
   }, [userData]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowJumpToday(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToToday = () => {
+    todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
 
   const monthDays = useMemo(() => {
     const start = startOfMonth(currentDate);
@@ -178,8 +255,9 @@ export default function App() {
       const adYear = userData.tibetanBirthYear;
       const targetMonth = userData.tibetanBirthMonth || 1;
       const targetDay = userData.tibetanBirthDay || 1;
-      const searchStart = new Date(adYear, 0, 20); // Losar is rarely before Jan 20
-      const searchEnd = new Date(adYear + 1, 4, 1); // Search until May to be safe
+      // Optimize: Search a 60-day window around the likely Tibetan New Year period
+      const searchStart = new Date(adYear, 0, 25); // Jan 25
+      const searchEnd = new Date(adYear, 3, 25);   // April 25
       for (let d = new Date(searchStart); d <= searchEnd; d.setDate(d.getDate() + 1)) {
         const tib = getTibetanDate(new Date(d));
         if (tib.month === targetMonth && tib.day === targetDay) {
@@ -198,12 +276,10 @@ export default function App() {
 
   const handleBirthDateChange = (dateStr: string) => {
     setUserData(prev => ({ ...prev, birthDate: dateStr || undefined }));
-    setHoroscope(null);
   };
 
   const handleTibetanYearChange = (year: number) => {
     setUserData(prev => ({ ...prev, tibetanBirthYear: year || undefined }));
-    setHoroscope(null);
   };
 
   const addCustomFestival = () => {
@@ -230,27 +306,7 @@ export default function App() {
     }));
   };
 
-  const generateHoroscope = useCallback(() => {
-    setIsHoroscopeLoading(true);
-
-    // Artificial delay for "calculation" feel
-    setTimeout(() => {
-      const harmony = getElementalHarmony(userData.birthElement, tibCurrent.element);
-      const rule = HOROSCOPE_RULES[harmony] || HOROSCOPE_RULES['neutral'];
-
-      const text = `${rule.title}: ${rule.text} ${rule.advice}`;
-      setHoroscope(text);
-      setIsHoroscopeLoading(false);
-    }, 800);
-  }, [tibCurrent.element, userData.birthElement]);
-
   const [onboardingStep, setOnboardingStep] = useState(1);
-
-  useEffect(() => {
-    if (activeTab === 'astro' && !horoscope) {
-      generateHoroscope();
-    }
-  }, [activeTab, horoscope, generateHoroscope]);
 
   // Sync Birth Data (Animal/Element) based on date changes
   useEffect(() => {
@@ -458,14 +514,14 @@ export default function App() {
                   <span className="text-saffron">࿇</span>
                 </div>
                 <div>
-                  <h1 className="text-3xl font-serif font-black text-stone-950">Welcome</h1>
-                  <p className="text-xs text-stone-400 font-bold uppercase tracking-widest mt-1">Sino-Tibetan Astro Guidance</p>
+                  <h1 className="text-3xl font-serif font-black text-stone-950">{t(UI_LABELS.WELCOME.en, UI_LABELS.WELCOME.tib)}</h1>
+                  <p className="text-xs text-stone-400 font-bold uppercase tracking-widest mt-1">{t(UI_LABELS.SINO_TIBETAN_GUIDANCE.en, UI_LABELS.SINO_TIBETAN_GUIDANCE.tib)}</p>
                 </div>
               </div>
 
               <div className="w-full max-w-xs space-y-6">
                 <div className="space-y-4">
-                  <h2 className="text-[10px] font-black text-stone-400 uppercase tracking-widest text-center px-1">Select Language</h2>
+                  <h2 className="text-[10px] font-black text-stone-400 uppercase tracking-widest text-center px-1">{t(UI_LABELS.SELECT_LANGUAGE.en, UI_LABELS.SELECT_LANGUAGE.tib)}</h2>
                   <div className="grid grid-cols-1 gap-3">
                     <button
                       onClick={() => {
@@ -474,7 +530,7 @@ export default function App() {
                       }}
                       className="w-full p-6 bg-white border border-stone-100 rounded-3xl flex items-center justify-between hover:border-saffron/50 transition-all group shadow-sm"
                     >
-                      <span className="font-serif text-xl font-bold text-stone-900">English</span>
+                      <span className="font-serif text-xl font-bold text-stone-900">{t('English', 'དབྱིན་ཡིག')}</span>
                       <ChevronRight size={20} className="text-stone-300 group-hover:text-saffron group-hover:translate-x-1 transition-all" />
                     </button>
                     <button
@@ -486,7 +542,7 @@ export default function App() {
                     >
                       <div className="text-left">
                         <span className="font-serif text-xl font-bold text-stone-900 block leading-tight">བོད་ཡིག</span>
-                        <span className="text-[8px] font-bold text-stone-300 uppercase tracking-tighter">Tibetan</span>
+                        <span className="text-[8px] font-bold text-stone-300 uppercase tracking-tighter">{t('Tibetan', 'བོད་ཡིག')}</span>
                       </div>
                       <ChevronRight size={20} className="text-stone-300 group-hover:text-saffron group-hover:translate-x-1 transition-all" />
                     </button>
@@ -525,13 +581,13 @@ export default function App() {
                 </div>
 
                 <div>
-                  <h2 className="text-2xl font-serif font-black text-stone-950">Practitioner Details</h2>
-                  <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest leading-none mt-1">Foundational for personalized timing</p>
+                  <h2 className="text-2xl font-serif font-black text-stone-950">{t(UI_LABELS.PRACTITIONER_DETAILS.en, UI_LABELS.PRACTITIONER_DETAILS.tib)}</h2>
+                  <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest leading-none mt-1">{t(UI_LABELS.FOUNDATIONAL_HINT.en, UI_LABELS.FOUNDATIONAL_HINT.tib)}</p>
                 </div>
 
                 <div className="space-y-6 pt-4">
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-stone-400 uppercase px-1">Dharma Name / Nickname</label>
+                    <label className="text-[9px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.DHARMA_NAME.en, UI_LABELS.DHARMA_NAME.tib)}</label>
                     <input
                       type="text"
                       placeholder="e.g. Tenzin"
@@ -542,7 +598,7 @@ export default function App() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-stone-400 uppercase px-1">Gender</label>
+                    <label className="text-[9px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.GENDER.en, UI_LABELS.GENDER.tib)}</label>
                     <div className="grid grid-cols-2 gap-3">
                       {['Male', 'Female'].map((g) => (
                         <button
@@ -551,8 +607,8 @@ export default function App() {
                           onClick={() => setUserData(prev => ({ ...prev, gender: g as any }))}
                           className={cn(
                             "p-4 rounded-2xl border text-xs font-bold transition-all flex items-center justify-center gap-2",
-                            userData.gender === g 
-                              ? "bg-stone-900 text-white border-stone-800 shadow-lg scale-[1.02]" 
+                            userData.gender === g
+                              ? "bg-stone-900 text-white border-stone-800 shadow-lg scale-[1.02]"
                               : "bg-white text-stone-500 border-stone-100 shadow-sm"
                           )}
                         >
@@ -560,7 +616,7 @@ export default function App() {
                             "w-2 h-1 rounded-full",
                             userData.gender === g ? "bg-saffron" : "bg-stone-200"
                           )} />
-                          {g === 'Male' ? t('Male', 'ཕོ།') : t('Female', 'མོ།')}
+                          {g === 'Male' ? t(UI_LABELS.MALE.en, UI_LABELS.MALE.tib) : t(UI_LABELS.FEMALE.en, UI_LABELS.FEMALE.tib)}
                         </button>
                       ))}
                     </div>
@@ -568,7 +624,7 @@ export default function App() {
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between px-1">
-                      <label className="text-[9px] font-black text-stone-400 uppercase">Birth System</label>
+                      <label className="text-[9px] font-black text-stone-400 uppercase">{t(UI_LABELS.BIRTH_SYSTEM.en, UI_LABELS.BIRTH_SYSTEM.tib)}</label>
                       <div className="flex bg-white rounded-full p-1 border border-stone-100 shadow-sm">
                         {['International', 'Tibetan'].map((s) => (
                           <button
@@ -580,7 +636,7 @@ export default function App() {
                               (userData.birthDateSystem || 'International') === s ? "bg-stone-900 text-white shadow-md" : "text-stone-400"
                             )}
                           >
-                            {s === 'International' ? t('International', 'ཕྱི་ལོ།') : t('Tibetan Calendar', 'བོད་ལོ།')}
+                             {s === 'International' ? t(UI_LABELS.INTERNATIONAL.en, UI_LABELS.INTERNATIONAL.tib) : t(UI_LABELS.TIBETAN_CALENDAR.en, UI_LABELS.TIBETAN_CALENDAR.tib)}
                           </button>
                         ))}
                       </div>
@@ -588,12 +644,12 @@ export default function App() {
 
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black text-stone-400 uppercase px-1">
-                        {(userData.birthDateSystem || 'International') === 'Tibetan' ? 'Tibetan Birth Date' : 'Birth Date (Gregorian)'}
+                        {(userData.birthDateSystem || 'International') === 'Tibetan' ? t(UI_LABELS.TIBETAN_CALENDAR.en, UI_LABELS.TIBETAN_CALENDAR.tib) + ' ' + t(UI_LABELS.DAY_LABEL.en, UI_LABELS.DAY_LABEL.tib) : t(UI_LABELS.BIRTH_DATE_GREGORIAN.en, UI_LABELS.BIRTH_DATE_GREGORIAN.tib)}
                       </label>
                       {(userData.birthDateSystem || 'International') === 'Tibetan' ? (
                         <div className="grid grid-cols-3 gap-3">
                           <div className="space-y-1 relative">
-                            <label className="text-[7px] font-black text-stone-400 uppercase px-1">Birth Year (AD)</label>
+                            <label className="text-[7px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.BIRTH_YEAR_AD.en, UI_LABELS.BIRTH_YEAR_AD.tib)}</label>
                             <input
                               type="number"
                               placeholder="e.g., 1987"
@@ -603,7 +659,7 @@ export default function App() {
                             />
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[7px] font-black text-stone-400 uppercase px-1">Month</label>
+                            <label className="text-[7px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.MONTH_LABEL.en, UI_LABELS.MONTH_LABEL.tib)}</label>
                             <select
                               value={userData.tibetanBirthMonth || 1}
                               onChange={(e) => setUserData(prev => ({ ...prev, tibetanBirthMonth: parseInt(e.target.value) }))}
@@ -615,7 +671,7 @@ export default function App() {
                             </select>
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[7px] font-black text-stone-400 uppercase px-1">Lunar Day</label>
+                            <label className="text-[7px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.LUNAR_DAY_LABEL.en, UI_LABELS.LUNAR_DAY_LABEL.tib)}</label>
                             <select
                               value={userData.tibetanBirthDay || 1}
                               onChange={(e) => setUserData(prev => ({ ...prev, tibetanBirthDay: parseInt(e.target.value) }))}
@@ -641,8 +697,8 @@ export default function App() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between px-1">
-                        <label className="text-[9px] font-black text-stone-400 uppercase">Birth Animal</label>
-                        {userData.birthDate && <span className="text-[7px] font-black text-emerald-500 uppercase tracking-tighter pulse">Automatic</span>}
+                        <label className="text-[9px] font-black text-stone-400 uppercase">{t(UI_LABELS.ANIMAL_SIGN.en, UI_LABELS.ANIMAL_SIGN.tib)}</label>
+                        {userData.birthDate && <span className="text-[7px] font-black text-emerald-500 uppercase tracking-tighter pulse">{t(UI_LABELS.AUTOMATIC.en, UI_LABELS.AUTOMATIC.tib)}</span>}
                       </div>
                       <div className="relative">
                         <select
@@ -650,7 +706,7 @@ export default function App() {
                           onChange={(e) => setUserData(prev => ({ ...prev, birthAnimal: e.target.value }))}
                           className="w-full bg-white border border-stone-100 shadow-sm rounded-2xl p-4 text-xs font-bold appearance-none outline-none focus:ring-2 focus:ring-saffron/20"
                         >
-                          <option value="">Select Sign</option>
+                          <option value="">{t(UI_LABELS.SELECT_SIGN.en, UI_LABELS.SELECT_SIGN.tib)}</option>
                           {ANIMALS.map(a => <option key={a} value={a}>{ANIMAL_ICONS[a]} {a}</option>)}
                         </select>
                         <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 pointer-events-none" />
@@ -659,8 +715,8 @@ export default function App() {
 
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between px-1">
-                        <label className="text-[9px] font-black text-stone-400 uppercase">Birth Element</label>
-                        {userData.birthDate && <span className="text-[7px] font-black text-emerald-500 uppercase tracking-tighter pulse">Automatic</span>}
+                        <label className="text-[9px] font-black text-stone-400 uppercase">{t(UI_LABELS.PRIMARY_ELEMENT.en, UI_LABELS.PRIMARY_ELEMENT.tib)}</label>
+                        {userData.birthDate && <span className="text-[7px] font-black text-emerald-500 uppercase tracking-tighter pulse">{t(UI_LABELS.AUTOMATIC.en, UI_LABELS.AUTOMATIC.tib)}</span>}
                       </div>
                       <div className="relative">
                         <select
@@ -668,7 +724,7 @@ export default function App() {
                           onChange={(e) => setUserData(prev => ({ ...prev, birthElement: e.target.value }))}
                           className="w-full bg-white border border-stone-100 shadow-sm rounded-2xl p-4 text-xs font-bold appearance-none outline-none focus:ring-2 focus:ring-saffron/20"
                         >
-                          <option value="">Select Element</option>
+                          <option value="">{t(UI_LABELS.SELECT_ELEMENT.en, UI_LABELS.SELECT_ELEMENT.tib)}</option>
                           {ELEMENTS.map(e => <option key={e} value={e}>{e}</option>)}
                         </select>
                         <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 pointer-events-none" />
@@ -683,7 +739,7 @@ export default function App() {
                   onClick={() => setOnboardingStep(3)}
                   className="w-full bg-stone-950 text-white p-5 rounded-3xl font-black uppercase tracking-widest text-xs shadow-xl shadow-stone-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
-                  Continue Discovery
+                  {t(UI_LABELS.CONTINUE_DISCOVERY.en, UI_LABELS.CONTINUE_DISCOVERY.tib)}
                   <ChevronRight size={16} />
                 </button>
               </div>
@@ -712,9 +768,9 @@ export default function App() {
                 </div>
 
                 <div className="space-y-2">
-                  <h2 className="text-2xl font-serif font-black text-stone-950">Astro-Science</h2>
+                  <h2 className="text-2xl font-serif font-black text-stone-950">{t(UI_LABELS.ASTRO_SCIENCE.en, UI_LABELS.ASTRO_SCIENCE.tib)}</h2>
                   <p className="text-xs text-stone-500 font-medium leading-relaxed">
-                    Men-Tsee-Khang utilizes ancient Phugpa tradition to calculate the celestial winds of your life.
+                    {t(UI_LABELS.ASTRO_SCIENCE_DESC.en, UI_LABELS.ASTRO_SCIENCE_DESC.tib)}
                   </p>
                 </div>
 
@@ -724,8 +780,8 @@ export default function App() {
                       <Compass size={20} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-stone-900">Atmospheric Almanac</h4>
-                      <p className="text-[11px] text-stone-500 italic">Track daily Parkha (Trigrams) and Mewa (Magic Squares) to align with universal flows.</p>
+                      <h4 className="text-sm font-bold text-stone-900">{t(UI_LABELS.ATMOSPHERIC_ALMANAC.en, UI_LABELS.ATMOSPHERIC_ALMANAC.tib)}</h4>
+                      <p className="text-[11px] text-stone-500 italic">{t(UI_LABELS.ATMOSPHERIC_ALMANAC_DESC.en, UI_LABELS.ATMOSPHERIC_ALMANAC_DESC.tib)}</p>
                     </div>
                   </div>
                   <div className="bg-white p-6 rounded-3xl border border-stone-100 space-y-3">
@@ -733,8 +789,8 @@ export default function App() {
                       <Sparkles size={20} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-stone-900">Personal Resonance</h4>
-                      <p className="text-[11px] text-stone-500 italic">See how the day's elements interact with your birth sign through 5 dimensional analysis.</p>
+                      <h4 className="text-sm font-bold text-stone-900">{t(UI_LABELS.PERSONAL_RESONANCE.en, UI_LABELS.PERSONAL_RESONANCE.tib)}</h4>
+                      <p className="text-[11px] text-stone-500 italic">{t(UI_LABELS.PERSONAL_RESONANCE_DESC.en, UI_LABELS.PERSONAL_RESONANCE_DESC.tib)}</p>
                     </div>
                   </div>
                 </div>
@@ -745,7 +801,7 @@ export default function App() {
                   onClick={() => setOnboardingStep(4)}
                   className="w-full bg-stone-950 text-white p-5 rounded-3xl font-black uppercase tracking-widest text-xs shadow-xl shadow-stone-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
-                  Sacred Planning
+                  {t(UI_LABELS.SACRED_PLANNING.en, UI_LABELS.SACRED_PLANNING.tib)}
                   <ChevronRight size={16} />
                 </button>
               </div>
@@ -774,9 +830,9 @@ export default function App() {
                 </div>
 
                 <div className="space-y-2">
-                  <h2 className="text-2xl font-serif font-black text-stone-950">Daily Discipline</h2>
+                  <h2 className="text-2xl font-serif font-black text-stone-950">{t(UI_LABELS.DAILY_DISCIPLINE.en, UI_LABELS.DAILY_DISCIPLINE.tib)}</h2>
                   <p className="text-xs text-stone-500 font-medium leading-relaxed">
-                    Your digital Lo-tho (Almanac) for consistent practice and mindfulness.
+                    {t(UI_LABELS.DAILY_DISCIPLINE_DESC.en, UI_LABELS.DAILY_DISCIPLINE_DESC.tib)}
                   </p>
                 </div>
 
@@ -786,8 +842,8 @@ export default function App() {
                       <Bell size={20} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-stone-900">Duchen Festivals</h4>
-                      <p className="text-[11px] text-stone-500 italic">Never miss merit-multiplying days and important Tibetan religious holidays.</p>
+                      <h4 className="text-sm font-bold text-stone-900">{t(UI_LABELS.DUCHEN_FESTIVALS.en, UI_LABELS.DUCHEN_FESTIVALS.tib)}</h4>
+                      <p className="text-[11px] text-stone-500 italic">{t(UI_LABELS.DUCHEN_FESTIVALS_DESC.en, UI_LABELS.DUCHEN_FESTIVALS_DESC.tib)}</p>
                     </div>
                   </div>
                   <div className="bg-white p-6 rounded-3xl border border-stone-100 space-y-3">
@@ -795,8 +851,8 @@ export default function App() {
                       <StickyNote size={20} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-stone-900">Practitioner Logs</h4>
-                      <p className="text-[11px] text-stone-500 italic">Record observations, dreams, and spiritual notes directly on your sacred calendar.</p>
+                      <h4 className="text-sm font-bold text-stone-900">{t(UI_LABELS.PRACTITIONER_LOGS.en, UI_LABELS.PRACTITIONER_LOGS.tib)}</h4>
+                      <p className="text-[11px] text-stone-500 italic">{t(UI_LABELS.PRACTITIONER_LOGS_DESC.en, UI_LABELS.PRACTITIONER_LOGS_DESC.tib)}</p>
                     </div>
                   </div>
                 </div>
@@ -807,7 +863,7 @@ export default function App() {
                   onClick={() => setUserData(prev => ({ ...prev, onboardingComplete: true }))}
                   className="w-full bg-saffron text-white p-5 rounded-3xl font-black uppercase tracking-widest text-xs shadow-xl shadow-saffron/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
-                  Enter Sanctuary
+                  {t(UI_LABELS.ENTER_SANCTUARY.en, UI_LABELS.ENTER_SANCTUARY.tib)}
                   <Check size={16} />
                 </button>
               </div>
@@ -857,8 +913,8 @@ export default function App() {
             >
               <div className={cn(
                 "w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 shadow-sm transition-all",
-                userData.gender === 'Female' 
-                  ? "bg-lotus border-lotus/20" 
+                userData.gender === 'Female'
+                  ? "bg-lotus border-lotus/20"
                   : "bg-stone-900 border-stone-800 group-hover:border-saffron"
               )}>
                 {userData.name
@@ -869,7 +925,7 @@ export default function App() {
               {/* Name + Sign */}
               <div className="flex flex-col min-w-0 text-left">
                 <span className="text-sm font-serif font-bold text-stone-900 leading-none truncate group-hover:text-saffron">
-                  {userData.name || 'Practitioner'}
+                  {userData.name || t(UI_LABELS.PRACTITIONER.en, UI_LABELS.PRACTITIONER.tib)}
                 </span>
                 <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest mt-1 truncate">
                   {ANIMAL_ICONS[userData.birthAnimal || tibCurrent.animal]}{' '}
@@ -899,7 +955,7 @@ export default function App() {
         <AnimatePresence mode="wait">
           {activeTab === 'home' && (
             <motion.div
-              key="home"
+              key={`home-${userData.language}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -910,20 +966,20 @@ export default function App() {
               <div className="px-6 mb-6">
                 <div className="flex bg-stone-100/50 p-1 rounded-2xl backdrop-blur-sm">
                   {[
-                    { id: 'guidance', label: t('Day', 'ཉིན་མོ།'), icon: <Sun size={14} /> },
-                    { id: 'astro', label: t('Astro', 'སྐར་རྩིས།'), icon: <Compass size={14} /> },
-                    { id: 'days', label: t('Sacred', 'དུས་ཆེན།'), icon: <Bell size={14} /> }
-                  ].map((t) => (
+                    { id: 'guidance', label: t(UI_LABELS.DAY.en, UI_LABELS.DAY.tib), icon: <Sun size={14} /> },
+                    { id: 'astro', label: t(UI_LABELS.ASTRO.en, UI_LABELS.ASTRO.tib), icon: <Compass size={14} /> },
+                    { id: 'days', label: t(UI_LABELS.SACRED.en, UI_LABELS.SACRED.tib), icon: <Bell size={14} /> }
+                  ].map((sub) => (
                     <button
-                      key={t.id}
-                      onClick={() => setHomeTab(t.id as HomeTab)}
+                      key={sub.id}
+                      onClick={() => setHomeTab(sub.id as HomeTab)}
                       className={cn(
                         "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
-                        homeTab === t.id ? "bg-white text-stone-900 shadow-sm" : "text-stone-400 hover:text-stone-600"
+                        homeTab === sub.id ? "bg-white text-stone-900 shadow-sm" : "text-stone-400 hover:text-stone-600"
                       )}
                     >
-                      {t.icon}
-                      {t.label}
+                      {sub.icon}
+                      {sub.label}
                     </button>
                   ))}
                 </div>
@@ -932,34 +988,70 @@ export default function App() {
               <div className="px-6 space-y-8">
                 {homeTab === 'guidance' && (
                   <motion.div
+                    key="guidance"
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="space-y-5"
+                    exit={{ opacity: 0, x: -10 }}
+                    className="space-y-8"
                   >
-                    {/* Today Card */}
+                    {/* Alignment Onboarding Hint */}
+                    {!userData.birthDate && !userData.tibetanBirthYear && (
+                      <motion.button
+                        onClick={() => setActiveTab('profile')}
+                        className="p-6 rounded-[32px] bg-stone-900 text-white relative overflow-hidden group active:scale-[0.98] transition-all text-left block w-full shadow-2xl shadow-stone-900/20"
+                      >
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-saffron/20 blur-3xl rounded-full -mr-16 -mt-16" />
+                        <div className="relative flex items-center gap-5">
+                          <div className="w-12 h-12 rounded-2xl bg-saffron flex items-center justify-center text-white shrink-0 shadow-lg shadow-saffron/20">
+                            <Sparkles size={24} />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-serif font-black">{t(UI_LABELS.UNLOCK_ALIGNMENT.en, UI_LABELS.UNLOCK_ALIGNMENT.tib)}</h4>
+                            <p className="text-[9px] text-stone-400 font-bold uppercase tracking-widest mt-1 opacity-80 leading-relaxed">
+                              {t(UI_LABELS.UNLOCK_ALIGNMENT_DESC.en, UI_LABELS.UNLOCK_ALIGNMENT_DESC.tib)}
+                            </p>
+                          </div>
+                        </div>
+                      </motion.button>
+                    )}
+
                     <div id={UI_IDS.HOME.TODAY_CARD} className="relative rounded-3xl bg-stone-900 p-6 text-white overflow-hidden shadow-lg">
                       {/* Dharma Wheel watermark */}
                       <DharmaWheel className="absolute -right-10 -bottom-10 w-52 h-52 text-white/[0.055] pointer-events-none" />
                       <div className="relative space-y-4">
                         <div className="flex items-start justify-between">
                           <div>
-                            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-stone-500 mb-1">{t('Phugpa Tradition', 'ཕུག་ལུགས་སྐར་རྩིས་རིག་པ།')}</p>
+                            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-stone-500 mb-1">{t(UI_LABELS.PHUGPA_TRADITION.en, UI_LABELS.PHUGPA_TRADITION.tib)}</p>
                             <h1 className="text-3xl font-serif font-black tracking-tight leading-tight">
-                              {format(new Date(), 'EEEE')}, <br />
+                              {t(format(new Date(), 'EEEE'), TIBETAN_WEEKDAYS[format(new Date(), 'EEEE')])}, <br />
                               <span className="text-stone-400 font-light">{n(format(new Date(), 'MMM d'))}</span>
                             </h1>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right flex flex-col items-end gap-3">
                             <span className="inline-block px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-stone-500">
-                              Rabjung {toTibetanNumerals(tibCurrent.rabjung)}
+                              {t(UI_LABELS.RABJUNG.en, UI_LABELS.RABJUNG.tib)} {toTibetanNumerals(tibCurrent.rabjung)}
                             </span>
+                            <button 
+                              onClick={() => {
+                                const symbol = tibCurrent.lunarSymbol ? MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol] : null;
+                                const text = `${t(UI_LABELS.TIBETAN_CALENDAR.en, UI_LABELS.TIBETAN_CALENDAR.tib)} - ${format(new Date(), 'EEEE, MMM d')}\n${t(UI_LABELS.LUNAR_DAY.en, UI_LABELS.LUNAR_DAY.tib)}: ${toTibetanNumerals(tibCurrent.day)}\n${t(UI_LABELS.CELESTIAL_SIGN.en, UI_LABELS.CELESTIAL_SIGN.tib)}: ${ANIMAL_ICONS[tibCurrent.animal]} ${t(tibCurrent.element, TIBETAN_ELEMENTS[tibCurrent.element])} ${t(tibCurrent.animal, TIBETAN_ANIMALS[tibCurrent.animal])}\n${t(UI_LABELS.INDICATOR.en, UI_LABELS.INDICATOR.tib)}: ${symbol ? t(tibCurrent.lunarSymbol || '', symbol.tib) : ''}`;
+                                if (navigator.share) {
+                                  navigator.share({ title: 'Tibetan Sacred Day', text }).catch(() => {});
+                                } else {
+                                  navigator.clipboard.writeText(text);
+                                }
+                              }}
+                              className="p-2 bg-white/5 rounded-xl text-stone-500 hover:text-saffron transition-colors"
+                            >
+                              <Share size={14} />
+                            </button>
                           </div>
                         </div>
 
                         <div className="pt-4 border-t border-white/5 flex gap-8">
                           <div className="space-y-0.5">
                             <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest flex items-center gap-1.5">
-                              Lunar Day
+                              {t(UI_LABELS.LUNAR_DAY.en, UI_LABELS.LUNAR_DAY.tib)}
                               {(tibCurrent.day === 15 || tibCurrent.day === 30) && (
                                 <MoonPhase day={tibCurrent.day} size={8} isDark />
                               )}
@@ -967,17 +1059,36 @@ export default function App() {
                             <p className="text-lg font-serif font-bold text-saffron">{toTibetanNumerals(tibCurrent.day)}</p>
                           </div>
                           <div className="space-y-0.5">
-                            <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest">{t('Celestial Sign', 'གཟའ་སྐར་རྟགས།')}</p>
+                            <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest">{t(UI_LABELS.CELESTIAL_SIGN.en, UI_LABELS.CELESTIAL_SIGN.tib)}</p>
                             <p className="text-lg font-serif font-bold">
                               {ANIMAL_ICONS[tibCurrent.animal]} {t(tibCurrent.element, TIBETAN_ELEMENTS[tibCurrent.element])} {t(tibCurrent.animal, TIBETAN_ANIMALS[tibCurrent.animal])}
                             </p>
                           </div>
                           <div className="space-y-0.5">
-                            <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest">{t('Combination', 'སྦྱོར་བ།')}</p>
+                            <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest">{t(UI_LABELS.INDICATOR.en, UI_LABELS.INDICATOR.tib)}</p>
+                            <p className="text-lg font-serif font-bold text-saffron flex items-center gap-2">
+                              {tibCurrent.lunarSymbol ? (
+                                <>
+                                  <span>{MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol]?.icon}</span>
+                                  <span>{t(tibCurrent.lunarSymbol, MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol]?.tib)}</span>
+                                  {tibCurrent.isHandDay && <span className="text-[10px] text-stone-500 font-bold">({t(UI_LABELS.HAND_DAY.en, UI_LABELS.HAND_DAY.tib)})</span>}
+                                  {tibCurrent.isYenKongDay && <span className="text-[10px] text-stone-500 font-bold">({t(UI_LABELS.YEN_KONG.en, UI_LABELS.YEN_KONG.tib)})</span>}
+                                </>
+                              ) : (
+                                <span>{toTibetanNumerals(tibCurrent.mewa)} {t(UI_LABELS.MEWA.en, UI_LABELS.MEWA.tib)}</span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="space-y-0.5">
+                            <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest">{t(UI_LABELS.COMBINATION.en, UI_LABELS.COMBINATION.tib)}</p>
                             <p className="text-lg font-serif font-bold text-turquoise">
-                              {t(
-                                `${tibCurrent.planetElement}-${tibCurrent.mansionElement} (${tibCurrent.combination})`,
-                                COMBINATIONS[`${tibCurrent.planetElement}-${tibCurrent.mansionElement}`]?.tib || tibCurrent.combination
+                              {tibCurrent.lunarSymbol ? (
+                                t(tibCurrent.combination, COMBINATIONS[tibCurrent.combination]?.tib || tibCurrent.combination)
+                              ) : (
+                                t(
+                                  `${tibCurrent.planetElement}-${tibCurrent.mansionElement} (${tibCurrent.combination})`,
+                                  COMBINATIONS[`${tibCurrent.planetElement}-${tibCurrent.mansionElement}`]?.tib || tibCurrent.combination
+                                )
                               )}
                             </p>
                           </div>
@@ -985,7 +1096,7 @@ export default function App() {
 
                         {userData.birthAnimal && (
                           <div className="pt-3 border-t border-white/5 flex items-center justify-between">
-                            <span className="text-[8px] font-black uppercase tracking-widest text-stone-500">Personal Resonance</span>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-stone-500">{t(UI_LABELS.PERSONAL_RESONANCE.en, UI_LABELS.PERSONAL_RESONANCE.tib)}</span>
                             <div className="flex items-center gap-2">
                               <span className={cn(
                                 "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider",
@@ -1007,84 +1118,101 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Daily Wisdom Ticker */}
-                    <div className="flex items-center gap-3 py-2 overflow-hidden">
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-saffron animate-pulse inline-block" />
-                        <Star size={9} className="text-saffron" />
-                      </div>
-                      <div className="flex-1 overflow-hidden relative">
-                        <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-bg-warm to-transparent z-10 pointer-events-none" />
-                        <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-bg-warm to-transparent z-10 pointer-events-none" />
-                        <div className="flex animate-ticker" style={{ width: 'max-content' }}>
-                          {[0, 1].map(i => (
-                            <span key={i} className="text-[10px] text-stone-500 italic whitespace-nowrap pr-24">
-                              As the{' '}
-                              <span className="text-saffron not-italic font-bold">{tibCurrent.element}</span>
-                              {' '}energy flows through the{' '}
-                              {ANIMAL_ICONS[tibCurrent.animal]}{' '}{tibCurrent.animal}{' '}day
-                              {' — '}
-                              align your practice with presence and clarity.
+                    {/* Daily Symbolic (Simplified Text Bar) */}
+                    {tibCurrent.lunarSymbol && MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol] && (
+                      <div className="flex items-center gap-3 py-3 border-t border-stone-100 mt-2">
+                        <span className="text-2xl shrink-0">{MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol].icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] leading-relaxed text-stone-500 italic">
+                            <span className="font-black text-stone-900 not-italic uppercase tracking-widest mr-2">
+                              {t(tibCurrent.lunarSymbol, MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol].en)}:
                             </span>
-                          ))}
+                            {t(MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol].description, MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol].descriptionTib)}
+                            {MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol].forbidden.length > 0 && (
+                              <span className="ml-2 text-red-500 font-black uppercase tracking-tighter not-italic">
+                                — {t('Avoid', 'འཛེམས་བྱ།')} {t(MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol].forbidden.join(', '), MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol].forbiddenTib.join(', '))}
+                              </span>
+                            )}
+                          </p>
                         </div>
                       </div>
+                    )}
+
+                    {/* Daily Wisdom (Static Text) */}
+                    <div className="py-2 px-1">
+                      <p className="text-[10px] leading-relaxed text-stone-500 italic">
+                        {t('As the', 'དེ་རིང་')} <span className="text-saffron not-italic font-bold">{t(tibCurrent.element, TIBETAN_ELEMENTS[tibCurrent.element])}</span> {t('energy flows through the', 'ནུས་པ་དང་')} {ANIMAL_ICONS[tibCurrent.animal]} {t(tibCurrent.animal, TIBETAN_ANIMALS[tibCurrent.animal])} {t('day — align your practice with presence and clarity.', 'ཉིན་མོར་རང་རེའི་ཉམས་ལེན་ལ་བརྩོན་པར་བྱ།')}
+                      </p>
                     </div>
 
                     {/* Dashboard Grid */}
 
-                    {/* Lotus ornament divider */}
-                    <LotusDivider className="opacity-60" />
 
-                    {/* Daily Tibetan Almanac (Lo-tho) - Home Integration */}
-                    <section id={UI_IDS.HOME.ALMANAC_SECTION} className="space-y-3 pt-2">
-                      <h3 className="text-[8px] font-black text-stone-400 uppercase tracking-widest px-1">{t('Daily Almanac', 'རྒྱུན་མཁོའི་ལོ་ཐོ།')}</h3>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1 px-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-lg">{PARKHA_ICONS[tibCurrent.parkha]}</span>
-                            <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest">Trigram (Parkha)</p>
+                    {/* Special Observance Notice - Only shows on sacred days */}
+                    {(tibCurrent.day === 8 || tibCurrent.day === 10 || tibCurrent.day === 15 || tibCurrent.day === 25 || tibCurrent.day === 30) && (
+                      <div className="p-5 rounded-[32px] bg-saffron/5 border border-saffron/10 flex items-center justify-between group">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-2xl bg-saffron/10 flex items-center justify-center text-saffron">
+                            <Bell size={20} className="group-hover:animate-ring" />
                           </div>
-                          <p className="text-sm font-serif font-black text-stone-900">{tibCurrent.parkha}</p>
-                          <p className="text-[9px] text-stone-500 leading-relaxed line-clamp-1">{PARKHA_CHARACTERISTICS[tibCurrent.parkha]}</p>
-                        </div>
-
-                        <div className="space-y-1 px-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-lg">{MEWA_ICONS[tibCurrent.mewa]}</span>
-                            <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest">Magic Square (Mewa)</p>
+                          <div>
+                            <p className="text-[10px] font-black text-saffron uppercase tracking-widest">{t(UI_LABELS.SPECIAL_OBSERVANCE.en, UI_LABELS.SPECIAL_OBSERVANCE.tib)}</p>
+                            <h4 className="text-sm font-serif font-black text-stone-900">
+                              {t(MONTHLY_OBSERVANCES.find(o => o.day === tibCurrent.day)?.name || 'Sacred Day', MONTHLY_OBSERVANCES.find(o => o.day === tibCurrent.day)?.nameTib || 'དུས་བཟང་།')}
+                            </h4>
                           </div>
-                          <p className="text-sm font-serif font-black text-stone-900">{tibCurrent.mewa}</p>
-                          <p className="text-[9px] text-stone-500 leading-relaxed line-clamp-1">{MEWA_CHARACTERISTICS[tibCurrent.mewa]}</p>
                         </div>
+                        <button 
+                          onClick={() => {
+                            setSelectedDate(new Date());
+                            setActiveTab('calendar');
+                          }}
+                          className="p-3 rounded-xl bg-stone-900 text-white hover:bg-saffron transition-colors"
+                        >
+                          <CalendarIcon size={16} />
+                        </button>
                       </div>
-                    </section>
+                    )}
 
 
-                    {/* My Notes Highlights */}
+
+
+                    {/* Personal Journal Section */}
                     {Object.keys(userData.notes).length > 0 && (
-                      <div className="space-y-3">
-                        <h3 className="text-[8px] font-black text-stone-400 uppercase tracking-widest px-1">My Notes</h3>
-                        <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar px-1">
-                          {Object.entries(userData.notes).map(([dateStr, note]) => (
-                            <button
-                              key={dateStr}
-                              onClick={() => {
-                                setSelectedDate(parseISO(dateStr));
-                                setActiveTab('calendar');
-                              }}
-                              className="shrink-0 w-44 bg-white p-4 rounded-2xl text-left border border-stone-100 space-y-2 active:scale-95 transition-transform"
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="text-[8px] font-bold text-saffron uppercase tracking-widest">{format(parseISO(dateStr), 'MMM d')}</span>
-                                <StickyNote size={12} className="text-stone-300" />
-                              </div>
-                              <p className="text-xs text-stone-600 line-clamp-1 leading-relaxed break-all">{note}</p>
-                            </button>
-                          ))}
+                      <section className="space-y-4">
+                        <div className="flex items-center justify-between px-1">
+                          <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.PERSONAL_JOURNAL.en, UI_LABELS.PERSONAL_JOURNAL.tib)}</h3>
+                          <span className="text-[8px] font-bold text-stone-300 uppercase tracking-widest">{Object.keys(userData.notes).length} {t(UI_LABELS.ENTRIES.en, UI_LABELS.ENTRIES.tib)}</span>
                         </div>
-                      </div>
+                        <div className="space-y-3">
+                          {Object.entries(userData.notes)
+                            .sort((a, b) => b[0].localeCompare(a[0])) // Recent first
+                            .map(([dateStr, note]) => (
+                              <button
+                                key={dateStr}
+                                onClick={() => {
+                                  setSelectedDate(parseISO(dateStr));
+                                  setActiveTab('calendar');
+                                }}
+                                className="w-full bg-white p-5 rounded-[32px] border border-stone-100 flex items-center gap-5 text-left active:scale-[0.98] transition-all group"
+                              >
+                                <div className="w-12 h-12 rounded-2xl bg-stone-50 flex flex-col items-center justify-center text-stone-400 font-bold group-hover:bg-saffron/10 group-hover:text-saffron transition-colors">
+                                  <span className="text-[9px] uppercase tracking-tighter leading-none">{format(parseISO(dateStr), 'MMM')}</span>
+                                  <span className="text-lg leading-tight mt-0.5">{format(parseISO(dateStr), 'd')}</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[11px] text-stone-400 font-black uppercase tracking-widest mb-1">
+                                    {t(format(parseISO(dateStr), 'EEEE'), TIBETAN_WEEKDAYS[format(parseISO(dateStr), 'EEEE')] || format(parseISO(dateStr), 'EEEE'))}
+                                  </p>
+                                  <p className="text-sm text-stone-700 line-clamp-2 leading-relaxed font-serif italic">
+                                    "{note}"
+                                  </p>
+                                </div>
+                                <ChevronRight size={16} className="text-stone-200 group-hover:text-saffron transition-colors" />
+                              </button>
+                            ))}
+                        </div>
+                      </section>
                     )}
                   </motion.div>
                 )}
@@ -1095,20 +1223,42 @@ export default function App() {
                     animate={{ opacity: 1, x: 0 }}
                     className="space-y-6"
                   >
-                    <header className="flex items-center justify-between">
-                      <h1 className="text-3xl font-serif font-black text-stone-950">{t('Grand', 'གནད་ཆེའི།')} <br /> <span className="text-stone-400 font-light italic">{t('Duchen Days', 'དུས་ཆེན་བཟང་པོ།')}</span></h1>
-                      <button
-                        onClick={() => setIsFestivalSheetOpen(true)}
-                        className="p-4 bg-saffron text-white rounded-3xl active:scale-95 transition-transform"
-                      >
-                        <Plus size={24} />
-                      </button>
+                    <header className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h1 className="text-3xl font-serif font-black text-stone-950">{t(UI_LABELS.GRAND.en, UI_LABELS.GRAND.tib)} <br /> <span className="text-stone-400 font-light italic">{t(UI_LABELS.GRAND_DUCHEN.en, UI_LABELS.GRAND_DUCHEN.tib)}</span></h1>
+                        <button
+                          onClick={() => setIsFestivalSheetOpen(true)}
+                          className="p-4 bg-saffron text-white rounded-3xl active:scale-95 transition-transform"
+                        >
+                          <Plus size={24} />
+                        </button>
+                      </div>
+
+                      {/* Search Bar */}
+                      <div className="relative group">
+                        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-300 group-focus-within:text-saffron transition-colors" />
+                        <input
+                          type="text"
+                          value={festivalSearch}
+                          onChange={(e) => setFestivalSearch(e.target.value)}
+                          placeholder={t(UI_LABELS.SEARCH_FESTIVALS.en, UI_LABELS.SEARCH_FESTIVALS.tib)}
+                          className="w-full bg-stone-100 border-none rounded-2xl py-3.5 pl-12 pr-4 text-xs font-bold text-stone-800 placeholder:text-stone-300 focus:ring-2 focus:ring-saffron/20 transition-all"
+                        />
+                        {festivalSearch && (
+                          <button 
+                            onClick={() => setFestivalSearch('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-stone-300 hover:text-stone-500"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
                     </header>
 
                     {/* Custom Festivals Section */}
                     {(userData.customFestivals && userData.customFestivals.length > 0) && (
                       <section className="space-y-4">
-                        <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">My Important Dates</h3>
+                        <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.IMPORTANT_DATES.en, UI_LABELS.IMPORTANT_DATES.tib)}</h3>
                         <div className="space-y-3">
                           {userData.customFestivals.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((f) => (
                             <div key={f.id} className="bg-amber-50/50 p-5 rounded-3xl flex items-center justify-between gap-4">
@@ -1139,23 +1289,90 @@ export default function App() {
                       </section>
                     )}
 
-                    <div className="space-y-4">
-                      <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">Traditional Calendar</h3>
-                      <div className="space-y-3">
-                        {FESTIVALS.map((f, i) => (
-                          <div key={i} className="bg-white p-5 rounded-3xl flex items-center gap-5 border border-stone-50">
-                            <div className="w-12 h-12 shrink-0 rounded-2xl bg-stone-900 flex flex-col items-center justify-center text-white text-[10px] font-bold">
-                              <span>ཟླ་{toTibetanNumerals(f.month)}</span>
-                              <span className="text-lg leading-none mt-0.5">ཚེས་{toTibetanNumerals(f.day)}</span>
-                            </div>
-                            <div className="min-w-0">
-                              <h4 className="text-sm font-bold text-stone-900 truncate">{f.name}</h4>
-                              <p className="text-[11px] text-stone-400 line-clamp-1 italic">{f.description}</p>
-                            </div>
-                          </div>
-                        ))}
+                      <div className="space-y-4">
+                        <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.TRADITIONAL_CALENDAR.en, UI_LABELS.TRADITIONAL_CALENDAR.tib)}</h3>
+                        <div className="space-y-3">
+                          {sortedFestivals
+                            .filter(f => 
+                              f.name.toLowerCase().includes(festivalSearch.toLowerCase()) || 
+                              (f.nameTib && f.nameTib.includes(festivalSearch))
+                            )
+                            .map((f, i) => {
+                            const dbEntry = Object.entries(DATABASE_2026).find(([_, d]) => d.tibMonth === f.month && d.tibDay === f.day);
+                            const westernDate = dbEntry?.[1].westernDate;
+                            const isPast = dbEntry?.[0] ? startOfDay(new Date(dbEntry[0])) < startOfDay(new Date()) : false;
+                            const isTodayFestival = dbEntry?.[0] ? isSameDay(new Date(dbEntry[0]), new Date()) : false;
+
+                            return (
+                              <div key={i} className={cn(
+                                "bg-white p-5 rounded-3xl flex items-center gap-5 border border-stone-50 transition-all",
+                                isPast && "opacity-40 grayscale-[0.5]",
+                                isTodayFestival && "ring-2 ring-saffron bg-saffron/5 border-saffron/20"
+                              )}>
+                                <div className={cn(
+                                  "w-12 h-12 shrink-0 rounded-2xl flex flex-col items-center justify-center text-white font-bold",
+                                  isTodayFestival ? "bg-saffron" : "bg-stone-900"
+                                )}>
+                                  <span className="text-[9px] opacity-70">ཟླ་{toTibetanNumerals(f.month)}</span>
+                                  <span className="text-sm leading-none mt-0.5">ཚེས་{toTibetanNumerals(f.day)}</span>
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className={cn(
+                                    "text-[10px] font-black uppercase tracking-widest mb-0.5",
+                                    isTodayFestival ? "text-saffron-700" : "text-saffron"
+                                  )}>
+                                    {westernDate || 'TBA'} {isTodayFestival && '• TODAY'}
+                                  </div>
+                                  <h4 className="text-sm font-bold text-stone-900 truncate">{t(f.name, f.nameTib || f.name)}</h4>
+                                  <p className="text-[11px] text-stone-400 line-clamp-1 italic">{t(f.description, f.descriptionTib || f.description)}</p>
+                                </div>
+                                <button 
+                                  onClick={() => {
+                                    const text = `${t(f.name, f.nameTib || f.name)} - ${westernDate || ''} (Tibetan Month ${f.month}, Day ${f.day})`;
+                                    navigator.clipboard.writeText(text);
+                                    // Could add a toast here
+                                  }}
+                                  className="p-2 text-stone-300 hover:text-saffron active:scale-90 transition-all"
+                                >
+                                  <MoreHorizontal size={18} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
+
+                      <div className="space-y-4 pb-20">
+                        <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.MONTHLY_OBSERVANCES_LABEL.en, UI_LABELS.MONTHLY_OBSERVANCES_LABEL.tib)}</h3>
+                        <div className="space-y-3">
+                          {MONTHLY_OBSERVANCES
+                            .filter(f => 
+                              f.name.toLowerCase().includes(festivalSearch.toLowerCase()) || 
+                              (f.nameTib && f.nameTib.includes(festivalSearch))
+                            )
+                            .map((f, i) => (
+                            <div key={i} className="bg-white/40 p-5 rounded-3xl flex items-center gap-5 border border-stone-50/50">
+                              <div className="w-12 h-12 shrink-0 rounded-2xl bg-stone-400 flex flex-col items-center justify-center text-white text-[10px] font-bold">
+                                <span>ཟླ་རེར།</span>
+                                <span className="text-lg leading-none mt-0.5">ཚེས་{toTibetanNumerals(f.day)}</span>
+                              </div>
+                              <div className="min-w-0">
+                                <h4 className="text-sm font-bold text-stone-700 truncate">{t(f.name, f.nameTib || f.name)}</h4>
+                                <p className="text-[11px] text-stone-400 line-clamp-1 italic">{t(f.description, f.descriptionTib || f.description)}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {festivalSearch && sortedFestivals.filter(f => f.name.toLowerCase().includes(festivalSearch.toLowerCase())).length === 0 && (
+                        <div className="py-20 text-center space-y-4">
+                          <div className="w-16 h-16 bg-stone-50 rounded-full flex items-center justify-center mx-auto text-stone-200">
+                            <Search size={32} />
+                          </div>
+                          <p className="text-sm font-serif italic text-stone-400">{t(UI_LABELS.NO_MATCHING_FESTIVALS.en, UI_LABELS.NO_MATCHING_FESTIVALS.tib)}</p>
+                        </div>
+                      )}
                   </motion.div>
                 )}
                 {homeTab === 'astro' && (
@@ -1164,60 +1381,13 @@ export default function App() {
                     animate={{ opacity: 1, y: 0 }}
                     className="space-y-6"
                   >
-                    <header className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-3xl bg-stone-900 flex items-center justify-center text-white">
-                          <Compass size={24} className="animate-spin-slow" />
-                        </div>
-                        <h1 className="text-3xl font-serif font-black text-stone-950">{t('Astro-Science', 'སྐར་རྩིས་རིག་པ།')}</h1>
-                      </div>
-                      <p className="text-sm font-medium text-stone-400 leading-relaxed italic">
-                        The intersection of cosmic energy aligned by the Men-Tsee-Khang Phugpa tradition — ancient Tibetan astro-science rooted in Buddhist cosmology.
-                      </p>
-                    </header>
-
-                    {/* Personalized Horoscope */}
-                    <section className="space-y-3">
-                      <div className="flex items-center justify-between px-1">
-                        <h3 className="text-[8px] font-black text-stone-400 uppercase tracking-widest">{t('Personal Horoscope', 'རང་རེའི་བླ་རྟགས།')}</h3>
-                        <button
-                          onClick={() => { setHoroscope(null); generateHoroscope(); }}
-                          className="text-[8px] font-bold text-saffron uppercase hover:underline"
-                        >
-                          Refresh
-                        </button>
-                      </div>
-
-                      <div className="p-6 bg-stone-50 rounded-2xl border border-stone-100 relative overflow-hidden group">
-                        {isHoroscopeLoading ? (
-                          <div className="py-8 flex flex-col items-center justify-center gap-3">
-                            <Loader2 className="animate-spin text-stone-300" size={24} />
-                            <p className="text-[10px] text-stone-400 italic font-serif">Consulting...</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            <p className="text-xs text-stone-700 leading-relaxed italic">
-                              {horoscope || "Your daily alignment is being calculated."}
-                            </p>
-
-                            <div className="flex items-center gap-2 pt-2 grayscale opacity-50">
-                              <div className="w-1 h-1 rounded-full bg-stone-400" />
-                              <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest">
-                                {t(userData.birthElement || "Unset", TIBETAN_ELEMENTS[userData.birthElement || ""] || "Unset")} {userData.birthAnimal ? `${ANIMAL_ICONS[userData.birthAnimal]} ${t(userData.birthAnimal, TIBETAN_ANIMALS[userData.birthAnimal])}` : "Sign"}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </section>
-
-                    {/* Dimensional Analysis Card */}
-                    <div className="bg-stone-950 rounded-[40px] p-8 text-white relative overflow-hidden group">
+                    {/* Dimensional Analysis Card (Today's Alignment) */}
+                    <div className="bg-stone-950 rounded-[40px] p-8 text-white relative overflow-hidden group shadow-2xl shadow-stone-950/40">
                       <div className="absolute top-0 right-0 w-48 h-48 bg-turquoise/20 rounded-full blur-3xl -mr-20 -mt-20" />
 
                       <div className="relative space-y-6">
                         <div className="flex items-center justify-between">
-                          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-stone-500">{t("Today's Alignment", 'དེ་རིང་གི་རྩིས་འབྲས།')}</h2>
+                          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-stone-500">{t(UI_LABELS.TODAYS_ALIGNMENT.en, UI_LABELS.TODAYS_ALIGNMENT.tib)}</h2>
                           <div className="px-3 py-1 rounded-full bg-white/10 text-[9px] font-extrabold uppercase tracking-widest text-turquoise">
                             Rabjung #{toTibetanNumerals(tibCurrent.rabjung)}
                           </div>
@@ -1226,36 +1396,62 @@ export default function App() {
                         <div className="grid grid-cols-2 gap-8">
                           <div className="space-y-4 border-r border-white/5 pr-4">
                             <div className="space-y-1">
-                              <p className="text-[9px] font-black text-stone-500 uppercase tracking-widest">Primary Element</p>
+                              <p className="text-[9px] font-black text-stone-500 uppercase tracking-widest">{t(UI_LABELS.PRIMARY_ELEMENT.en, UI_LABELS.PRIMARY_ELEMENT.tib)}</p>
                               <p className="text-3xl font-serif font-black text-turquoise italic">{t(tibCurrent.element, TIBETAN_ELEMENTS[tibCurrent.element])}</p>
                             </div>
                             <p className="text-[10px] text-stone-400 font-medium leading-relaxed">
-                              Fundamental energy flow for this current lunar day.
+                              {t('Fundamental energy flow for this current lunar day.', 'དེ་རིང་གི་རྩ་བའི་ནུས་པ་འབབ་སྟངས་ཡིན།')}
                             </p>
                           </div>
 
                           <div className="space-y-4">
                             <div className="space-y-1">
-                              <p className="text-[9px] font-black text-stone-500 uppercase tracking-widest">Animal Sign</p>
+                              <p className="text-[9px] font-black text-stone-500 uppercase tracking-widest">{t(UI_LABELS.ANIMAL_SIGN.en, UI_LABELS.ANIMAL_SIGN.tib)}</p>
                               <p className="text-3xl font-serif font-black text-saffron italic">
                                 {ANIMAL_ICONS[tibCurrent.animal]} {t(tibCurrent.animal, TIBETAN_ANIMALS[tibCurrent.animal])}
                               </p>
                             </div>
                             <p className="text-[10px] text-stone-400 font-medium leading-relaxed">
-                              Influences social interactions and external success.
+                              {t('Influences social interactions and external success.', 'སྤྱི་ཚོགས་འབྲེལ་ལམ་དང་བྱ་བ་ལམ་འགྲོ་ལ་ཕན།')}
                             </p>
                           </div>
                         </div>
                       </div>
                     </div>
 
+                    {/* Personalized Horoscope */}
+                    <section className="space-y-3">
+                      <div className="flex items-center justify-between px-1">
+                        <h3 className="text-[8px] font-black text-stone-400 uppercase tracking-widest">{t('Personal Horoscope', 'རང་རེའི་བླ་རྟགས།')}</h3>
+                      </div>
+
+                      <div className="p-6 bg-stone-50 rounded-2xl border border-stone-100 relative overflow-hidden group">
+                        <div className="space-y-4">
+                          <p className="text-xs text-stone-700 leading-relaxed italic">
+                            {(() => {
+                              const harmony = getElementalHarmony(userData.birthElement, tibCurrent.element);
+                              const rule = HOROSCOPE_RULES[harmony] || HOROSCOPE_RULES['neutral'];
+                              return t(
+                                `${rule.title}: ${rule.text} ${rule.advice}`,
+                                `${rule.titleTib}། ${rule.textTib} ${rule.adviceTib}`
+                              );
+                            })()}
+                          </p>
+
+                          <div className="flex items-center gap-2 pt-2 grayscale opacity-50">
+                            <div className="w-1 h-1 rounded-full bg-stone-400" />
+                            <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest">
+                              {t(userData.birthElement || "Unset", TIBETAN_ELEMENTS[userData.birthElement || ""] || "Unset")} {userData.birthAnimal ? `${ANIMAL_ICONS[userData.birthAnimal]} ${t(userData.birthAnimal, TIBETAN_ANIMALS[userData.birthAnimal])}` : "Sign"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+
                     {/* Daily Tibetan Almanac (Lo-tho) */}
                     <section className="space-y-4">
                       <div className="flex items-center justify-between px-1">
-                        <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{t('Daily Tibetan Almanac', 'ཉིན་རེའི་ཟླ་ཐོ།')}</h3>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[9px] font-bold text-stone-500 uppercase tracking-widest italic">Almanac Details</span>
-                        </div>
+                        <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.DAILY_ALMANAC.en, UI_LABELS.DAILY_ALMANAC.tib)}</h3>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
@@ -1264,12 +1460,15 @@ export default function App() {
                             <div className="w-8 h-8 rounded-xl bg-stone-900 flex items-center justify-center text-white text-xs font-serif italic">
                               {PARKHA_ICONS[tibCurrent.parkha]}
                             </div>
-                            <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Trigram (Parkha)</p>
+                            <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.TRIGRAM.en, UI_LABELS.TRIGRAM.tib)}</p>
                           </div>
                           <div>
                             <p className="text-xl font-serif font-black text-stone-900">{tibCurrent.parkha}</p>
+                            <div className="mt-2 flex flex-wrap gap-1">
+                               <span className="px-1.5 py-0.5 bg-stone-100 text-stone-600 text-[7px] font-black uppercase rounded">{t('Check Compatibility', 'མཐུན་འཕྲོད་ལྟ་བ།')}</span>
+                            </div>
                             <p className="text-[10px] text-stone-500 italic mt-1 leading-relaxed line-clamp-2">
-                              {PARKHA_CHARACTERISTICS[tibCurrent.parkha]}
+                              {PARKHA_CHARACTERISTICS[tibCurrent.parkha] && t(PARKHA_CHARACTERISTICS[tibCurrent.parkha].en, PARKHA_CHARACTERISTICS[tibCurrent.parkha].tib)}
                             </p>
                           </div>
                         </div>
@@ -1279,12 +1478,15 @@ export default function App() {
                             <div className="w-8 h-8 rounded-xl bg-saffron flex items-center justify-center text-white text-xs font-serif italic">
                               {MEWA_ICONS[tibCurrent.mewa]}
                             </div>
-                            <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Magic Square (Mewa)</p>
+                            <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.MAGIC_SQUARE.en, UI_LABELS.MAGIC_SQUARE.tib)}</p>
                           </div>
                           <div>
                             <p className="text-xl font-serif font-black text-stone-900">{toTibetanNumerals(tibCurrent.mewa)}</p>
-                            <p className="text-[10px] text-stone-500 italic mt-1 leading-relaxed line-clamp-2">
-                              {MEWA_CHARACTERISTICS[tibCurrent.mewa]}
+                            <div className="mt-2 flex flex-wrap gap-1">
+                               <span className="px-1.5 py-0.5 bg-saffron/10 text-saffron text-[7px] font-black uppercase rounded">{t('Best for: New Deeds', 'བྱ་བ་གསར་པ་ལ་བཟང་།')}</span>
+                            </div>
+                            <p className="text-[10px] text-stone-500 italic mt-2 leading-relaxed line-clamp-2">
+                              {MEWA_CHARACTERISTICS[tibCurrent.mewa] && t(MEWA_CHARACTERISTICS[tibCurrent.mewa].en, MEWA_CHARACTERISTICS[tibCurrent.mewa].tib)}
                             </p>
                           </div>
                         </div>
@@ -1297,46 +1499,69 @@ export default function App() {
                               <Star size={18} className="text-saffron" />
                             </div>
                             <div>
-                              <h4 className="text-[10px] font-black text-stone-500 uppercase tracking-widest">Your Daily Destiny</h4>
+                              <h4 className="text-[10px] font-black text-stone-500 uppercase tracking-widest">{t(UI_LABELS.DAILY_DESTINY.en, UI_LABELS.DAILY_DESTINY.tib)}</h4>
                               <p className="text-xs font-serif font-bold text-white leading-none mt-1">
-                                {HOROSCOPE_RULES[getElementalHarmony(userData.birthElement, tibCurrent.element)]?.title || "Neutral Flow"}
+                                {(() => {
+                                  const rule = HOROSCOPE_RULES[getElementalHarmony(userData.birthElement, tibCurrent.element)];
+                                  return rule ? t(rule.title, rule.titleTib) : t("Neutral Flow", "དཀྱུས་མའི་གནས་བབས།");
+                                })()}
                               </p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-[8px] font-black text-stone-600 uppercase tracking-widest">Affinity</p>
+                            <p className="text-[8px] font-black text-stone-600 uppercase tracking-widest">{t(UI_LABELS.AFFINITY.en, UI_LABELS.AFFINITY.tib)}</p>
                             <p className="text-[10px] font-bold text-turquoise uppercase tracking-wider">{getAnimalAffinity(userData.birthAnimal, tibCurrent.animal)}</p>
                           </div>
                         </div>
                       )}
                     </section>
 
+
                     {/* Annual Resonance Section */}
                     <section className="space-y-3">
                       <div className="flex items-center justify-between px-1">
-                        <h3 className="text-[8px] font-black text-stone-400 uppercase tracking-widest">Annual Essence</h3>
-                        <span className="text-[8px] font-bold text-stone-400 uppercase tracking-widest italic">{tibCurrent.yearName} Year</span>
+                        <h3 className="text-[8px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.ANNUAL_ESSENCE.en, UI_LABELS.ANNUAL_ESSENCE.tib)}</h3>
+                        <span className="text-[8px] font-bold text-stone-400 uppercase tracking-widest italic">{t(tibCurrent.yearName, tibCurrent.yearName)} {t('Year', 'ལོ།')}</span>
                       </div>
 
                       <div className="flex items-center gap-4 p-4 bg-stone-50 rounded-2xl border border-stone-100/50">
-                        <div className="w-12 h-12 rounded-xl bg-white border border-stone-100 flex items-center justify-center overflow-hidden shrink-0">
-                          <img
-                            src={`https://picsum.photos/seed/${tibCurrent.animal.toLowerCase()}/100/100`}
-                            alt={tibCurrent.animal}
-                            className="w-full h-full object-cover grayscale opacity-60"
-                            referrerPolicy="no-referrer"
-                          />
-                        </div>
+
                         <div className="min-w-0">
                           <h4 className="text-sm font-serif font-black text-stone-950 truncate">
                             {ANIMAL_ICONS[tibCurrent.animal]} {tibCurrent.yearName}
                           </h4>
                           <p className="text-[10px] text-stone-500 italic line-clamp-2 mt-1">
-                            {ANIMAL_CHARACTERISTICS[tibCurrent.animal]}
+                            {ANIMAL_CHARACTERISTICS[tibCurrent.animal] && t(ANIMAL_CHARACTERISTICS[tibCurrent.animal].en, ANIMAL_CHARACTERISTICS[tibCurrent.animal].tib)}
                           </p>
                         </div>
                       </div>
                     </section>
+
+                    {/* Celestial Identity (Personal Essence) */}
+                    {userData.birthAnimal && userData.birthElement && (
+                      <div className="bg-stone-900 rounded-[40px] p-8 text-white relative overflow-hidden group shadow-2xl shadow-stone-900/40 mt-4">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-saffron/20 rounded-full blur-3xl -mr-10 -mt-10" />
+                        <div className="relative space-y-4">
+                          <div className="flex items-center gap-2">
+                            <Sparkles size={16} className="text-saffron" />
+                            <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-stone-500">{t(UI_LABELS.CELESTIAL_IDENTITY.en, UI_LABELS.CELESTIAL_IDENTITY.tib)}</h3>
+                          </div>
+                          <div className="space-y-4">
+                            <p className="text-sm font-serif font-bold italic leading-relaxed text-stone-100">
+                              {t(
+                                `"As a ${userData.birthElement} ${userData.birthAnimal}, you embody a rare synergy of ${userData.birthElement.toLowerCase()} and ${userData.birthAnimal.toLowerCase()} energies."`,
+                                `"${TIBETAN_ELEMENTS[userData.birthElement]} ${TIBETAN_ANIMALS[userData.birthAnimal]}ཡིན་པའི་ཆ་ནས། ཁྱེད་ལ་${TIBETAN_ELEMENTS[userData.birthElement]}དང་${TIBETAN_ANIMALS[userData.birthAnimal]}གཉིས་ཀྱི་ནུས་པ་ཁྱད་པར་ཅན་ཞིག་ཡོད།"`
+                              )}
+                            </p>
+                            <p className="text-[11px] text-stone-400 leading-relaxed font-medium">
+                              {userData.birthAnimal && ANIMAL_CHARACTERISTICS[userData.birthAnimal] && t(ANIMAL_CHARACTERISTICS[userData.birthAnimal].en, ANIMAL_CHARACTERISTICS[userData.birthAnimal].tib)}
+                              {' '}
+                              {userData.birthElement && ELEMENT_CHARACTERISTICS[userData.birthElement] && t(ELEMENT_CHARACTERISTICS[userData.birthElement].en, ELEMENT_CHARACTERISTICS[userData.birthElement].tib)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </div>
@@ -1345,7 +1570,7 @@ export default function App() {
 
           {activeTab === 'calendar' && (
             <motion.div
-              key="calendar"
+              key={`calendar-${userData.language}`}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
@@ -1357,7 +1582,7 @@ export default function App() {
                     Tib. Year {toTibetanNumerals(tibSelected.year)} • {tibSelected.yearName}
                   </h2>
                   <h2 className="text-2xl font-serif font-black text-stone-950">
-                    {calendarView === 'month' ? n(format(currentDate, 'MMMM yyyy')) : 'Annual Cycle'}
+                    {calendarView === 'month' ? n(format(currentDate, 'MMMM yyyy')) : t(UI_LABELS.ANNUAL_CYCLE.en, UI_LABELS.ANNUAL_CYCLE.tib)}
                   </h2>
                 </div>
                 <div className="flex bg-stone-100/50 p-1 rounded-xl">
@@ -1368,7 +1593,7 @@ export default function App() {
                       calendarView === 'week' ? "bg-white text-stone-900 shadow-sm" : "text-stone-400"
                     )}
                   >
-                    Week
+                    {t('Week', 'བདུན་ཕྲག')}
                   </button>
                   <button
                     onClick={() => setCalendarView('month')}
@@ -1377,7 +1602,7 @@ export default function App() {
                       calendarView === 'month' ? "bg-white text-stone-900 shadow-sm" : "text-stone-400"
                     )}
                   >
-                    Month
+                    {t('Month', 'ཟླ་བ།')}
                   </button>
                   <button
                     onClick={() => setCalendarView('year')}
@@ -1386,7 +1611,7 @@ export default function App() {
                       calendarView === 'year' ? "bg-white text-stone-900 shadow-sm" : "text-stone-400"
                     )}
                   >
-                    Year
+                    {t('Year', 'ལོ་འཁོར།')}
                   </button>
                 </div>
               </header>
@@ -1436,9 +1661,15 @@ export default function App() {
                           const customFestivals = (userData.customFestivals || []).filter(f => f.date === dateKey);
                           const allEvents = [...dayFestivals, ...customFestivals];
 
+                          const dayOfWeek = format(date, 'EEEE');
+                          const isLaDay = powerDays?.la === dayOfWeek;
+                          const isSokDay = powerDays?.sok === dayOfWeek;
+                          const isEnemyDay = powerDays?.enemy === dayOfWeek;
+
                           return (
                             <motion.div
                               key={dateKey}
+                              ref={isToday ? todayRef : null}
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: i * 0.05 }}
@@ -1459,27 +1690,71 @@ export default function App() {
                                   </div>
                                   <div>
                                     <p className={cn("text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5", isSelected ? "text-stone-400" : "text-stone-300")}>
-                                      {t('Lunar Day', 'བོད་ཚེས།')} {toTibetanNumerals(tib.day)}
+                                      {t(UI_LABELS.LUNAR_DAY.en, UI_LABELS.LUNAR_DAY.tib)} {toTibetanNumerals(tib.day)}
                                       {tib.day === 15 && <span className="text-yellow-500 text-xs">🌕</span>}
                                       {tib.day === 30 && <span className="text-stone-400 text-xs">🌑</span>}
                                       <span className="mx-1 opacity-20">•</span>
                                       <span className={cn("text-[8px] font-black", isSelected ? "text-turquoise" : "text-turquoise")}>
-                                        {t(`${tib.planetElement}-${tib.mansionElement}`, COMBINATIONS[`${tib.planetElement}-${tib.mansionElement}`]?.tib || tib.combination)}
+                                        {tib.lunarSymbol ? (
+                                          <span className="flex items-center gap-1">
+                                            {MENTSKHANG_SYMBOLS[tib.lunarSymbol]?.icon} {t(tib.lunarSymbol, MENTSKHANG_SYMBOLS[tib.lunarSymbol]?.tib)}
+                                          </span>
+                                        ) : (
+                                          t(`${tib.planetElement}-${tib.mansionElement}`, COMBINATIONS[`${tib.planetElement}-${tib.mansionElement}`]?.tib || tib.combination)
+                                        )}
                                       </span>
                                     </p>
                                     <div className="flex items-center gap-2 mt-1">
                                       <h4 className="text-sm font-serif font-bold">
-                                        {allEvents.length > 0 ? allEvents[0].name : (isToday ? 'Present Moment' : 'Clear Sky')}
+                                        {allEvents.length > 0 ? allEvents[0].name : (isToday ? t(UI_LABELS.PRESENT_MOMENT.en, UI_LABELS.PRESENT_MOMENT.tib) : t(UI_LABELS.CLEAR_SKY.en, UI_LABELS.CLEAR_SKY.tib))}
                                       </h4>
                                     </div>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   {sticker?.emoji && <span className="text-lg">{sticker.emoji}</span>}
+                                  
+                                  {/* Personal Power Day Indicators */}
+                                  <div className="flex items-center gap-1">
+                                    {isLaDay && (
+                                      <div className="flex items-center gap-1 bg-green-50 px-1.5 py-0.5 rounded-full border border-green-100">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                        <span className="text-[7px] font-black text-green-700 uppercase">L</span>
+                                      </div>
+                                    )}
+                                    {isSokDay && (
+                                      <div className="flex items-center gap-1 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-100">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                        <span className="text-[7px] font-black text-blue-700 uppercase">S</span>
+                                      </div>
+                                    )}
+                                    {isEnemyDay && (
+                                      <div className="flex items-center gap-1 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-100">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                        <span className="text-[7px] font-black text-red-700 uppercase">E</span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Day Element & Animal Indicator */}
+                                  <div className={cn(
+                                    "flex items-center gap-1.5 px-2 py-1 rounded-full border text-[8px] font-black uppercase tracking-tighter",
+                                    isSelected ? "bg-white/10 border-white/20 text-white" : "bg-stone-50 border-stone-100 text-stone-400"
+                                  )}>
+                                    <span className={cn(
+                                      "w-1.5 h-1.5 rounded-full",
+                                      tib.element === 'Fire' ? 'bg-red-500' : 
+                                      tib.element === 'Water' ? 'bg-blue-500' :
+                                      tib.element === 'Earth' ? 'bg-amber-600' :
+                                      tib.element === 'Iron' ? 'bg-stone-400' : 'bg-green-500'
+                                    )} />
+                                    <span>{ANIMAL_ICONS[tib.animal]} {tib.animal.slice(0, 3)}</span>
+                                  </div>
+
                                   {note && <div className={cn("w-1.5 h-1.5 rounded-full", isSelected ? "bg-turquoise" : "bg-turquoise/40")} />}
                                   {allEvents.length > 1 && (
                                     <div className="px-2 py-1 bg-saffron/10 text-saffron rounded-full text-[8px] font-black uppercase">
-                                      +{allEvents.length - 1} Events
+                                      +{allEvents.length - 1}
                                     </div>
                                   )}
                                 </div>
@@ -1497,7 +1772,92 @@ export default function App() {
                           );
                         })}
                       </div>
+
+                      {/* Legend Section */}
+                      <div className="mt-8 px-2 space-y-6 pb-12 border-t border-stone-50 pt-8">
+                        <div className="space-y-3">
+                          <h4 className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{t('Personal Alignment', 'རང་གི་རྟགས།')}</h4>
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm" />
+                              <span className="text-[10px] text-stone-500 font-black uppercase tracking-tight">{t('Soul Day (La-Day)', 'བླ་གཟའ།')}</span>
+                            </div>
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm" />
+                              <span className="text-[10px] text-stone-500 font-black uppercase tracking-tight">{t('Vitality Day (Sok)', 'སྲོག་གཟའ།')}</span>
+                            </div>
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm" />
+                              <span className="text-[10px] text-stone-500 font-black uppercase tracking-tight">{t('Conflict Day', 'གཤེད་གཟའ།')}</span>
+                            </div>
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-2.5 h-2.5 rounded-full bg-saffron shadow-sm" />
+                              <span className="text-[10px] text-stone-500 font-black uppercase tracking-tight">{t('Sacred Festival', 'དུས་ཆེན།')}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <h4 className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{t('Personal Alignment Legend', 'རང་གི་སྐར་རྩིས་མཚོན་རྟགས།')}</h4>
+                          <div className="flex flex-wrap gap-x-5 gap-y-2.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                              <span className="text-[9px] text-stone-500 font-bold uppercase">L: La (Soul)</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                              <span className="text-[9px] text-stone-500 font-bold uppercase">S: Sok (Vitality)</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                              <span className="text-[9px] text-stone-500 font-bold uppercase">E: Enemy (Conflict)</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <h4 className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{t('Day Elements', 'ཉིན་རེའི་འབྱུང་བ།')}</h4>
+                          <div className="flex flex-wrap gap-x-5 gap-y-2.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-red-500" />
+                              <span className="text-[10px] text-stone-500 font-bold uppercase">{t('Fire', 'མེ།')}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-blue-500" />
+                              <span className="text-[10px] text-stone-500 font-bold uppercase">{t('Water', 'ཆུ།')}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-amber-600" />
+                              <span className="text-[10px] text-stone-500 font-bold uppercase">{t('Earth', 'ས།')}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-stone-400" />
+                              <span className="text-[10px] text-stone-500 font-bold uppercase">{t('Iron/Wind', 'ལྕགས་རླུང་།')}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-green-500" />
+                              <span className="text-[10px] text-stone-500 font-bold uppercase">{t('Wood', 'ཤིང་།')}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </motion.div>
+                  </AnimatePresence>
+
+                  {/* Jump to Today FAB */}
+                  <AnimatePresence>
+                    {showJumpToday && (
+                      <motion.button
+                        initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.8, y: 20 }}
+                        onClick={scrollToToday}
+                        className="fixed bottom-32 right-6 p-4 bg-stone-900 text-white rounded-2xl shadow-2xl z-50 flex items-center gap-3 active:scale-95 transition-transform"
+                      >
+                        <div className="w-2 h-2 rounded-full bg-saffron animate-pulse" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">{t('Today', 'དེ་རིང་།')}</span>
+                      </motion.button>
+                    )}
                   </AnimatePresence>
                 </div>
               )}
@@ -1572,6 +1932,11 @@ export default function App() {
                                     {tib.isDoubleDay && "⁺"}
                                     {tib.day === 15 && <span>🌕</span>}
                                     {tib.day === 30 && <span>🌑</span>}
+                                    {tib.lunarSymbol && (
+                                      <span className="ml-0.5 opacity-80" title={tib.lunarSymbol}>
+                                        {MENTSKHANG_SYMBOLS[tib.lunarSymbol]?.icon}
+                                      </span>
+                                    )}
                                   </span>
                                 </div>
 
@@ -1646,46 +2011,79 @@ export default function App() {
                           {/* Day Alignment & Specifications */}
                           <div className="space-y-6 pt-2">
                             <div className="space-y-3">
-                              <h4 className="text-[10px] font-black text-stone-300 uppercase tracking-[0.2em] px-1">Day Specifications</h4>
+                              <h4 className="text-[10px] font-black text-stone-300 uppercase tracking-[0.2em] px-1">{t(UI_LABELS.DAY_SPECIFICATIONS.en, UI_LABELS.DAY_SPECIFICATIONS.tib)}</h4>
                               <div className="space-y-2.5">
-                                 {/* Moon Phases */}
-                                 {tibSelected.day === 15 && <StatusItem icon={<MoonPhase day={15} size={22} />} label={t('Full Moon', 'ཉ་གང་།')} detail={t('15th Lunar Day', 'བོད་ཚེས་ ༡༥ ཉ་གང་།')} color="text-stone-900" />}
-                                 {tibSelected.day === 30 && <StatusItem icon={<MoonPhase day={30} size={22} />} label={t('New Moon', 'གནམ་གང་།')} detail={t('30th Lunar Day', 'བོད་ཚེས་ ༣༠ གནམ་གང་།')} color="text-stone-900" />}
-                                 
-                                 {/* Personal Harmony Item */}
-                                 {userData.birthAnimal && (
-                                   <div className="flex items-center justify-between p-3 bg-stone-50/50 rounded-2xl border border-stone-100/50 group">
-                                     <div className="flex items-center gap-3">
-                                       <div className="w-10 h-10 rounded-xl bg-stone-950 flex items-center justify-center text-white group-hover:scale-105 transition-transform">
-                                         <Sparkles size={18} />
-                                       </div>
-                                       <div>
-                                         <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest leading-none mb-1">Sacred Alignment</p>
-                                         <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wide leading-none">Birth Chart Resonance</p>
-                                       </div>
-                                     </div>
-                                     <div className="px-3 py-1.5 rounded-full bg-white border border-stone-100 flex items-center gap-2">
-                                       <Compass size={10} className="text-stone-400" />
-                                       <span className="text-[9px] font-black text-stone-500 uppercase tracking-widest">
-                                         {getElementalHarmony(userData.birthElement, tibSelected.element)} Alignment
-                                       </span>
-                                     </div>
-                                   </div>
-                                 )}
+                                {/* Moon Phases */}
+                                {tibSelected.day === 15 && <StatusItem icon={<MoonPhase day={15} size={22} />} label={t(UI_LABELS.FULL_MOON.en, UI_LABELS.FULL_MOON.tib)} detail={t(UI_LABELS.LUNAR_DAY_15.en, UI_LABELS.LUNAR_DAY_15.tib)} color="text-stone-900" />}
+                                {tibSelected.day === 30 && <StatusItem icon={<MoonPhase day={30} size={22} />} label={t(UI_LABELS.NEW_MOON.en, UI_LABELS.NEW_MOON.tib)} detail={t(UI_LABELS.LUNAR_DAY_30.en, UI_LABELS.LUNAR_DAY_30.tib)} color="text-stone-900" />}
 
-                                 {/* Doubled/Skipped */}
-                                 {tibSelected.isDoubleDay && <StatusItem icon={<span className="text-xl font-black text-saffron">⁺</span>} label={t('Double Day', 'ཚེས་ལྷག')} detail="A duplicated lunar period" />}
-                                 {tibSelected.isSkippedDay && <StatusItem icon={<span className="text-xl font-black text-red-500">⁻</span>} label={t('Skipped Day', 'ཚེས་ཆད།')} detail="This lunar day is omitted" />}
-                                 
-                                 {/* Festivals */}
-                                 {FESTIVALS.filter(f => f.month === tibSelected.month && f.day === tibSelected.day).map(f => (
-                                   <StatusItem key={f.name} icon="🏮" label={f.name} detail={f.description} color="text-tibetan-red" />
-                                 ))}
-                                 
-                                 {/* Generic Placeholder if empty */}
-                                 {tibSelected.day !== 15 && tibSelected.day !== 30 && !tibSelected.isDoubleDay && !tibSelected.isSkippedDay && FESTIVALS.filter(f => f.month === tibSelected.month && f.day === tibSelected.day).length === 0 && !userData.birthAnimal && (
-                                   <div className="py-4 text-[10px] text-stone-300 font-medium italic text-center border-2 border-dashed border-stone-50 rounded-3xl">No celestial markers.</div>
-                                 )}
+                                {/* Personal Harmony Item */}
+                                {userData.birthAnimal && (
+                                  <div className="flex items-center justify-between p-3 bg-stone-50/50 rounded-2xl border border-stone-100/50 group">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 rounded-xl bg-stone-950 flex items-center justify-center text-white group-hover:scale-105 transition-transform">
+                                        <Sparkles size={18} />
+                                      </div>
+                                      <div>
+                                        <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest leading-none mb-1">{t(UI_LABELS.SACRED_ALIGNMENT.en, UI_LABELS.SACRED_ALIGNMENT.tib)}</p>
+                                        <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wide leading-none">{t(UI_LABELS.BIRTH_CHART_RESONANCE.en, UI_LABELS.BIRTH_CHART_RESONANCE.tib)}</p>
+                                      </div>
+                                    </div>
+                                    <div className="px-3 py-1.5 rounded-full bg-white border border-stone-100 flex items-center gap-2">
+                                      <Compass size={10} className="text-stone-400" />
+                                      <span className="text-[9px] font-black text-stone-500 uppercase tracking-widest">
+                                        {getElementalHarmony(userData.birthElement, tibSelected.element) === 'life' ? t(UI_LABELS.LIFE_FORCE_ALIGNMENT.en, UI_LABELS.LIFE_FORCE_ALIGNMENT.tib) :
+                                         getElementalHarmony(userData.birthElement, tibSelected.element) === 'son' ? t(UI_LABELS.PROSPERITY_ALIGNMENT.en, UI_LABELS.PROSPERITY_ALIGNMENT.tib) :
+                                         getElementalHarmony(userData.birthElement, tibSelected.element) === 'enemy' ? t(UI_LABELS.OBSTACLE_ALIGNMENT.en, UI_LABELS.OBSTACLE_ALIGNMENT.tib) :
+                                         t(UI_LABELS.NEUTRAL_ALIGNMENT.en, UI_LABELS.NEUTRAL_ALIGNMENT.tib)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Mentskhang Symbol Indicator */}
+                                {tibSelected.lunarSymbol && (
+                                  <div className="flex items-start gap-4 p-5 bg-saffron/[0.03] rounded-3xl border border-saffron/10 group">
+                                    <div className="w-12 h-12 rounded-2xl bg-saffron/10 flex items-center justify-center text-2xl group-hover:scale-105 transition-transform shrink-0">
+                                      {MENTSKHANG_SYMBOLS[tibSelected.lunarSymbol]?.icon}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <h4 className="text-sm font-serif font-black text-stone-900">
+                                          {t(tibSelected.lunarSymbol, MENTSKHANG_SYMBOLS[tibSelected.lunarSymbol]?.tib)} ({MENTSKHANG_SYMBOLS[tibSelected.lunarSymbol]?.en})
+                                        </h4>
+                                        {tibSelected.isHandDay && <span className="px-1.5 py-0.5 bg-stone-900 text-white text-[7px] font-black uppercase rounded">{t(UI_LABELS.HAND.en, UI_LABELS.HAND.tib)}</span>}
+                                        {tibSelected.isYenKongDay && <span className="px-1.5 py-0.5 bg-stone-900 text-white text-[7px] font-black uppercase rounded">{t(UI_LABELS.YEN_KONG.en, UI_LABELS.YEN_KONG.tib)}</span>}
+                                      </div>
+                                      <p className="text-[10px] text-stone-500 italic leading-relaxed">
+                                        {t(MENTSKHANG_SYMBOLS[tibSelected.lunarSymbol]?.description, MENTSKHANG_SYMBOLS[tibSelected.lunarSymbol]?.descriptionTib)}
+                                      </p>
+                                      {MENTSKHANG_SYMBOLS[tibSelected.lunarSymbol]?.forbidden && (
+                                        <div className="mt-3 flex flex-wrap gap-1.5">
+                                          {t(MENTSKHANG_SYMBOLS[tibSelected.lunarSymbol].forbidden, MENTSKHANG_SYMBOLS[tibSelected.lunarSymbol].forbiddenTib).map((f, idx) => (
+                                            <span key={idx} className="px-2 py-0.5 bg-red-50 text-red-500 text-[8px] font-black uppercase tracking-tighter rounded-full border border-red-100/50">
+                                              {userData.language === 'Tibetan' ? f : `No ${f}`}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Doubled/Skipped */}
+                                {tibSelected.isDoubleDay && <StatusItem icon={<span className="text-xl font-black text-saffron">⁺</span>} label={t(UI_LABELS.DOUBLE_DAY.en, UI_LABELS.DOUBLE_DAY.tib)} detail={t(UI_LABELS.DOUBLE_DAY_DESC.en, UI_LABELS.DOUBLE_DAY_DESC.tib)} />}
+                                {tibSelected.isSkippedDay && <StatusItem icon={<span className="text-xl font-black text-red-500">⁻</span>} label={t(UI_LABELS.SKIPPED_DAY.en, UI_LABELS.SKIPPED_DAY.tib)} detail={t(UI_LABELS.SKIPPED_DAY_DESC.en, UI_LABELS.SKIPPED_DAY_DESC.tib)} />}
+
+                                {/* Festivals */}
+                                {FESTIVALS.filter(f => f.month === tibSelected.month && f.day === tibSelected.day).map(f => (
+                                  <StatusItem key={f.name} icon="🏮" label={t(f.name, f.nameTib)} detail={t(f.description, f.descriptionTib)} color="text-tibetan-red" />
+                                ))}
+
+                                {/* Generic Placeholder if empty */}
+                                {tibSelected.day !== 15 && tibSelected.day !== 30 && !tibSelected.isDoubleDay && !tibSelected.isSkippedDay && FESTIVALS.filter(f => f.month === tibSelected.month && f.day === tibSelected.day).length === 0 && !userData.birthAnimal && (
+                                  <div className="py-4 text-[10px] text-stone-300 font-medium italic text-center border-2 border-dashed border-stone-50 rounded-3xl">{t(UI_LABELS.NO_CELESTIAL_MARKERS.en, UI_LABELS.NO_CELESTIAL_MARKERS.tib)}</div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1700,7 +2098,7 @@ export default function App() {
                               {customFestivalToday && (
                                 <div className="bg-amber-50 p-4 rounded-2xl space-y-2">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-[9px] font-black text-saffron uppercase tracking-widest">Custom Event</span>
+                                    <span className="text-[9px] font-black text-saffron uppercase tracking-widest">{t(UI_LABELS.CUSTOM_EVENT.en, UI_LABELS.CUSTOM_EVENT.tib)}</span>
                                     <CalendarIcon size={12} className="text-saffron" />
                                   </div>
                                   <h4 className="text-sm font-bold text-stone-900 break-words">{customFestivalToday.name}</h4>
@@ -1712,13 +2110,13 @@ export default function App() {
                               {currentReminder && (
                                 <div className="flex items-center gap-3 bg-amber-50/50 p-3 rounded-2xl">
                                   <Clock size={16} className="text-saffron" />
-                                  <span className="text-[10px] font-bold text-amber-900 uppercase tracking-widest">Remind me today</span>
+                                  <span className="text-[10px] font-bold text-amber-900 uppercase tracking-widest">{t(UI_LABELS.REMIND_ME_TODAY.en, UI_LABELS.REMIND_ME_TODAY.tib)}</span>
                                 </div>
                               )}
                               {selectedNote && (
                                 <div className="bg-stone-50 p-4 rounded-2xl space-y-2">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest">My Notes</span>
+                                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.MY_NOTES.en, UI_LABELS.MY_NOTES.tib)}</span>
                                     <StickyNote size={12} className="text-stone-300" />
                                   </div>
                                   <p className="text-xs font-medium text-stone-600 leading-relaxed whitespace-pre-wrap break-words">{selectedNote}</p>
@@ -1735,29 +2133,29 @@ export default function App() {
 
                   <div className="grid grid-cols-2 gap-4 border-t border-stone-50 pt-6">
                     <div className="space-y-1">
-                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Trigram (Parkha)</p>
+                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.TRIGRAM_PARKHA.en, UI_LABELS.TRIGRAM_PARKHA.tib)}</p>
                       <p className="text-xs font-bold text-stone-900">{PARKHA_ICONS[tibSelected.parkha]} {tibSelected.parkha}</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Magic Sq (Mewa)</p>
+                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.MAGIC_SQ_MEWA.en, UI_LABELS.MAGIC_SQ_MEWA.tib)}</p>
                       <p className="text-xs font-bold text-stone-900">{MEWA_ICONS[tibSelected.mewa]} {tibSelected.mewa}</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 border-t border-stone-50 pt-6">
                     <div className="space-y-1">
-                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Identity</p>
-                      <p className="text-xs font-bold text-amber-800">{tibSelected.yearName}</p>
+                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.YEAR_SIGNATURE.en, UI_LABELS.YEAR_SIGNATURE.tib)}</p>
+                      <p className="text-xs font-bold text-amber-800 italic">{tibSelected.yearName}</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Logic</p>
-                      <p className="text-xs font-bold text-stone-800">{tibSelected.gender} • Month {tibSelected.month}</p>
+                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.LUNAR_CYCLE.en, UI_LABELS.LUNAR_CYCLE.tib)}</p>
+                      <p className="text-xs font-bold text-stone-800">{t(UI_LABELS.MONTH_LABEL.en, UI_LABELS.MONTH_LABEL.tib)} {n(tibSelected.month)}</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 border-t border-stone-50 pt-6">
                     <div className="space-y-1">
-                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Day Conjunction</p>
+                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.DAY_CONJUNCTION.en, UI_LABELS.DAY_CONJUNCTION.tib)}</p>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-turquoise">
                           {t(tibSelected.combination, COMBINATIONS[`${tibSelected.planetElement}-${tibSelected.mansionElement}`]?.tib || tibSelected.combination)}
@@ -1768,14 +2166,14 @@ export default function App() {
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Focus</p>
+                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.FOCUS.en, UI_LABELS.FOCUS.tib)}</p>
                       <p className="text-[10px] font-medium text-stone-500 italic">
                         {(() => {
                           const combined = `${tibSelected.planetElement}-${tibSelected.mansionElement}`;
-                          if (combined === 'Earth-Water') return "Auspicious for building and growth.";
-                          if (combined === 'Earth-Fire') return "Caution advised; friction in social and fire-related activities.";
-                          if (combined === 'Water-Water') return "Fortunate for healing and longevity rituals.";
-                          return "A balanced day for routine spiritual practice.";
+                          if (combined === 'Earth-Water') return t(UI_LABELS.AUSPICIOUS_BUILDING.en, UI_LABELS.AUSPICIOUS_BUILDING.tib);
+                          if (combined === 'Earth-Fire') return t(UI_LABELS.CAUTION_FRICTION.en, UI_LABELS.CAUTION_FRICTION.tib);
+                          if (combined === 'Water-Water') return t(UI_LABELS.FORTUNATE_HEALING.en, UI_LABELS.FORTUNATE_HEALING.tib);
+                          return t(UI_LABELS.BALANCED_ROUTINE.en, UI_LABELS.BALANCED_ROUTINE.tib);
                         })()}
                       </p>
                     </div>
@@ -1785,11 +2183,11 @@ export default function App() {
                   <div className="flex items-center justify-center gap-6 pt-10 pb-12 opacity-30">
                     <div className="flex items-center gap-2">
                       <span className="text-yellow-500 text-xs">🌕</span>
-                      <span className="text-[8px] font-black uppercase tracking-widest text-stone-500">{t('Full Moon', 'ཉ་གང་།')}</span>
+                      <span className="text-[8px] font-black uppercase tracking-widest text-stone-500">{t(UI_LABELS.FULL_MOON.en, UI_LABELS.FULL_MOON.tib)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-stone-400 text-xs">🌑</span>
-                      <span className="text-[8px] font-black uppercase tracking-widest text-stone-500">{t('New Moon', 'གནམ་གང་།')}</span>
+                      <span className="text-[8px] font-black uppercase tracking-widest text-stone-500">{t(UI_LABELS.NEW_MOON.en, UI_LABELS.NEW_MOON.tib)}</span>
                     </div>
                   </div>
                 </>
@@ -1803,7 +2201,7 @@ export default function App() {
                     <div className="relative space-y-6">
                       <div className="flex items-center gap-2">
                         <Star size={16} className="text-saffron" />
-                        <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-widest">Annual Essence</h3>
+                        <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-widest">{t(UI_LABELS.ANNUAL_ESSENCE.en, UI_LABELS.ANNUAL_ESSENCE.tib)}</h3>
                       </div>
                       <div className="space-y-2">
                         <p className="text-3xl font-serif font-black italic">{tibCurrent.yearName} Year</p>
@@ -1816,7 +2214,7 @@ export default function App() {
 
                   {/* 12-Month Path */}
                   <div className="space-y-4">
-                    <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">Lunar Path</h3>
+                    <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.LUNAR_PATH.en, UI_LABELS.LUNAR_PATH.tib)}</h3>
                     <div className="bg-white rounded-[32px] overflow-hidden divide-y divide-stone-50">
                       {Array.from({ length: 12 }).map((_, monthIdx) => {
                         const m = monthIdx + 1;
@@ -1824,13 +2222,13 @@ export default function App() {
                         return (
                           <div key={m} className="p-6 flex items-start gap-5 hover:bg-stone-50 transition-colors">
                             <div className="w-12 h-12 rounded-2xl bg-amber-50 flex flex-col items-center justify-center text-saffron shrink-0">
-                              <span className="text-[8px] font-black uppercase tracking-tighter">Month</span>
-                              <span className="text-lg font-serif font-black leading-none">{m}</span>
+                              <span className="text-[8px] font-black uppercase tracking-tighter">{t(UI_LABELS.MONTH.en, UI_LABELS.MONTH.tib)}</span>
+                              <span className="text-lg font-serif font-black leading-none">{toTibetanNumerals(m)}</span>
                             </div>
                             <div className="flex-1 space-y-3">
                               <div className="flex items-center justify-between pt-1">
                                 <p className="text-xs font-black text-stone-900 uppercase tracking-widest">
-                                  {m === 1 ? 'Losar Cycle' : m === 4 ? 'Saga Dawa Season' : `Lunar Cycle ${m}`}
+                                  {m === 1 ? t(UI_LABELS.LOSAR_CYCLE.en, UI_LABELS.LOSAR_CYCLE.tib) : m === 4 ? t(UI_LABELS.SAGA_DAWA.en, UI_LABELS.SAGA_DAWA.tib) : `${t(UI_LABELS.LUNAR_CYCLE.en, UI_LABELS.LUNAR_CYCLE.tib)} ${toTibetanNumerals(m)}`}
                                 </p>
                                 <div className="flex gap-1">
                                   {monthFestivals.map((_, i) => <div key={i} className="w-1.5 h-1.5 rounded-full bg-tibetan-red" />)}
@@ -1842,12 +2240,12 @@ export default function App() {
                                   {monthFestivals.map((f, i) => (
                                     <div key={i} className="flex items-center gap-2 group">
                                       <div className="w-1 h-1 rounded-full bg-stone-200" />
-                                      <span className="text-[11px] font-bold text-stone-600">Day {f.day}: {f.name}</span>
+                                      <span className="text-[11px] font-bold text-stone-600">{t(UI_LABELS.DAY_LABEL.en, UI_LABELS.DAY_LABEL.tib)} {toTibetanNumerals(f.day)}: {f.name}</span>
                                     </div>
                                   ))}
                                 </div>
                               ) : (
-                                <p className="text-[10px] text-stone-400 italic">Balanced energetic period</p>
+                                <p className="text-[10px] text-stone-400 italic">{t(UI_LABELS.BALANCED_PERIOD.en, UI_LABELS.BALANCED_PERIOD.tib)}</p>
                               )}
                             </div>
                           </div>
@@ -1860,7 +2258,7 @@ export default function App() {
                   <div className="p-8 text-center text-stone-400 space-y-2">
                     <Sparkles size={24} className="mx-auto opacity-20" />
                     <p className="text-[11px] italic leading-relaxed max-w-xs mx-auto">
-                      "One year of breath, twelve cycles of light. Map your path with intentional merit."
+                      {t(UI_LABELS.CALENDAR_QUOTE.en, UI_LABELS.CALENDAR_QUOTE.tib)}
                     </p>
                   </div>
                 </div>
@@ -1870,7 +2268,7 @@ export default function App() {
 
           {activeTab === 'profile' && (
             <motion.div
-              key="profile"
+              key={`profile-${userData.language}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
@@ -1886,8 +2284,8 @@ export default function App() {
                 >
                   <div className={cn(
                     "w-20 h-20 rounded-full flex items-center justify-center text-stone-100 border-4 border-white shadow-xl transition-all",
-                    userData.gender === 'Female' 
-                      ? "bg-lotus group-hover:border-lotus/50 shadow-lotus/20" 
+                    userData.gender === 'Female'
+                      ? "bg-lotus group-hover:border-lotus/50 shadow-lotus/20"
                       : "bg-stone-900 group-hover:border-saffron"
                   )}>
                     <User size={32} className={userData.gender === 'Female' ? "text-white" : "text-saffron"} />
@@ -1896,14 +2294,24 @@ export default function App() {
                     <Pencil size={12} strokeWidth={3} />
                   </div>
                 </button>
-
-                <div className="space-y-1">
+                <div className="space-y-1 text-center">
                   <div className="flex items-center justify-center gap-2">
                     <h1 className="text-2xl font-serif font-black text-stone-950 tracking-tight">
-                      {userData.name ? userData.name : 'Practitioner'}
+                      {userData.name ? userData.name : t(UI_LABELS.PRACTITIONER.en, UI_LABELS.PRACTITIONER.tib)}
                     </h1>
                   </div>
-                  <p className="text-[10px] font-black text-stone-300 uppercase tracking-[0.2em]">Active Alignment</p>
+                  <div className="flex items-center justify-center gap-2 mt-2">
+                    {userData.birthAnimal && (
+                      <span className="px-2 py-0.5 rounded-full bg-saffron/10 text-saffron text-[8px] font-black uppercase tracking-widest border border-saffron/20">
+                        {ANIMAL_ICONS[userData.birthAnimal]} {t(userData.birthAnimal, TIBETAN_ANIMALS[userData.birthAnimal])}
+                      </span>
+                    )}
+                    {userData.birthElement && (
+                      <span className="px-2 py-0.5 rounded-full bg-turquoise/10 text-turquoise text-[8px] font-black uppercase tracking-widest border border-turquoise/20">
+                        {t(userData.birthElement, TIBETAN_ELEMENTS[userData.birthElement])}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </header>
 
@@ -1914,9 +2322,9 @@ export default function App() {
                     <div className="flex items-center gap-4">
                       <User size={16} className="text-stone-300 group-hover:text-saffron transition-colors" />
                       <div>
-                        <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">Gender Orientation</p>
+                        <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">{t(UI_LABELS.GENDER_ORIENTATION.en, UI_LABELS.GENDER_ORIENTATION.tib)}</p>
                         <p className="text-xs font-bold text-stone-800">
-                          {userData.gender ? userData.gender : 'Not specified'}
+                          {userData.gender ? t(userData.gender === 'Male' ? UI_LABELS.MALE.en : UI_LABELS.FEMALE.en, userData.gender === 'Male' ? UI_LABELS.MALE.tib : UI_LABELS.FEMALE.tib) : t(UI_LABELS.NOT_SPECIFIED.en, UI_LABELS.NOT_SPECIFIED.tib)}
                         </p>
                       </div>
                     </div>
@@ -1926,20 +2334,20 @@ export default function App() {
                     <div className="flex items-center gap-4">
                       <CalendarIcon size={16} className="text-stone-300 group-hover:text-saffron transition-colors" />
                       <div>
-                        <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">Birth Date</p>
+                        <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">{t(UI_LABELS.BIRTH_DATE_LABEL.en, UI_LABELS.BIRTH_DATE_LABEL.tib)}</p>
                         <p className="text-xs font-bold text-stone-800">
-                          {userData.birthDateSystem === 'Tibetan' 
-                            ? (userData.tibetanBirthYear 
-                                ? `${n(userData.tibetanBirthYear)}-${n(userData.tibetanBirthMonth || 1)}-${n(userData.tibetanBirthDay || 1)} (${t('Tibetan Year', 'བོད་ལོ།')} ${n(userData.tibetanBirthYear > 1000 ? userData.tibetanBirthYear + 127 : userData.tibetanBirthYear)})`
-                                : 'Establish alignment')
-                            : (userData.birthDate 
-                                ? `${n(format(parseISO(userData.birthDate), 'MMMM do, yyyy'))} (${t('Tibetan Year', 'བོད་ལོ།')} ${n(getTibetanDate(new Date(userData.birthDate)).year)})`
-                                : 'Establish alignment')}
+                          {userData.birthDateSystem === 'Tibetan'
+                            ? (userData.tibetanBirthYear
+                              ? `${n(userData.tibetanBirthYear)}-${n(userData.tibetanBirthMonth || 1)}-${n(userData.tibetanBirthDay || 1)} (${t(UI_LABELS.TIBETAN_YEAR_LABEL.en, UI_LABELS.TIBETAN_YEAR_LABEL.tib)} ${n(userData.tibetanBirthYear > 1000 ? userData.tibetanBirthYear + 127 : userData.tibetanBirthYear)})`
+                              : t(UI_LABELS.ESTABLISH_ALIGNMENT.en, UI_LABELS.ESTABLISH_ALIGNMENT.tib))
+                            : (userData.birthDate
+                              ? `${n(format(parseISO(userData.birthDate), 'MMMM do, yyyy'))} (${t(UI_LABELS.TIBETAN_YEAR_LABEL.en, UI_LABELS.TIBETAN_YEAR_LABEL.tib)} ${n(getTibetanDate(new Date(userData.birthDate)).year)})`
+                              : t(UI_LABELS.ESTABLISH_ALIGNMENT.en, UI_LABELS.ESTABLISH_ALIGNMENT.tib))}
                         </p>
                         {convertedGregorian && (
                           <p className="text-[9px] text-saffron font-bold mt-1.5 leading-relaxed bg-amber-50/50 p-2 rounded-xl border border-saffron/10">
-                            {t(`According to International format Your DOB is ${format(convertedGregorian, 'MMMM do, yyyy')}`, 
-                               `ཕྱི་ལོའི་བརྩི་སྟངས་ལྟར་ན། ཁྱེད་ཀྱི་སྐྱེས་ཚེས་ནི་ ${n(format(convertedGregorian, 'yyyy-MM-dd'))} རེད།`)}
+                            {t(`${UI_LABELS.INTERNATIONAL_FORMAT_HINT.en} ${format(convertedGregorian, 'MMMM do, yyyy')}`,
+                              `${UI_LABELS.INTERNATIONAL_FORMAT_HINT.tib} ${n(format(convertedGregorian, 'yyyy-MM-dd'))} རེད།`)}
                           </p>
                         )}
                         {userData.birthDateSystem === 'International' || !userData.birthDateSystem ? (
@@ -1950,8 +2358,8 @@ export default function App() {
                                   const dateObj = new Date(userData.birthDate);
                                   if (isNaN(dateObj.getTime())) return null;
                                   const tib = getTibetanDate(dateObj);
-                                  return t(`According to Tibetan Calendar Your DOB is ${n(tib.year)}-${n(tib.month)}-${n(tib.day)}`, 
-                                           `བོད་ལོའི་བརྩི་སྟངས་ལྟར་ན། ཁྱེད་ཀྱི་སྐྱེས་ཚེས་ནི་ བོད་ལོ་ ${n(tib.year)} ཟླ་བ་ ${n(tib.month)} ཚེས་ ${n(tib.day)} རེད།`);
+                                  return t(`${UI_LABELS.TIBETAN_CALENDAR_HINT.en} ${n(tib.year)}-${n(tib.month)}-${n(tib.day)}`,
+                                    `${UI_LABELS.TIBETAN_CALENDAR_HINT.tib} བོད་ལོ་ ${n(tib.year)} ཟླ་བ་ ${n(tib.month)} ཚེས་ ${n(tib.day)} རེད།`);
                                 } catch (e) { return null; }
                               })()}
                             </p>
@@ -1967,9 +2375,9 @@ export default function App() {
                         {userData.birthAnimal ? ANIMAL_ICONS[userData.birthAnimal] : '🐾'}
                       </p>
                       <div>
-                        <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">Animal Sign</p>
+                        <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">{t(UI_LABELS.ANIMAL_SIGN.en, UI_LABELS.ANIMAL_SIGN.tib)}</p>
                         <p className="text-xs font-bold text-stone-800">
-                          {userData.birthAnimal ? t(userData.birthAnimal, TIBETAN_ANIMALS[userData.birthAnimal]) : 'Uncalculated'}
+                          {userData.birthAnimal ? t(userData.birthAnimal, TIBETAN_ANIMALS[userData.birthAnimal]) : t(UI_LABELS.UNCALCULATED.en, UI_LABELS.UNCALCULATED.tib)}
                         </p>
                       </div>
                     </div>
@@ -1981,9 +2389,9 @@ export default function App() {
                         <div className="w-1.5 h-1.5 rounded-full bg-stone-300 group-hover:bg-saffron transition-colors" />
                       </div>
                       <div>
-                        <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">Primary Element</p>
+                        <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">{t(UI_LABELS.PRIMARY_ELEMENT.en, UI_LABELS.PRIMARY_ELEMENT.tib)}</p>
                         <p className="text-xs font-bold text-stone-800">
-                          {userData.birthElement ? t(userData.birthElement, TIBETAN_ELEMENTS[userData.birthElement]) : 'Uncalculated'}
+                          {userData.birthElement ? t(userData.birthElement, TIBETAN_ELEMENTS[userData.birthElement]) : t(UI_LABELS.UNCALCULATED.en, UI_LABELS.UNCALCULATED.tib)}
                         </p>
                       </div>
                     </div>
@@ -1991,9 +2399,118 @@ export default function App() {
                 </div>
               </section>
 
+              {/* Yearly Horoscope & Power Days */}
+              {userData.birthAnimal && userData.birthElement && (
+                <section className="space-y-6">
+                  {/* Dhun-Zur Alert */}
+                  {yearlyHoroscope?.isDhunZur && (
+                    <div className="p-5 rounded-3xl bg-red-50 border border-red-100 flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-2xl bg-red-100 flex items-center justify-center text-red-500 shrink-0">
+                        <Info size={20} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-red-900">{t(UI_LABELS.DHUN_ZUR_CONFLICT.en, UI_LABELS.DHUN_ZUR_CONFLICT.tib)}</h4>
+                        <p className="text-[10px] text-red-600 leading-relaxed mt-1">
+                          {t(UI_LABELS.DHUN_ZUR_DESC.en, UI_LABELS.DHUN_ZUR_DESC.tib)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* The Four Vitalities (Scores) */}
+                  <div className="p-6 rounded-[32px] bg-stone-900 text-white space-y-5">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-stone-400">{t(UI_LABELS.YEARLY_ENERGY_SCORES.en, UI_LABELS.YEARLY_ENERGY_SCORES.tib)}</h3>
+                      <span className="text-[10px] font-bold text-saffron uppercase tracking-widest">{toTibetanNumerals(2026)} {t(UI_LABELS.FIRE_HORSE_YEAR.en, UI_LABELS.FIRE_HORSE_YEAR.tib)}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {Object.entries(yearlyHoroscope?.scores || {}).map(([key, value]) => {
+                        const scoreMap: Record<string, { label: string, tib: string, color: string, percent: number }> = {
+                          'mother': { label: UI_LABELS.EXCELLENT.en, tib: UI_LABELS.EXCELLENT.tib, color: 'bg-green-500', percent: 100 },
+                          'son': { label: UI_LABELS.GOOD.en, tib: UI_LABELS.GOOD.tib, color: 'bg-emerald-400', percent: 75 },
+                          'same': { label: UI_LABELS.STABLE.en, tib: UI_LABELS.STABLE.tib, color: 'bg-blue-400', percent: 60 },
+                          'neutral': { label: UI_LABELS.NEUTRAL.en, tib: UI_LABELS.NEUTRAL.tib, color: 'bg-stone-500', percent: 40 },
+                          'enemy': { label: UI_LABELS.CHALLENGING.en, tib: UI_LABELS.CHALLENGING.tib, color: 'bg-red-400', percent: 20 }
+                        };
+                        const s = scoreMap[value as string] || scoreMap.neutral;
+                        const labels: Record<string, { en: string, tib: string }> = {
+                          vitality: { en: UI_LABELS.VITALITY_SOK.en, tib: UI_LABELS.VITALITY_SOK.tib },
+                          body: { en: UI_LABELS.BODY_LU.en, tib: UI_LABELS.BODY_LU.tib },
+                          power: { en: UI_LABELS.POWER_WANG.en, tib: UI_LABELS.POWER_WANG.tib },
+                          luck: { en: UI_LABELS.LUCK_LUNGTA.en, tib: UI_LABELS.LUCK_LUNGTA.tib }
+                        };
+
+                        return (
+                          <div key={key} className="space-y-2">
+                            <div className="flex items-center justify-between px-0.5">
+                              <p className="text-[9px] font-bold text-stone-400 uppercase tracking-tight">{t(labels[key].en, labels[key].tib)}</p>
+                              <p className={cn("text-[8px] font-black uppercase", s.color.replace('bg-', 'text-'))}>{t(s.label, s.tib)}</p>
+                            </div>
+                            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${s.percent}%` }}
+                                className={cn("h-full rounded-full shadow-sm", s.color)} 
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Personal Power Days */}
+                  <div className="grid grid-cols-1 gap-3">
+                    <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.WEEKLY_POWER_DAYS.en, UI_LABELS.WEEKLY_POWER_DAYS.tib)}</h3>
+                    <div className="bg-white rounded-3xl border border-stone-100 p-5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-green-50 text-green-600 flex items-center justify-center">
+                            <Sparkles size={16} />
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest leading-none mb-1">{t(UI_LABELS.SOUL_DAY.en, UI_LABELS.SOUL_DAY.tib)}</p>
+                            <p className="text-xs font-bold text-stone-800">{t(powerDays?.la || '', powerDays?.laTib || '')}</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-green-500 bg-green-50 px-2 py-1 rounded-lg uppercase">{t(UI_LABELS.BEST.en, UI_LABELS.BEST.tib)}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                            <Star size={16} />
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest leading-none mb-1">{t(UI_LABELS.VITALITY_DAY.en, UI_LABELS.VITALITY_DAY.tib)}</p>
+                            <p className="text-xs font-bold text-stone-800">{t(powerDays?.sok || '', powerDays?.sokTib || '')}</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg uppercase">{t(UI_LABELS.STRONG.en, UI_LABELS.STRONG.tib)}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
+                            <X size={16} />
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest leading-none mb-1">{t(UI_LABELS.CONFLICT_DAY.en, UI_LABELS.CONFLICT_DAY.tib)}</p>
+                            <p className="text-xs font-bold text-stone-800">{t(powerDays?.enemy || '', powerDays?.enemyTib || '')}</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded-lg uppercase">{t(UI_LABELS.AVOID.en, UI_LABELS.AVOID.tib)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                </section>
+              )}
+
               <div className="pt-8 text-center opacity-40">
                 <p className="text-[9px] text-stone-400 font-medium italic max-w-[180px] mx-auto leading-relaxed">
-                  Honor the path of your arrival.
+                  {t(UI_LABELS.HONOUR_PATH.en, UI_LABELS.HONOUR_PATH.tib)}
                 </p>
               </div>
             </motion.div>
@@ -2027,8 +2544,8 @@ export default function App() {
                     <Pencil size={20} />
                   </div>
                   <div>
-                    <h2 className="text-xl font-serif font-black text-stone-950">Update Profile</h2>
-                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest italic">Sacred Alignment Update</p>
+                    <h2 className="text-xl font-serif font-black text-stone-950">{t(UI_LABELS.UPDATE_PROFILE.en, UI_LABELS.UPDATE_PROFILE.tib)}</h2>
+                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest italic">{t(UI_LABELS.SACRED_ALIGNMENT_UPDATE.en, UI_LABELS.SACRED_ALIGNMENT_UPDATE.tib)}</p>
                   </div>
                 </div>
                 <button onClick={() => setIsProfileSheetOpen(false)} className="p-3 bg-stone-50 rounded-full text-stone-400">
@@ -2040,10 +2557,10 @@ export default function App() {
                 <section className="space-y-4">
                   <div className="bg-stone-50 rounded-[32px] p-6 space-y-6 border border-stone-100/30">
                     <div className="space-y-2">
-                      <label className="text-[9px] font-black text-stone-400 uppercase px-1">Dharma Name</label>
+                      <label className="text-[9px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.DHARMA_NAME.en, UI_LABELS.DHARMA_NAME.tib)}</label>
                       <input
                         type="text"
-                        placeholder="Enter name"
+                        placeholder={t('Enter name', 'མིང་བྲིས།')}
                         value={userData.name || ''}
                         onChange={(e) => setUserData(prev => ({ ...prev, name: e.target.value }))}
                         className="w-full bg-white rounded-2xl p-4 text-xs font-bold outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm"
@@ -2051,7 +2568,7 @@ export default function App() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[9px] font-black text-stone-400 uppercase px-1">Gender</label>
+                      <label className="text-[9px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.GENDER.en, UI_LABELS.GENDER.tib)}</label>
                       <div className="grid grid-cols-2 gap-3">
                         {['Male', 'Female'].map((g) => (
                           <button
@@ -2060,8 +2577,8 @@ export default function App() {
                             onClick={() => setUserData(prev => ({ ...prev, gender: g as any }))}
                             className={cn(
                               "p-4 rounded-2xl border text-xs font-bold transition-all flex items-center justify-center gap-2",
-                              userData.gender === g 
-                                ? "bg-stone-900 text-white border-stone-800 shadow-lg scale-[1.02]" 
+                              userData.gender === g
+                                ? "bg-stone-900 text-white border-stone-800 shadow-lg scale-[1.02]"
                                 : "bg-white text-stone-500 border-stone-100 shadow-sm"
                             )}
                           >
@@ -2069,7 +2586,7 @@ export default function App() {
                               "w-2 h-2 rounded-full",
                               userData.gender === g ? "bg-saffron" : "bg-stone-200"
                             )} />
-                            {g}
+                            {g === 'Male' ? t(UI_LABELS.MALE.en, UI_LABELS.MALE.tib) : t(UI_LABELS.FEMALE.en, UI_LABELS.FEMALE.tib)}
                           </button>
                         ))}
                       </div>
@@ -2077,7 +2594,7 @@ export default function App() {
 
                     <div className="space-y-4">
                       <div className="flex items-center justify-between px-1">
-                        <label className="text-[9px] font-black text-stone-400 uppercase">Birth System</label>
+                        <label className="text-[9px] font-black text-stone-400 uppercase">{t(UI_LABELS.BIRTH_SYSTEM.en, UI_LABELS.BIRTH_SYSTEM.tib)}</label>
                         <div className="flex bg-white rounded-full p-1 border border-stone-100 shadow-sm">
                           {['International', 'Tibetan'].map((s) => (
                             <button
@@ -2089,7 +2606,7 @@ export default function App() {
                                 (userData.birthDateSystem || 'International') === s ? "bg-stone-900 text-white shadow-md" : "text-stone-400"
                               )}
                             >
-                              {s === 'International' ? t('International', 'ཕྱི་ལོ།') : t('Tibetan Calendar', 'བོད་ལོ།')}
+                              {s === 'International' ? t(UI_LABELS.INTERNATIONAL.en, UI_LABELS.INTERNATIONAL.tib) : t(UI_LABELS.TIBETAN_CALENDAR.en, UI_LABELS.TIBETAN_CALENDAR.tib)}
                             </button>
                           ))}
                         </div>
@@ -2097,12 +2614,12 @@ export default function App() {
 
                       <div className="space-y-2">
                         <label className="text-[9px] font-black text-stone-400 uppercase px-1">
-                          Birth Date
+                          {t(UI_LABELS.BIRTH_DATE_LABEL.en, UI_LABELS.BIRTH_DATE_LABEL.tib)}
                         </label>
                         {(userData.birthDateSystem || 'International') === 'Tibetan' ? (
                           <div className="grid grid-cols-3 gap-3">
                             <div className="space-y-1.5 relative">
-                              <label className="text-[7px] font-black text-stone-400 uppercase px-1">Birth Year (AD)</label>
+                              <label className="text-[7px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.BIRTH_YEAR_AD.en, UI_LABELS.BIRTH_YEAR_AD.tib)}</label>
                               <input
                                 type="number"
                                 placeholder="e.g., 1987"
@@ -2112,7 +2629,7 @@ export default function App() {
                               />
                             </div>
                             <div className="space-y-1.5">
-                              <label className="text-[7px] font-black text-stone-400 uppercase px-1">Month</label>
+                              <label className="text-[7px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.MONTH_LABEL.en, UI_LABELS.MONTH_LABEL.tib)}</label>
                               <select
                                 value={userData.tibetanBirthMonth || 1}
                                 onChange={(e) => setUserData(prev => ({ ...prev, tibetanBirthMonth: parseInt(e.target.value) }))}
@@ -2124,7 +2641,7 @@ export default function App() {
                               </select>
                             </div>
                             <div className="space-y-1.5">
-                              <label className="text-[7px] font-black text-stone-400 uppercase px-1">Lunar Day</label>
+                              <label className="text-[7px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.LUNAR_DAY_LABEL.en, UI_LABELS.LUNAR_DAY_LABEL.tib)}</label>
                               <select
                                 value={userData.tibetanBirthDay || 1}
                                 onChange={(e) => setUserData(prev => ({ ...prev, tibetanBirthDay: parseInt(e.target.value) }))}
@@ -2150,53 +2667,52 @@ export default function App() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between px-1">
-                          <label className="text-[9px] font-black text-stone-400 uppercase">Birth Animal</label>
-                          {userData.birthDate && <span className="text-[7px] font-black text-emerald-500 uppercase tracking-tighter">System Calculated</span>}
+                          <label className="text-[9px] font-black text-stone-400 uppercase">{t(UI_LABELS.ANIMAL_SIGN.en, UI_LABELS.ANIMAL_SIGN.tib)}</label>
+                          {userData.birthDate && <span className="text-[7px] font-black text-emerald-500 uppercase tracking-tighter">{t(UI_LABELS.SYSTEM_CALCULATED.en, UI_LABELS.SYSTEM_CALCULATED.tib)}</span>}
                         </div>
                         <div className="relative">
                           <select
                             value={userData.birthAnimal || ''}
                             onChange={(e) => {
                               setUserData(prev => ({ ...prev, birthAnimal: e.target.value }));
-                              setHoroscope(null);
                             }}
                             className="w-full bg-white rounded-2xl p-4 text-xs font-bold appearance-none outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm px-4"
                           >
-                            <option value="">Animal</option>
-                            {ANIMALS.map(a => <option key={a} value={a}>{ANIMAL_ICONS[a]} {a}</option>)}
+                            <option value="">{t(UI_LABELS.ANIMAL_SIGN.en, UI_LABELS.ANIMAL_SIGN.tib)}</option>
+                            {ANIMALS.map(a => <option key={a} value={a}>{ANIMAL_ICONS[a]} {t(a, TIBETAN_ANIMALS[a])}</option>)}
                           </select>
                           <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 pointer-events-none" />
                         </div>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between px-1">
-                          <label className="text-[9px] font-black text-stone-400 uppercase">Birth Element</label>
-                          {userData.birthDate && <span className="text-[7px] font-black text-emerald-500 uppercase tracking-tighter">System Calculated</span>}
+                          <label className="text-[9px] font-black text-stone-400 uppercase">{t(UI_LABELS.PRIMARY_ELEMENT.en, UI_LABELS.PRIMARY_ELEMENT.tib)}</label>
+                          {userData.birthDate && <span className="text-[7px] font-black text-emerald-500 uppercase tracking-tighter">{t(UI_LABELS.SYSTEM_CALCULATED.en, UI_LABELS.SYSTEM_CALCULATED.tib)}</span>}
                         </div>
                         <div className="relative">
                           <select
                             value={userData.birthElement || ''}
                             onChange={(e) => {
                               setUserData(prev => ({ ...prev, birthElement: e.target.value }));
-                              setHoroscope(null);
                             }}
                             className="w-full bg-white rounded-2xl p-4 text-xs font-bold appearance-none outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm px-4"
                           >
-                            <option value="">Element</option>
-                            {ELEMENTS.map(e => <option key={e} value={e}>{e}</option>)}
+                            <option value="">{t(UI_LABELS.PRIMARY_ELEMENT.en, UI_LABELS.PRIMARY_ELEMENT.tib)}</option>
+                            {ELEMENTS.map(e => <option key={e} value={e}>{t(e, TIBETAN_ELEMENTS[e])}</option>)}
                           </select>
                           <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 pointer-events-none" />
                         </div>
                       </div>
                     </div>
                   </div>
+
                 </section>
 
                 <button
                   onClick={() => setIsProfileSheetOpen(false)}
                   className="w-full bg-stone-900 text-white p-6 rounded-[32px] font-black uppercase tracking-[0.2em] text-xs active:scale-[0.98] transition-all"
                 >
-                  Confirm & Sync
+                  {t(UI_LABELS.CONFIRM_SYNC.en, UI_LABELS.CONFIRM_SYNC.tib)}
                 </button>
               </div>
             </motion.div>
@@ -2218,8 +2734,8 @@ export default function App() {
                   <Settings size={20} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-serif font-black text-stone-950 leading-tight">Settings</h2>
-                  <p className="text-[9px] text-stone-400 font-bold uppercase tracking-widest leading-none">System & Alignment</p>
+                  <h2 className="text-lg font-serif font-black text-stone-950 leading-tight">{t(UI_LABELS.SETTINGS.en, UI_LABELS.SETTINGS.tib)}</h2>
+                  <p className="text-[9px] text-stone-400 font-bold uppercase tracking-widest leading-none">{t(UI_LABELS.SYSTEM_ALIGNMENT.en, UI_LABELS.SYSTEM_ALIGNMENT.tib)}</p>
                 </div>
               </div>
               <button
@@ -2233,13 +2749,13 @@ export default function App() {
             <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 pb-12">
               <div className="space-y-4">
                 <div className="p-4 bg-white/60 rounded-[28px] border border-white/40 space-y-3">
-                  <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">Interface</h3>
+                  <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.INTERFACE.en, UI_LABELS.INTERFACE.tib)}</h3>
                   <div className="flex items-center justify-between p-1">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-xl bg-stone-50 flex items-center justify-center text-stone-400 shadow-sm">
                         <Sun size={14} />
                       </div>
-                      <span className="text-[11px] font-bold text-stone-700">Light Mode</span>
+                      <span className="text-[11px] font-bold text-stone-700">{t(UI_LABELS.LIGHT_MODE.en, UI_LABELS.LIGHT_MODE.tib)}</span>
                     </div>
                     <div className="w-10 h-5 bg-saffron rounded-full relative">
                       <div className="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-sm" />
@@ -2248,7 +2764,7 @@ export default function App() {
                 </div>
 
                 <div id={UI_IDS.SETTINGS.LANGUAGE_SELECTOR} className="p-4 bg-white/60 rounded-[28px] border border-white/40 space-y-4">
-                  <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">{t('Language Selection', 'སྐད་ཡིག་འདམ་ཀ')}</h3>
+                  <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.SELECT_LANGUAGE.en, UI_LABELS.SELECT_LANGUAGE.tib)}</h3>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => setUserData(prev => ({ ...prev, language: 'English' }))}
@@ -2257,7 +2773,7 @@ export default function App() {
                         userData.language !== 'Tibetan' ? "bg-stone-900 text-white border-stone-800 shadow-md" : "bg-stone-50/50 text-stone-600 border-stone-100/30"
                       )}
                     >
-                      <span className="text-[11px] font-bold">English</span>
+                      <span className="text-[11px] font-bold">{t('English', 'དབྱིན་ཡིག')}</span>
                       {userData.language !== 'Tibetan' && <Check size={12} className="text-saffron" />}
                     </button>
                     <button
@@ -2274,16 +2790,16 @@ export default function App() {
                 </div>
 
                 <div className="p-4 bg-white/60 rounded-[28px] border border-white/40 space-y-3">
-                  <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">Traditional Method</h3>
+                  <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.TRADITIONAL_METHOD.en, UI_LABELS.TRADITIONAL_METHOD.tib)}</h3>
                   <div className="flex items-center justify-between p-3 bg-stone-50/50 rounded-2xl border border-stone-100/30">
-                    <span className="text-[11px] font-bold text-stone-900">Phugpa anchor system</span>
+                    <span className="text-[11px] font-bold text-stone-900">{t(UI_LABELS.PHUGPA_ANCHOR_SYSTEM.en, UI_LABELS.PHUGPA_ANCHOR_SYSTEM.tib)}</span>
                     <Check size={12} className="text-saffron" />
                   </div>
-                  <p className="text-[8px] text-stone-400 font-medium italic px-1 leading-relaxed">Modern Men-Tsee-Khang calculations based on sacred Phugpa lineages.</p>
+                  <p className="text-[8px] text-stone-400 font-medium italic px-1 leading-relaxed">{t(UI_LABELS.MODERN_CALCULATIONS.en, UI_LABELS.MODERN_CALCULATIONS.tib)}</p>
                 </div>
 
                 <div className="p-4 bg-white/60 rounded-[28px] border border-white/40 space-y-3">
-                  <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">Sync & Alignment</h3>
+                  <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.SYNC_ALIGNMENT.en, UI_LABELS.SYNC_ALIGNMENT.tib)}</h3>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={handleExportData}
@@ -2292,7 +2808,7 @@ export default function App() {
                       <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-stone-400 group-hover:text-saffron shadow-sm transition-colors">
                         <Compass size={16} />
                       </div>
-                      <span className="text-[9px] font-black text-stone-900 uppercase tracking-tight">Export Profile</span>
+                      <span className="text-[9px] font-black text-stone-900 uppercase tracking-tight">{t(UI_LABELS.EXPORT_PROFILE.en, UI_LABELS.EXPORT_PROFILE.tib)}</span>
                     </button>
                     <label className="flex flex-col items-center gap-1.5 p-4 bg-stone-50/50 rounded-2xl border border-stone-100/30 hover:border-saffron/20 group transition-all cursor-pointer">
                       <input
@@ -2307,24 +2823,24 @@ export default function App() {
                       <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-stone-400 group-hover:text-saffron shadow-sm transition-colors">
                         <Loader2 size={16} />
                       </div>
-                      <span className="text-[9px] font-black text-stone-900 uppercase tracking-tight">Restore Data</span>
+                      <span className="text-[9px] font-black text-stone-900 uppercase tracking-tight">{t(UI_LABELS.RESTORE_DATA.en, UI_LABELS.RESTORE_DATA.tib)}</span>
                     </label>
                   </div>
-                  <p className="text-[8px] text-stone-400 italic text-center">Back up your alignment history locally.</p>
+                  <p className="text-[8px] text-stone-400 italic text-center">{t(UI_LABELS.BACKUP_HINT.en, UI_LABELS.BACKUP_HINT.tib)}</p>
                 </div>
 
                 <div className="p-4 bg-stone-50/30 rounded-[28px] border border-stone-100/50 space-y-3">
-                  <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">Danger Zone</h3>
+                  <h3 className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.DANGER_ZONE.en, UI_LABELS.DANGER_ZONE.tib)}</h3>
                   <button
                     onClick={() => setIsPrivacySheetOpen(true)}
                     className="w-full flex items-center justify-between p-3 bg-white rounded-2xl text-stone-600 border border-stone-100/50 hover:bg-stone-50 transition-colors mb-2"
                   >
-                    <span className="text-[11px] font-bold">Privacy Policy</span>
+                    <span className="text-[11px] font-bold">{t(UI_LABELS.PRIVACY_POLICY.en, UI_LABELS.PRIVACY_POLICY.tib)}</span>
                     <Info size={14} />
                   </button>
                   <button
                     onClick={() => {
-                      if (window.confirm('Are you sure you want to clear all personal data? This cannot be undone.')) {
+                      if (window.confirm(t(UI_LABELS.CLEAR_CACHE_WARNING.en, UI_LABELS.CLEAR_CACHE_WARNING.tib))) {
                         setUserData({ notes: {}, reminders: {} });
                         localStorage.removeItem('men_tsee_khang_user_data');
                         window.location.reload();
@@ -2332,7 +2848,7 @@ export default function App() {
                     }}
                     className="w-full flex items-center justify-between p-3 bg-white rounded-2xl text-red-500 border border-red-100/50 hover:bg-red-50/50 transition-colors"
                   >
-                    <span className="text-[11px] font-bold">Clear All System Cache</span>
+                    <span className="text-[11px] font-bold">{t(UI_LABELS.CLEAR_CACHE.en, UI_LABELS.CLEAR_CACHE.tib)}</span>
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -2369,8 +2885,8 @@ export default function App() {
                     <Info size={24} />
                   </div>
                   <div>
-                    <h2 className="text-xl font-serif font-black text-stone-950">Privacy Policy</h2>
-                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">Digital Sanctuary Guards</p>
+                    <h2 className="text-xl font-serif font-black text-stone-950">{t(UI_LABELS.PRIVACY_POLICY.en, UI_LABELS.PRIVACY_POLICY.tib)}</h2>
+                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">{t(UI_LABELS.DIGITAL_SANCTUARY_GUARDS.en, UI_LABELS.DIGITAL_SANCTUARY_GUARDS.tib)}</p>
                   </div>
                 </div>
                 <button onClick={() => setIsPrivacySheetOpen(false)} className="p-3 bg-stone-100 rounded-full text-stone-400">
@@ -2380,27 +2896,27 @@ export default function App() {
 
               <div className="flex-1 overflow-y-auto no-scrollbar space-y-6 text-stone-600 text-sm leading-relaxed pb-8">
                 <section className="space-y-3">
-                  <h4 className="text-[10px] font-black text-stone-950 uppercase tracking-widest">Local Sanctuary</h4>
-                  <p>All your data, including birth certificates, ritual notes, and personal reminders, is stored strictly on your local device's <b>LocalStorage</b>. We do not have servers that store your personal information.</p>
+                  <h4 className="text-[10px] font-black text-stone-950 uppercase tracking-widest">{t(UI_LABELS.LOCAL_SANCTUARY.en, UI_LABELS.LOCAL_SANCTUARY.tib)}</h4>
+                  <p>{t(UI_LABELS.LOCAL_SANCTUARY_DESC.en, UI_LABELS.LOCAL_SANCTUARY_DESC.tib)}</p>
                 </section>
 
                 <section className="space-y-3">
-                  <h4 className="text-[10px] font-black text-stone-950 uppercase tracking-widest">Data Sovereignty</h4>
-                  <p>You have total control over your digital footprint. You can export your profile as a JSON file or clear everything instantly using the "Clear All System Cache" button in settings.</p>
+                  <h4 className="text-[10px] font-black text-stone-950 uppercase tracking-widest">{t(UI_LABELS.DATA_SOVEREIGNTY.en, UI_LABELS.DATA_SOVEREIGNTY.tib)}</h4>
+                  <p>{t(UI_LABELS.DATA_SOVEREIGNTY_DESC.en, UI_LABELS.DATA_SOVEREIGNTY_DESC.tib)}</p>
                 </section>
 
                 <section className="space-y-3">
-                  <h4 className="text-[10px] font-black text-stone-950 uppercase tracking-widest">Third Party Services</h4>
-                  <p>We use standard web technologies. When using AI-powered horoscope features (if enabled), only necessary data is processed to generate seasonal guidance. No identifiable data is permanently retained beyond the session.</p>
+                  <h4 className="text-[10px] font-black text-stone-950 uppercase tracking-widest">{t(UI_LABELS.THIRD_PARTY_SERVICES.en, UI_LABELS.THIRD_PARTY_SERVICES.tib)}</h4>
+                  <p>{t(UI_LABELS.THIRD_PARTY_SERVICES_DESC.en, UI_LABELS.THIRD_PARTY_SERVICES_DESC.tib)}</p>
                 </section>
 
                 <section className="space-y-3">
-                  <h4 className="text-[10px] font-black text-stone-950 uppercase tracking-widest">Contact</h4>
-                  <p>For any questions regarding the Phugpa Tradition or the application's digital hygiene, please reach out to the development collective.</p>
+                  <h4 className="text-[10px] font-black text-stone-950 uppercase tracking-widest">{t(UI_LABELS.CONTACT.en, UI_LABELS.CONTACT.tib)}</h4>
+                  <p>{t(UI_LABELS.CONTACT_DESC.en, UI_LABELS.CONTACT_DESC.tib)}</p>
                 </section>
 
                 <div className="pt-6 border-t border-stone-100">
-                  <p className="text-[10px] text-stone-400 italic">Effective Alignment Date: April 2026</p>
+                  <p className="text-[10px] text-stone-400 italic">{t(UI_LABELS.EFFECTIVE_ALIGNMENT_DATE.en, UI_LABELS.EFFECTIVE_ALIGNMENT_DATE.tib)}</p>
                 </div>
               </div>
             </motion.div>
@@ -2431,8 +2947,8 @@ export default function App() {
                     <Search size={24} />
                   </div>
                   <div>
-                    <h2 className="text-xl font-serif font-black text-stone-950">Event Search</h2>
-                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">Find sacred alignments</p>
+                    <h2 className="text-xl font-serif font-black text-stone-950">{t(UI_LABELS.EVENT_SEARCH.en, UI_LABELS.EVENT_SEARCH.tib)}</h2>
+                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">{t(UI_LABELS.FIND_ALIGNMENTS.en, UI_LABELS.FIND_ALIGNMENTS.tib)}</p>
                   </div>
                 </div>
                 <button onClick={() => setIsSearchSheetOpen(false)} className="p-3 bg-stone-100 rounded-full text-stone-400">
@@ -2443,7 +2959,7 @@ export default function App() {
               {/* Date Range Picker */}
               <div className="grid grid-cols-2 gap-4 flex-shrink-0">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">Start Date</label>
+                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.START_DATE.en, UI_LABELS.START_DATE.tib)}</label>
                   <input
                     type="date"
                     value={searchRange.start}
@@ -2452,7 +2968,7 @@ export default function App() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">End Date</label>
+                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.END_DATE.en, UI_LABELS.END_DATE.tib)}</label>
                   <input
                     type="date"
                     value={searchRange.end}
@@ -2465,9 +2981,7 @@ export default function App() {
               {/* Search Results */}
               <div className="flex-1 overflow-y-auto no-scrollbar space-y-4">
                 <div className="flex items-center justify-between px-1">
-                  <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">
-                    {searchResults.length} Rituals & Events Found
-                  </span>
+                    {toTibetanNumerals(searchResults.length)} {t(UI_LABELS.EVENTS_FOUND.en, UI_LABELS.EVENTS_FOUND.tib)}
                 </div>
 
                 {searchResults.length === 0 ? (
@@ -2475,7 +2989,7 @@ export default function App() {
                     <div className="w-16 h-16 bg-stone-50 rounded-full flex items-center justify-center mx-auto text-stone-200">
                       <Sparkles size={32} />
                     </div>
-                    <p className="text-sm font-medium text-stone-400 font-serif italic">No alignments in this period</p>
+                    <p className="text-sm font-medium text-stone-400 font-serif italic">{t(UI_LABELS.NO_ALIGNMENTS.en, UI_LABELS.NO_ALIGNMENTS.tib)}</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -2546,7 +3060,7 @@ export default function App() {
                     <CalendarIcon size={24} />
                   </div>
                   <div>
-                    <h2 className="text-xl font-serif font-black text-stone-950">Add Custom Event</h2>
+                    <h2 className="text-xl font-serif font-black text-stone-950">{t(UI_LABELS.ADD_CUSTOM_EVENT.en, UI_LABELS.ADD_CUSTOM_EVENT.tib)}</h2>
                     <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest italic">Mark a significant moment</p>
                   </div>
                 </div>
@@ -2557,7 +3071,7 @@ export default function App() {
 
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-stone-400 uppercase px-1">Event Name</label>
+                  <label className="text-[9px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.EVENT_NAME.en, UI_LABELS.EVENT_NAME.tib)}</label>
                   <input
                     type="text"
                     placeholder="e.g., Birthday, Special Prayer"
@@ -2568,7 +3082,7 @@ export default function App() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-stone-400 uppercase px-1">Date</label>
+                  <label className="text-[9px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.DATE.en, UI_LABELS.DATE.tib)}</label>
                   <input
                     type="date"
                     value={newFestival.date}
@@ -2578,7 +3092,7 @@ export default function App() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-stone-400 uppercase px-1">Short Description</label>
+                  <label className="text-[9px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.SHORT_DESCRIPTION.en, UI_LABELS.SHORT_DESCRIPTION.tib)}</label>
                   <textarea
                     placeholder="Adding context to this day..."
                     value={newFestival.description}
@@ -2624,7 +3138,7 @@ export default function App() {
                     <StickyNote size={24} />
                   </div>
                   <div>
-                    <h2 className="text-xl font-serif font-black text-stone-950">Add Details</h2>
+                    <h2 className="text-xl font-serif font-black text-stone-950">{t(UI_LABELS.ADD_DETAILS.en, UI_LABELS.ADD_DETAILS.tib)}</h2>
                     <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">{format(selectedDate, 'MMMM do')}</p>
                   </div>
                 </div>
@@ -2646,7 +3160,7 @@ export default function App() {
                     <Bell size={18} />
                   </div>
                   <div className="text-left">
-                    <p className="text-sm font-bold text-stone-900">Push Notification</p>
+                    <p className="text-sm font-bold text-stone-900">{t(UI_LABELS.PUSH_NOTIFICATION.en, UI_LABELS.PUSH_NOTIFICATION.tib)}</p>
                     <p className="text-[10px] font-medium text-stone-400 uppercase tracking-widest">Remind me on this date</p>
                   </div>
                 </div>
@@ -2655,7 +3169,7 @@ export default function App() {
 
               {/* Note Input */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">Personal Notes</label>
+                <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.PERSONAL_NOTES.en, UI_LABELS.PERSONAL_NOTES.tib)}</label>
                 <textarea
                   value={currentNote}
                   onChange={(e) => handleSaveNote(e.target.value)}
@@ -2734,9 +3248,9 @@ export default function App() {
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 inset-x-0 h-20 bg-white/80 backdrop-blur-2xl border-t border-stone-line flex items-center justify-around px-4 z-40 pb-safe">
-        <NavButton active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<Home size={22} />} label={t('Home', 'གཙོ་ཞལ།')} />
-        <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={22} />} label={t('Plan', 'ཟླ་ཐོ།')} />
-        <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<User size={22} />} label={t('Profile', 'རང་ཞལ།')} />
+        <NavButton active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<Home size={22} />} label={t(UI_LABELS.HOME.en, UI_LABELS.HOME.tib)} />
+        <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={22} />} label={t(UI_LABELS.PLAN.en, UI_LABELS.PLAN.tib)} />
+        <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<User size={22} />} label={t(UI_LABELS.PROFILE.en, UI_LABELS.PROFILE.tib)} />
       </nav>
 
       <style>{`
@@ -2786,29 +3300,6 @@ function DharmaWheel({ className }: { className?: string }) {
   );
 }
 
-/** Lotus Ornament Divider — 8-petal sacred lotus (Padma) */
-function LotusDivider({ className }: { className?: string }) {
-  return (
-    <div className={cn('flex items-center gap-4 py-1', className)}>
-      <div className="flex-1 h-px bg-gradient-to-r from-transparent via-stone-200 to-stone-200" />
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" className="text-saffron shrink-0">
-        {Array.from({ length: 8 }, (_, i) => {
-          const a = (i * 45 - 90) * (Math.PI / 180);
-          const cx = 16 + 7.5 * Math.cos(a);
-          const cy = 16 + 7.5 * Math.sin(a);
-          return (
-            <ellipse key={i} cx={cx} cy={cy} rx="3" ry="6"
-              transform={`rotate(${i * 45},${cx},${cy})`}
-              stroke="currentColor" strokeWidth="0.8"
-              fill="currentColor" fillOpacity="0.2" />
-          );
-        })}
-        <circle cx="16" cy="16" r="3.5" fill="currentColor" fillOpacity="0.55" />
-      </svg>
-      <div className="flex-1 h-px bg-gradient-to-l from-transparent via-stone-200 to-stone-200" />
-    </div>
-  );
-}
 
 /** Prayer Flags Strip — 5 colours representing sky, air, fire, water, earth */
 function PrayerFlagsStrip() {
