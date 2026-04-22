@@ -107,3 +107,25 @@ export const MEWA_CHARACTERISTICS: Record<string, string> = {
   "8-White": "Refined wisdom and peace. High clarity for meditation and study.",
   "9-Purple": "Royal completion and vision. The peak of the cycle for total awareness."
 };
+export const TIBETAN_ANIMALS: Record<string, string> = {
+  "Rat": "བྱི་བ།",
+  "Ox": "གླང་།",
+  "Tiger": "སྟག་།",
+  "Rabbit": "ཡོས་།",
+  "Dragon": "འབྲུག་།",
+  "Snake": "སྦྲུལ་།",
+  "Horse": "རྟ་།",
+  "Sheep": "ལུག་།",
+  "Monkey": "སྤྲེལ་།",
+  "Bird": "བྱ་།",
+  "Dog": "ཁྱི་།",
+  "Pig": "ཕག་།"
+};
+
+export const TIBETAN_ELEMENTS: Record<string, string> = {
+  "Fire": "མེ།",
+  "Earth": "ས།",
+  "Iron": "ལྕགས།",
+  "Water": "ཆུ།",
+  "Wood": "ཤིང་།"
+};

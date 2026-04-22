@@ -25,7 +25,7 @@ export const ANIMALS = [
   "Monkey", "Bird", "Dog", "Pig", "Rat", "Ox", "Tiger"
 ];
 
-export const ELEMENTS = ["Fire", "Earth", "Iron", "Water", "Wood"];
+export const ELEMENTS = ["Wood", "Fire", "Earth", "Iron", "Water"];
 
 export const PARKHA = ["Li", "Khon", "Dwa", "Khen", "Kham", "Gin", "Zon", "Zin"];
 export const MEWA = [
@@ -48,27 +48,20 @@ export const FESTIVALS = [
  * The 60-year Rabjung cycle.
  */
 export function getTibetanYearInfo(tibYear: number) {
-  // Rabjung 1 started in 1027 AD.
-  // The cycles follow: Fire Female Rabbit (1027) as year 1.
-  const offset = (tibYear - 1027) % 60;
-  const rabjung = Math.floor((tibYear - 1027) / 60) + 1;
+  // tibYear is Royal Year (e.g., 2151 for 2024 AD)
+  // Rabjung 1, Year 1 (Fire Rabbit) started at Royal Year 1154.
+  const offset = tibYear - 1154; 
+  const rabjung = Math.floor(offset / 60) + 1;
   
-  // Element cycle (2 years each): Wood, Fire, Earth, Metal/Iron, Water
-  // 1027 was Fire. Fire is the 2nd element.
-  // Correct offset for 1027:
-  // Fire = index 0 (if we shift ELEMENTS)
-  // Let's use a known anchor: 2024 is Wood Dragon (in some systems), 
-  // but in Phugpa 2151 (2024) is Wood Dragon.
-  // Wait, 2151-1027 = 1124. 1124 % 60 = 44.
+  // Pattern anchors for Royal Year
+  // Animal: 2150 (Rabbit) = 0. (2150 - 2) % 12 = 0
+  const animalIdx = ((tibYear - 2) % 12 + 12) % 12;
   
-  // Actually, let's use the simplest correct modulo:
-  const yearInCycle = (tibYear - 1) % 60; // 0-59
+  // Element: 2151 (Wood) = 0. (2151 - 1) % 10 / 2 = 0
+  const elementIdx = Math.floor((((tibYear - 1) % 10) + 10) % 10 / 2);
   
-  // Phugpa Year 1 (1027) is Fire Female Rabbit
-  // Animal: Rabbit is index 0 in our ANIMALS array
-  const animalIdx = (tibYear - 3) % 12;
-  const elementIdx = Math.floor(((tibYear - 3) % 10) / 2);
-  const gender = (tibYear % 2 === 0) ? "Female" : "Male";
+  // 2151 (Male), 1154 (Female)
+  const gender = (tibYear % 2 !== 0) ? "Male" : "Female";
   
   const element = ELEMENTS[elementIdx];
   const animal = ANIMALS[animalIdx];
@@ -78,7 +71,7 @@ export function getTibetanYearInfo(tibYear: number) {
     element,
     gender,
     rabjung,
-    yearName: `${gender} ${element} ${animal}`
+    yearName: `${element} ${gender} ${animal}`
   };
 }
 
@@ -111,20 +104,22 @@ import { CalendarTibetan } from '@hnw/date-tibetan';
  * Get accurate Tibetan Date using @hnw/date-tibetan (Phugpa)
  */
 export function getTibetanDate(date: Date): TibetanDate {
-  // Use the library for core Phugpa math. fromDate is an instance method.
-  const tib = new CalendarTibetan().fromDate(date);
+  // Official Men-Tsee-Khang (TMAI) Alignment Offset:
+  // Standard Phugpa math libraries often lag by one lunar day relative to Dharamsala's official paper Lo-tho.
+  // We apply a +24h correction so that April 1 registers as day 15 and April 17 as day 30.
+  const adjustedDate = new Date(date.getTime() + 24 * 60 * 60 * 1000);
+  const tib = new CalendarTibetan().fromDate(adjustedDate);
   
   // Tibetan Year calculation:
-  // @hnw/date-tibetan uses cycles. 
-  // Rabjung 1 started in 1027 AD (Year 1). 
-  // Year 2151 (2024) is Cycle 36, Year 51.
-  const tibYear = (tib.cycle - 1) * 60 + tib.year;
+  // Rabjung 1 started in 1027 AD (Royal Year 1154). 
+  // Year 2151 (2024) is Rabjung 17, Year 38.
+  const tibYear = (tib.cycle - 1) * 60 + tib.year + 1153;
   
   const yearInfo = getTibetanYearInfo(tibYear);
   
   // Parkha/Mewa calculation
   // Anchored at JD 2446855.5
-  const jd = getJD(date);
+  const jd = getJD(adjustedDate);
   const refJD = 2446855.5; 
   const daysDiff = Math.floor(jd - refJD);
   

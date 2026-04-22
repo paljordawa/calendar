@@ -28,7 +28,7 @@ import {
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday as isDateToday, parseISO, isWithinInterval, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { getTibetanDate, getTibetanYearInfo, FESTIVALS, TibetanDate, ANIMALS, ELEMENTS } from './lib/tibetanCalendar';
-import { cn, cn_id, UI_IDS } from './lib/utils';
+import { cn, cn_id, UI_IDS, toTibetanNumerals } from './lib/utils';
 import {
   STICKERS,
   HOROSCOPE_RULES,
@@ -37,7 +37,9 @@ import {
   PARKHA_ICONS,
   MEWA_ICONS,
   PARKHA_CHARACTERISTICS,
-  MEWA_CHARACTERISTICS
+  MEWA_CHARACTERISTICS,
+  TIBETAN_ANIMALS,
+  TIBETAN_ELEMENTS
 } from './constants';
 
 type Tab = 'home' | 'calendar' | 'profile';
@@ -65,7 +67,7 @@ interface UserData {
 
 const getElementalHarmony = (birth: string | undefined, day: string) => {
   if (!birth) return 'neutral';
-  const index: Record<string, number> = { "Fire": 0, "Earth": 1, "Iron": 2, "Water": 3, "Wood": 4 };
+  const index: Record<string, number> = { "Wood": 0, "Fire": 1, "Earth": 2, "Iron": 3, "Water": 4 };
   const b = index[birth];
   const d = index[day];
   const diff = (d - b + 5) % 5;
@@ -719,15 +721,15 @@ export default function App() {
                 }
               </div>
               {/* Name + Sign */}
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-serif font-bold text-stone-900 leading-none truncate">
+              <div className="flex flex-col min-w-0 text-left">
+                <span className="text-sm font-serif font-bold text-stone-900 leading-none truncate group-hover:text-saffron">
                   {userData.name || 'Practitioner'}
                 </span>
                 <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest mt-1 truncate">
                   {ANIMAL_ICONS[userData.birthAnimal || tibCurrent.animal]}{' '}
-                  {userData.birthAnimal || tibCurrent.animal}
+                  {t(userData.birthAnimal || tibCurrent.animal, TIBETAN_ANIMALS[userData.birthAnimal || tibCurrent.animal])}
                   {' · '}
-                  {userData.birthElement || tibCurrent.element}
+                  {t(userData.birthElement || tibCurrent.element, TIBETAN_ELEMENTS[userData.birthElement || tibCurrent.element])}
                 </span>
               </div>
             </button>
@@ -804,11 +806,11 @@ export default function App() {
                           <div className="pt-4 border-t border-white/5 flex gap-8">
                             <div className="space-y-0.5">
                               <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest">Lunar Day</p>
-                              <p className="text-lg font-serif font-bold text-saffron">{tibCurrent.day}</p>
+                              <p className="text-lg font-serif font-bold text-saffron">{toTibetanNumerals(tibCurrent.day)}</p>
                             </div>
                             <div className="space-y-0.5">
                               <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest">Animal Sign</p>
-                              <p className="text-lg font-serif font-bold">{ANIMAL_ICONS[tibCurrent.animal]} {tibCurrent.animal}</p>
+                              <p className="text-lg font-serif font-bold">{ANIMAL_ICONS[tibCurrent.animal]} {t(tibCurrent.animal, TIBETAN_ANIMALS[tibCurrent.animal])}</p>
                             </div>
                           </div>
 
@@ -984,8 +986,8 @@ export default function App() {
                         {FESTIVALS.map((f, i) => (
                           <div key={i} className="bg-white p-5 rounded-3xl flex items-center gap-5 border border-stone-50">
                             <div className="w-12 h-12 shrink-0 rounded-2xl bg-stone-900 flex flex-col items-center justify-center text-white text-[10px] font-bold">
-                              <span>M{f.month}</span>
-                              <span className="text-lg leading-none mt-0.5">D{f.day}</span>
+                              <span>ཟླ་{toTibetanNumerals(f.month)}</span>
+                              <span className="text-lg leading-none mt-0.5">ཚེས་{toTibetanNumerals(f.day)}</span>
                             </div>
                             <div className="min-w-0">
                               <h4 className="text-sm font-bold text-stone-900 truncate">{f.name}</h4>
@@ -1042,7 +1044,7 @@ export default function App() {
                             <div className="flex items-center gap-2 pt-2 grayscale opacity-50">
                               <div className="w-1 h-1 rounded-full bg-stone-400" />
                               <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest">
-                                {userData.birthElement || "Unset"} {userData.birthAnimal ? `${ANIMAL_ICONS[userData.birthAnimal]} ${userData.birthAnimal}` : "Sign"}
+                                {t(userData.birthElement || "Unset", TIBETAN_ELEMENTS[userData.birthElement || ""] || "Unset")} {userData.birthAnimal ? `${ANIMAL_ICONS[userData.birthAnimal]} ${t(userData.birthAnimal, TIBETAN_ANIMALS[userData.birthAnimal])}` : "Sign"}
                               </span>
                             </div>
                           </div>
@@ -1058,7 +1060,7 @@ export default function App() {
                         <div className="flex items-center justify-between">
                           <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-stone-500">{t("Today's Alignment", 'དེ་རིང་གི་རྩིས་འབྲས།')}</h2>
                           <div className="px-3 py-1 rounded-full bg-white/10 text-[9px] font-extrabold uppercase tracking-widest text-turquoise">
-                            Rabjung #{tibCurrent.rabjung}
+                            Rabjung #{toTibetanNumerals(tibCurrent.rabjung)}
                           </div>
                         </div>
 
@@ -1066,7 +1068,7 @@ export default function App() {
                           <div className="space-y-4 border-r border-white/5 pr-4">
                             <div className="space-y-1">
                               <p className="text-[9px] font-black text-stone-500 uppercase tracking-widest">Primary Element</p>
-                              <p className="text-3xl font-serif font-black text-turquoise italic">{tibCurrent.element}</p>
+                              <p className="text-3xl font-serif font-black text-turquoise italic">{t(tibCurrent.element, TIBETAN_ELEMENTS[tibCurrent.element])}</p>
                             </div>
                             <p className="text-[10px] text-stone-400 font-medium leading-relaxed">
                               Fundamental energy flow for this current lunar day.
@@ -1077,7 +1079,7 @@ export default function App() {
                             <div className="space-y-1">
                               <p className="text-[9px] font-black text-stone-500 uppercase tracking-widest">Animal Sign</p>
                               <p className="text-3xl font-serif font-black text-saffron italic">
-                                {ANIMAL_ICONS[tibCurrent.animal]} {tibCurrent.animal}
+                                {ANIMAL_ICONS[tibCurrent.animal]} {t(tibCurrent.animal, TIBETAN_ANIMALS[tibCurrent.animal])}
                               </p>
                             </div>
                             <p className="text-[10px] text-stone-400 font-medium leading-relaxed">
@@ -1121,7 +1123,7 @@ export default function App() {
                             <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Magic Square (Mewa)</p>
                           </div>
                           <div>
-                            <p className="text-xl font-serif font-black text-stone-900">{tibCurrent.mewa}</p>
+                            <p className="text-xl font-serif font-black text-stone-900">{toTibetanNumerals(tibCurrent.mewa)}</p>
                             <p className="text-[10px] text-stone-500 italic mt-1 leading-relaxed line-clamp-2">
                               {MEWA_CHARACTERISTICS[tibCurrent.mewa]}
                             </p>
@@ -1193,7 +1195,7 @@ export default function App() {
               <header className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-[8px] font-black text-saffron uppercase tracking-widest leading-none mb-1">
-                    Tib. Year {tibSelected.year} • {tibSelected.yearName}
+                    Tib. Year {toTibetanNumerals(tibSelected.year)} • {tibSelected.yearName}
                   </h2>
                   <h2 className="text-2xl font-serif font-black text-stone-950">
                     {calendarView === 'month' ? format(currentDate, 'MMMM yyyy') : 'Annual Cycle'}
@@ -1297,8 +1299,10 @@ export default function App() {
                                     <span className="text-sm font-serif leading-none mt-1">{format(date, 'd')}</span>
                                   </div>
                                   <div>
-                                    <p className={cn("text-[10px] font-bold uppercase tracking-widest", isSelected ? "text-stone-400" : "text-stone-300")}>
-                                      Lunar Day {tib.day}
+                                    <p className={cn("text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5", isSelected ? "text-stone-400" : "text-stone-300")}>
+                                      {t('Lunar Day', 'བོད་ཚེས།')} {toTibetanNumerals(tib.day)}
+                                      {tib.day === 15 && <span className="text-yellow-500 text-xs">🌕</span>}
+                                      {tib.day === 30 && <span className="text-stone-400 text-xs">🌑</span>}
                                     </p>
                                     <div className="flex items-center gap-2 mt-1">
                                       <h4 className="text-sm font-serif font-bold">
@@ -1343,7 +1347,7 @@ export default function App() {
                         <button onClick={handlePrevMonth} className="px-3 py-2 bg-stone-50 rounded-xl active:scale-95 transition-transform"><ChevronLeft size={16} /></button>
                         <button onClick={handleNextMonth} className="px-3 py-2 bg-stone-50 rounded-xl active:scale-95 transition-transform"><ChevronRight size={16} /></button>
                       </div>
-                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Lunar Month {tibSelected.month}</span>
+                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{t('Lunar Month', 'བོད་ཟླ།')} {toTibetanNumerals(tibSelected.month)}</span>
                     </div>
 
                     <AnimatePresence mode="popLayout" custom={direction} initial={false}>
@@ -1400,9 +1404,11 @@ export default function App() {
                                 )}>{format(date, 'd')}</span>
 
                                 <div className="flex items-center gap-1">
-                                  <span className={cn("text-[7px] font-black uppercase", isSelected ? "text-stone-800" : "text-stone-300")}>
-                                    {tib.day}
+                                  <span className={cn("text-[7px] font-black uppercase flex items-center gap-0.5", isSelected ? "text-stone-800" : "text-stone-300")}>
+                                    {toTibetanNumerals(tib.day)}
                                     {tib.isDoubleDay && "⁺"}
+                                    {tib.day === 15 && <span>🌕</span>}
+                                    {tib.day === 30 && <span>🌑</span>}
                                   </span>
                                 </div>
 
@@ -1445,7 +1451,7 @@ export default function App() {
                         <div>
                           <h3 className="text-base font-serif font-bold leading-none">{format(selectedDate, 'EEEE')}</h3>
                           <p className="text-[9px] text-stone-400 font-bold uppercase tracking-widest mt-1">
-                            Lunar Day {tibSelected.day} • {ANIMAL_ICONS[tibSelected.animal]} {tibSelected.animal}
+                            Lunar Day {toTibetanNumerals(tibSelected.day)} • {ANIMAL_ICONS[tibSelected.animal]} {t(tibSelected.animal, TIBETAN_ANIMALS[tibSelected.animal])}
                           </p>
                         </div>
                       </div>
@@ -1638,6 +1644,18 @@ export default function App() {
                         <p className="text-xs font-bold text-stone-800">{tibSelected.gender} • Month {tibSelected.month}</p>
                       </div>
                     </div>
+
+                    {/* Moon Legend Indicator */}
+                    <div className="flex items-center justify-center gap-6 pt-10 pb-12 opacity-30">
+                      <div className="flex items-center gap-2">
+                         <span className="text-yellow-500 text-xs">🌕</span>
+                         <span className="text-[8px] font-black uppercase tracking-widest text-stone-500">{t('Full Moon', 'ཉ་གང་།')}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                         <span className="text-stone-400 text-xs">🌑</span>
+                         <span className="text-[8px] font-black uppercase tracking-widest text-stone-500">{t('New Moon', 'གནམ་གང་།')}</span>
+                      </div>
+                    </div>
                   </div>
                 </>
               )}
@@ -1727,21 +1745,23 @@ export default function App() {
               <header className="flex flex-col items-center text-center space-y-4 relative py-4">
                 {/* Endless Knot (Palbu) — symbol of interdependence */}
                 <EndlessKnot className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-52 h-52 text-stone-300/50 pointer-events-none" />
-                <div className="w-20 h-20 rounded-full bg-stone-900 flex items-center justify-center text-stone-100 text-3xl font-serif relative z-10">
-                  <span className="text-saffron">࿇</span>
-                </div>
+                <button
+                  onClick={() => setIsProfileSheetOpen(true)}
+                  className="relative group/avatar active:scale-95 transition-transform z-10"
+                >
+                  <div className="w-20 h-20 rounded-full bg-stone-900 flex items-center justify-center text-stone-100 text-3xl font-serif border-4 border-white shadow-xl group-hover:border-saffron transition-colors">
+                    <span className="text-saffron">࿇</span>
+                  </div>
+                  <div className="absolute -right-1 -bottom-1 w-7 h-7 bg-saffron rounded-full flex items-center justify-center text-white border-4 border-bg-warm shadow-lg group-hover/avatar:scale-110 transition-transform">
+                    <Pencil size={12} strokeWidth={3} />
+                  </div>
+                </button>
 
                 <div className="space-y-1">
                   <div className="flex items-center justify-center gap-2">
                     <h1 className="text-2xl font-serif font-black text-stone-950 tracking-tight">
                       {userData.name ? userData.name : 'Practitioner'}
                     </h1>
-                    <button
-                      onClick={() => setIsProfileSheetOpen(true)}
-                      className="p-1 text-stone-300 hover:text-saffron transition-colors"
-                    >
-                      <Pencil size={16} />
-                    </button>
                   </div>
                   <p className="text-[10px] font-black text-stone-300 uppercase tracking-[0.2em]">Active Alignment</p>
                 </div>
@@ -1770,7 +1790,7 @@ export default function App() {
                       <div>
                         <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">Animal Sign</p>
                         <p className="text-xs font-bold text-stone-800">
-                          {userData.birthAnimal || 'Uncalculated'}
+                          {userData.birthAnimal ? t(userData.birthAnimal, TIBETAN_ANIMALS[userData.birthAnimal]) : 'Uncalculated'}
                         </p>
                       </div>
                     </div>
@@ -1784,7 +1804,7 @@ export default function App() {
                       <div>
                         <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">Primary Element</p>
                         <p className="text-xs font-bold text-stone-800">
-                          {userData.birthElement || 'Uncalculated'}
+                          {userData.birthElement ? t(userData.birthElement, TIBETAN_ELEMENTS[userData.birthElement]) : 'Uncalculated'}
                         </p>
                       </div>
                     </div>

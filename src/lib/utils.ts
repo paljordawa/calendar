@@ -31,3 +31,15 @@ export const UI_IDS = {
     DANGER_ZONE: "danger-zone-settings",
   }
 };
+
+/**
+ * Converts Western numerals to Tibetan numerals.
+ */
+export function toTibetanNumerals(num: number | string | undefined): string {
+  if (num === undefined || num === null) return '';
+  const digits: Record<string, string> = {
+    '0': '༠', '1': '༡', '2': '༢', '3': '༣', '4': '༤',
+    '5': '༥', '6': '༦', '7': '༧', '8': '༨', '9': '༩'
+  };
+  return num.toString().split('').map(char => digits[char] || char).join('');
+}
