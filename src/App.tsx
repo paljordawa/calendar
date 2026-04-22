@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday as isDateToday, parseISO, isWithinInterval, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
-import { getTibetanDate, getTibetanYearInfo, FESTIVALS, TibetanDate, ANIMALS, ELEMENTS } from './lib/tibetanCalendar';
+import { getTibetanDate, getTibetanYearInfo, FESTIVALS, TibetanDate, ANIMALS, ELEMENTS, COMBINATIONS } from './lib/tibetanCalendar';
 import { cn, cn_id, UI_IDS, toTibetanNumerals } from './lib/utils';
 import {
   STICKERS,
@@ -60,7 +60,11 @@ interface UserData {
   birthAnimal?: string;
   birthElement?: string;
   birthDate?: string;
-  language?: 'English' | 'Tibetan';
+  birthDateSystem?: 'International' | 'Tibetan';
+  tibetanBirthYear?: number;
+  tibetanBirthMonth?: number;
+  tibetanBirthDay?: number;
+  gender?: 'Male' | 'Female';
   onboardingComplete?: boolean;
   customFestivals?: CustomFestival[];
 }
@@ -163,6 +167,29 @@ export default function App() {
     return userData.language === 'Tibetan' ? tib : en;
   }, [userData.language]);
 
+  const n = useCallback((val: string | number | undefined) => {
+    if (val === undefined) return '';
+    return userData.language === 'Tibetan' ? toTibetanNumerals(val) : val;
+  }, [userData.language]);
+
+  const convertedGregorian = useMemo(() => {
+    if (userData.birthDateSystem !== 'Tibetan' || !userData.tibetanBirthYear) return null;
+    try {
+      const adYear = userData.tibetanBirthYear;
+      const targetMonth = userData.tibetanBirthMonth || 1;
+      const targetDay = userData.tibetanBirthDay || 1;
+      const searchStart = new Date(adYear, 0, 20); // Losar is rarely before Jan 20
+      const searchEnd = new Date(adYear + 1, 4, 1); // Search until May to be safe
+      for (let d = new Date(searchStart); d <= searchEnd; d.setDate(d.getDate() + 1)) {
+        const tib = getTibetanDate(new Date(d));
+        if (tib.month === targetMonth && tib.day === targetDay) {
+          return new Date(d);
+        }
+      }
+    } catch (e) { return null; }
+    return null;
+  }, [userData.birthDateSystem, userData.tibetanBirthYear, userData.tibetanBirthMonth, userData.tibetanBirthDay]);
+
   const STICKERS = [
     '🕉️', '🧘', '🔥', '💧', '☀️', '🌙', '🏔️', '🏠',
     '🎨', '💼', '💊', '✈️', '🍲', '💰', '🌳', '🕯️',
@@ -170,21 +197,12 @@ export default function App() {
   ];
 
   const handleBirthDateChange = (dateStr: string) => {
-    if (!dateStr) {
-      setUserData(prev => ({ ...prev, birthDate: undefined }));
-      return;
-    }
+    setUserData(prev => ({ ...prev, birthDate: dateStr || undefined }));
+    setHoroscope(null);
+  };
 
-    const date = new Date(dateStr);
-    const tib = getTibetanDate(date);
-
-    setUserData(prev => ({
-      ...prev,
-      birthDate: dateStr,
-      // Auto-populate animal/element if they're not set or if we're doing a fresh calculation
-      birthAnimal: tib.animal,
-      birthElement: tib.element,
-    }));
+  const handleTibetanYearChange = (year: number) => {
+    setUserData(prev => ({ ...prev, tibetanBirthYear: year || undefined }));
     setHoroscope(null);
   };
 
@@ -226,13 +244,44 @@ export default function App() {
     }, 800);
   }, [tibCurrent.element, userData.birthElement]);
 
+  const [onboardingStep, setOnboardingStep] = useState(1);
+
   useEffect(() => {
     if (activeTab === 'astro' && !horoscope) {
       generateHoroscope();
     }
   }, [activeTab, horoscope, generateHoroscope]);
 
-  const [onboardingStep, setOnboardingStep] = useState(1);
+  // Sync Birth Data (Animal/Element) based on date changes
+  useEffect(() => {
+    if (userData.birthDateSystem === 'Tibetan' && userData.tibetanBirthYear) {
+      // Calculate based on the Year (AD) while ignoring specific month/day for sign
+      // Note: 2114 Royal Year = 1987 AD.
+      // If user enters 1987, it's AD.
+      const tibYear = userData.tibetanBirthYear > 1000 && userData.tibetanBirthYear < 2080
+        ? userData.tibetanBirthYear + 127  // Convert AD to Royal approx if they enter 1987...
+        : userData.tibetanBirthYear;
+
+      const yearInfo = getTibetanYearInfo(tibYear);
+      if (userData.birthAnimal !== yearInfo.animal || userData.birthElement !== yearInfo.element) {
+        setUserData(prev => ({
+          ...prev,
+          birthAnimal: yearInfo.animal,
+          birthElement: yearInfo.element
+        }));
+      }
+    } else if ((userData.birthDateSystem === 'International' || !userData.birthDateSystem) && userData.birthDate) {
+      const date = new Date(userData.birthDate);
+      const tib = getTibetanDate(date);
+      if (userData.birthAnimal !== tib.animal || userData.birthElement !== tib.element) {
+        setUserData(prev => ({
+          ...prev,
+          birthAnimal: tib.animal,
+          birthElement: tib.element
+        }));
+      }
+    }
+  }, [userData.birthDate, userData.tibetanBirthYear, userData.birthDateSystem]);
 
   const handlePrevMonth = () => {
     setDirection(-1);
@@ -492,19 +541,109 @@ export default function App() {
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-stone-400 uppercase px-1">Birth Date</label>
-                    <input
-                      type="date"
-                      value={userData.birthDate || ''}
-                      onChange={(e) => handleBirthDateChange(e.target.value)}
-                      className="w-full bg-white border border-stone-100 shadow-sm rounded-2xl p-4 text-xs font-bold focus:ring-2 focus:ring-saffron/20 outline-none"
-                    />
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-stone-400 uppercase px-1">Gender</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {['Male', 'Female'].map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => setUserData(prev => ({ ...prev, gender: g as any }))}
+                          className={cn(
+                            "p-4 rounded-2xl border text-xs font-bold transition-all flex items-center justify-center gap-2",
+                            userData.gender === g 
+                              ? "bg-stone-900 text-white border-stone-800 shadow-lg scale-[1.02]" 
+                              : "bg-white text-stone-500 border-stone-100 shadow-sm"
+                          )}
+                        >
+                          <div className={cn(
+                            "w-2 h-1 rounded-full",
+                            userData.gender === g ? "bg-saffron" : "bg-stone-200"
+                          )} />
+                          {g === 'Male' ? t('Male', 'ཕོ།') : t('Female', 'མོ།')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between px-1">
+                      <label className="text-[9px] font-black text-stone-400 uppercase">Birth System</label>
+                      <div className="flex bg-white rounded-full p-1 border border-stone-100 shadow-sm">
+                        {['International', 'Tibetan'].map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => setUserData(prev => ({ ...prev, birthDateSystem: s as any }))}
+                            className={cn(
+                              "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all",
+                              (userData.birthDateSystem || 'International') === s ? "bg-stone-900 text-white shadow-md" : "text-stone-400"
+                            )}
+                          >
+                            {s === 'International' ? t('International', 'ཕྱི་ལོ།') : t('Tibetan Calendar', 'བོད་ལོ།')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black text-stone-400 uppercase px-1">
+                        {(userData.birthDateSystem || 'International') === 'Tibetan' ? 'Tibetan Birth Date' : 'Birth Date (Gregorian)'}
+                      </label>
+                      {(userData.birthDateSystem || 'International') === 'Tibetan' ? (
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="space-y-1 relative">
+                            <label className="text-[7px] font-black text-stone-400 uppercase px-1">Birth Year (AD)</label>
+                            <input
+                              type="number"
+                              placeholder="e.g., 1987"
+                              value={userData.tibetanBirthYear || ''}
+                              onChange={(e) => handleTibetanYearChange(parseInt(e.target.value))}
+                              className="w-full bg-white border border-stone-100 shadow-sm rounded-2xl p-4 text-[11px] font-bold outline-none focus:ring-2 focus:ring-saffron/20"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[7px] font-black text-stone-400 uppercase px-1">Month</label>
+                            <select
+                              value={userData.tibetanBirthMonth || 1}
+                              onChange={(e) => setUserData(prev => ({ ...prev, tibetanBirthMonth: parseInt(e.target.value) }))}
+                              className="w-full bg-white border border-stone-100 shadow-sm rounded-2xl p-4 text-[11px] font-bold outline-none focus:ring-2 focus:ring-saffron/20 appearance-none"
+                            >
+                              {Array.from({ length: 12 }, (_, i) => (
+                                <option key={i + 1} value={i + 1}>{toTibetanNumerals(i + 1)}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[7px] font-black text-stone-400 uppercase px-1">Lunar Day</label>
+                            <select
+                              value={userData.tibetanBirthDay || 1}
+                              onChange={(e) => setUserData(prev => ({ ...prev, tibetanBirthDay: parseInt(e.target.value) }))}
+                              className="w-full bg-white border border-stone-100 shadow-sm rounded-2xl p-4 text-[11px] font-bold outline-none focus:ring-2 focus:ring-saffron/20 appearance-none"
+                            >
+                              {Array.from({ length: 30 }, (_, i) => (
+                                <option key={i + 1} value={i + 1}>{toTibetanNumerals(i + 1)}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      ) : (
+                        <input
+                          type="date"
+                          value={userData.birthDate || ''}
+                          onChange={(e) => handleBirthDateChange(e.target.value)}
+                          className="w-full bg-white border border-stone-100 shadow-sm rounded-2xl p-4 text-xs font-bold focus:ring-2 focus:ring-saffron/20 outline-none"
+                        />
+                      )}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black text-stone-400 uppercase px-1">Birth Animal</label>
+                      <div className="flex items-center justify-between px-1">
+                        <label className="text-[9px] font-black text-stone-400 uppercase">Birth Animal</label>
+                        {userData.birthDate && <span className="text-[7px] font-black text-emerald-500 uppercase tracking-tighter pulse">Automatic</span>}
+                      </div>
                       <div className="relative">
                         <select
                           value={userData.birthAnimal || ''}
@@ -519,7 +658,10 @@ export default function App() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black text-stone-400 uppercase px-1">Birth Element</label>
+                      <div className="flex items-center justify-between px-1">
+                        <label className="text-[9px] font-black text-stone-400 uppercase">Birth Element</label>
+                        {userData.birthDate && <span className="text-[7px] font-black text-emerald-500 uppercase tracking-tighter pulse">Automatic</span>}
+                      </div>
                       <div className="relative">
                         <select
                           value={userData.birthElement || ''}
@@ -713,11 +855,15 @@ export default function App() {
               onClick={() => setActiveTab('profile')}
               className="flex items-center gap-3 group active:scale-95 transition-transform"
             >
-              {/* Avatar — shows initial or default symbol */}
-              <div className="w-10 h-10 rounded-full bg-stone-900 flex items-center justify-center shrink-0 border-2 border-stone-800 shadow-sm group-hover:border-saffron transition-colors">
+              <div className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 shadow-sm transition-all",
+                userData.gender === 'Female' 
+                  ? "bg-lotus border-lotus/20" 
+                  : "bg-stone-900 border-stone-800 group-hover:border-saffron"
+              )}>
                 {userData.name
-                  ? <span className="text-saffron font-black text-sm leading-none">{userData.name.charAt(0).toUpperCase()}</span>
-                  : <span className="text-saffron font-serif text-xl">࿇</span>
+                  ? <span className={cn("font-black text-sm leading-none", userData.gender === 'Female' ? "text-white" : "text-saffron")}>{userData.name.charAt(0).toUpperCase()}</span>
+                  : <User size={18} className={userData.gender === 'Female' ? "text-white" : "text-saffron"} />
                 }
               </div>
               {/* Name + Sign */}
@@ -795,48 +941,71 @@ export default function App() {
                       {/* Dharma Wheel watermark */}
                       <DharmaWheel className="absolute -right-10 -bottom-10 w-52 h-52 text-white/[0.055] pointer-events-none" />
                       <div className="relative space-y-4">
-                        <div>
-                          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-stone-500 mb-1">{t('Phugpa Tradition', 'ཕུག་ལུགས་སྐར་རྩིས་རིག་པ།')}</p>
-                          <h1 className="text-3xl font-serif font-black tracking-tight leading-tight">
-                            {format(new Date(), 'EEEE')}, <br />
-                            <span className="text-stone-400 font-light">{format(new Date(), 'MMM d')}</span>
-                          </h1>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-stone-500 mb-1">{t('Phugpa Tradition', 'ཕུག་ལུགས་སྐར་རྩིས་རིག་པ།')}</p>
+                            <h1 className="text-3xl font-serif font-black tracking-tight leading-tight">
+                              {format(new Date(), 'EEEE')}, <br />
+                              <span className="text-stone-400 font-light">{n(format(new Date(), 'MMM d'))}</span>
+                            </h1>
+                          </div>
+                          <div className="text-right">
+                            <span className="inline-block px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-stone-500">
+                              Rabjung {toTibetanNumerals(tibCurrent.rabjung)}
+                            </span>
+                          </div>
                         </div>
 
-                          <div className="pt-4 border-t border-white/5 flex gap-8">
-                            <div className="space-y-0.5">
-                              <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest">Lunar Day</p>
-                              <p className="text-lg font-serif font-bold text-saffron">{toTibetanNumerals(tibCurrent.day)}</p>
-                            </div>
-                            <div className="space-y-0.5">
-                              <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest">Animal Sign</p>
-                              <p className="text-lg font-serif font-bold">{ANIMAL_ICONS[tibCurrent.animal]} {t(tibCurrent.animal, TIBETAN_ANIMALS[tibCurrent.animal])}</p>
+                        <div className="pt-4 border-t border-white/5 flex gap-8">
+                          <div className="space-y-0.5">
+                            <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest flex items-center gap-1.5">
+                              Lunar Day
+                              {(tibCurrent.day === 15 || tibCurrent.day === 30) && (
+                                <MoonPhase day={tibCurrent.day} size={8} isDark />
+                              )}
+                            </p>
+                            <p className="text-lg font-serif font-bold text-saffron">{toTibetanNumerals(tibCurrent.day)}</p>
+                          </div>
+                          <div className="space-y-0.5">
+                            <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest">{t('Celestial Sign', 'གཟའ་སྐར་རྟགས།')}</p>
+                            <p className="text-lg font-serif font-bold">
+                              {ANIMAL_ICONS[tibCurrent.animal]} {t(tibCurrent.element, TIBETAN_ELEMENTS[tibCurrent.element])} {t(tibCurrent.animal, TIBETAN_ANIMALS[tibCurrent.animal])}
+                            </p>
+                          </div>
+                          <div className="space-y-0.5">
+                            <p className="text-[8px] uppercase font-bold text-stone-500 tracking-widest">{t('Combination', 'སྦྱོར་བ།')}</p>
+                            <p className="text-lg font-serif font-bold text-turquoise">
+                              {t(
+                                `${tibCurrent.planetElement}-${tibCurrent.mansionElement} (${tibCurrent.combination})`,
+                                COMBINATIONS[`${tibCurrent.planetElement}-${tibCurrent.mansionElement}`]?.tib || tibCurrent.combination
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        {userData.birthAnimal && (
+                          <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                            <span className="text-[8px] font-black uppercase tracking-widest text-stone-500">Personal Resonance</span>
+                            <div className="flex items-center gap-2">
+                              <span className={cn(
+                                "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider",
+                                getElementalHarmony(userData.birthElement, tibCurrent.element) === 'life' ? "bg-turquoise/20 text-turquoise" :
+                                  getElementalHarmony(userData.birthElement, tibCurrent.element) === 'enemy' ? "bg-red-500/20 text-red-100" : "bg-white/10 text-stone-400"
+                              )}>
+                                {getElementalHarmony(userData.birthElement, tibCurrent.element)} energy
+                              </span>
+                              <span className={cn(
+                                "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider",
+                                getAnimalAffinity(userData.birthAnimal, tibCurrent.animal) === 'trine' ? "bg-saffron/20 text-saffron" :
+                                  getAnimalAffinity(userData.birthAnimal, tibCurrent.animal) === 'conflict' ? "bg-red-500/20 text-red-100" : "bg-white/10 text-stone-400"
+                              )}>
+                                {getAnimalAffinity(userData.birthAnimal, tibCurrent.animal)} affinity
+                              </span>
                             </div>
                           </div>
-
-                          {userData.birthAnimal && (
-                            <div className="pt-3 border-t border-white/5 flex items-center justify-between">
-                              <span className="text-[8px] font-black uppercase tracking-widest text-stone-500">Personal Resonance</span>
-                              <div className="flex items-center gap-2">
-                                <span className={cn(
-                                  "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider",
-                                  getElementalHarmony(userData.birthElement, tibCurrent.element) === 'life' ? "bg-turquoise/20 text-turquoise" :
-                                  getElementalHarmony(userData.birthElement, tibCurrent.element) === 'enemy' ? "bg-red-500/20 text-red-100" : "bg-white/10 text-stone-400"
-                                )}>
-                                  {getElementalHarmony(userData.birthElement, tibCurrent.element)} energy
-                                </span>
-                                <span className={cn(
-                                  "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider",
-                                  getAnimalAffinity(userData.birthAnimal, tibCurrent.animal) === 'trine' ? "bg-saffron/20 text-saffron" :
-                                  getAnimalAffinity(userData.birthAnimal, tibCurrent.animal) === 'conflict' ? "bg-red-500/20 text-red-100" : "bg-white/10 text-stone-400"
-                                )}>
-                                  {getAnimalAffinity(userData.birthAnimal, tibCurrent.animal)} affinity
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                        )}
                       </div>
+                    </div>
 
                     {/* Daily Wisdom Ticker */}
                     <div className="flex items-center gap-3 py-2 overflow-hidden">
@@ -863,16 +1032,6 @@ export default function App() {
                     </div>
 
                     {/* Dashboard Grid */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-4 bg-stone-50 rounded-2xl border border-stone-100/50">
-                        <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest mb-1">Lunar Month</p>
-                        <p className="text-base font-serif font-bold text-stone-900">{tibCurrent.month}</p>
-                      </div>
-                      <div className="p-4 bg-stone-50 rounded-2xl border border-stone-100/50">
-                        <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest mb-1">60-yr Cycle (Rabjung)</p>
-                        <p className="text-base font-serif font-bold text-stone-900">{tibCurrent.rabjung}</p>
-                      </div>
-                    </div>
 
                     {/* Lotus ornament divider */}
                     <LotusDivider className="opacity-60" />
@@ -1145,8 +1304,8 @@ export default function App() {
                             </div>
                           </div>
                           <div className="text-right">
-                             <p className="text-[8px] font-black text-stone-600 uppercase tracking-widest">Affinity</p>
-                             <p className="text-[10px] font-bold text-turquoise uppercase tracking-wider">{getAnimalAffinity(userData.birthAnimal, tibCurrent.animal)}</p>
+                            <p className="text-[8px] font-black text-stone-600 uppercase tracking-widest">Affinity</p>
+                            <p className="text-[10px] font-bold text-turquoise uppercase tracking-wider">{getAnimalAffinity(userData.birthAnimal, tibCurrent.animal)}</p>
                           </div>
                         </div>
                       )}
@@ -1198,7 +1357,7 @@ export default function App() {
                     Tib. Year {toTibetanNumerals(tibSelected.year)} • {tibSelected.yearName}
                   </h2>
                   <h2 className="text-2xl font-serif font-black text-stone-950">
-                    {calendarView === 'month' ? format(currentDate, 'MMMM yyyy') : 'Annual Cycle'}
+                    {calendarView === 'month' ? n(format(currentDate, 'MMMM yyyy')) : 'Annual Cycle'}
                   </h2>
                 </div>
                 <div className="flex bg-stone-100/50 p-1 rounded-xl">
@@ -1303,6 +1462,10 @@ export default function App() {
                                       {t('Lunar Day', 'བོད་ཚེས།')} {toTibetanNumerals(tib.day)}
                                       {tib.day === 15 && <span className="text-yellow-500 text-xs">🌕</span>}
                                       {tib.day === 30 && <span className="text-stone-400 text-xs">🌑</span>}
+                                      <span className="mx-1 opacity-20">•</span>
+                                      <span className={cn("text-[8px] font-black", isSelected ? "text-turquoise" : "text-turquoise")}>
+                                        {t(`${tib.planetElement}-${tib.mansionElement}`, COMBINATIONS[`${tib.planetElement}-${tib.mansionElement}`]?.tib || tib.combination)}
+                                      </span>
                                     </p>
                                     <div className="flex items-center gap-2 mt-1">
                                       <h4 className="text-sm font-serif font-bold">
@@ -1401,7 +1564,7 @@ export default function App() {
                                 <span className={cn(
                                   "text-sm font-serif font-bold",
                                   isSelected ? "text-saffron" : (isToday ? "text-stone-950 underline decoration-saffron decoration-2" : "text-stone-400")
-                                )}>{format(date, 'd')}</span>
+                                )}>{n(format(date, 'd'))}</span>
 
                                 <div className="flex items-center gap-1">
                                   <span className={cn("text-[7px] font-black uppercase flex items-center gap-0.5", isSelected ? "text-stone-800" : "text-stone-300")}>
@@ -1444,217 +1607,189 @@ export default function App() {
                   </div>
 
                   {/* Detail Card Overlay */}
-                  <div className="mt-6 border-t border-stone-100 pt-6 space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-stone-900 flex items-center justify-center text-white text-lg font-serif font-black">{format(selectedDate, 'd')}</div>
-                        <div>
-                          <h3 className="text-base font-serif font-bold leading-none">{format(selectedDate, 'EEEE')}</h3>
-                          <p className="text-[9px] text-stone-400 font-bold uppercase tracking-widest mt-1">
-                            Lunar Day {toTibetanNumerals(tibSelected.day)} • {ANIMAL_ICONS[tibSelected.animal]} {t(tibSelected.animal, TIBETAN_ANIMALS[tibSelected.animal])}
-                          </p>
+                  {(() => {
+                    const selectedDateKey = format(selectedDate, 'yyyy-MM-dd');
+                    const selectedSticker = userData.stickers?.[selectedDateKey];
+                    const selectedNote = userData.notes[selectedDateKey];
+
+                    return (
+                      <>
+                        <div className="mt-6 border-t border-stone-100 pt-6 space-y-4">
+                          <div className="flex items-center justify-between pb-2">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-[20px] bg-stone-950 flex items-center justify-center text-white text-xl font-serif font-black shadow-lg shadow-stone-200">
+                                {n(format(selectedDate, 'd'))}
+                              </div>
+                              <div>
+                                <h3 className="text-xl font-serif font-black text-stone-900 leading-tight">
+                                  {format(selectedDate, 'EEEE')}
+                                </h3>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <p className="text-[10px] text-stone-400 font-black uppercase tracking-widest">
+                                    {t('Lunar Day', 'བོད་ཚེས།')} {toTibetanNumerals(tibSelected.day)}
+                                  </p>
+                                  <span className="w-1 h-1 rounded-full bg-stone-200" />
+                                  <p className="text-[10px] text-stone-400 font-black uppercase tracking-widest flex items-center gap-1">
+                                    {ANIMAL_ICONS[tibSelected.animal]} {t(tibSelected.animal, TIBETAN_ANIMALS[tibSelected.animal])}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setIsNoteSheetOpen(true)}
+                              className="p-3 bg-stone-50 rounded-2xl text-stone-300 hover:text-stone-900 hover:bg-stone-100 transition-all active:scale-90"
+                            >
+                              <Pencil size={18} />
+                            </button>
+                          </div>
+
+                          {/* Day Alignment & Specifications */}
+                          <div className="space-y-6 pt-2">
+                            <div className="space-y-3">
+                              <h4 className="text-[10px] font-black text-stone-300 uppercase tracking-[0.2em] px-1">Day Specifications</h4>
+                              <div className="space-y-2.5">
+                                 {/* Moon Phases */}
+                                 {tibSelected.day === 15 && <StatusItem icon={<MoonPhase day={15} size={22} />} label={t('Full Moon', 'ཉ་གང་།')} detail={t('15th Lunar Day', 'བོད་ཚེས་ ༡༥ ཉ་གང་།')} color="text-stone-900" />}
+                                 {tibSelected.day === 30 && <StatusItem icon={<MoonPhase day={30} size={22} />} label={t('New Moon', 'གནམ་གང་།')} detail={t('30th Lunar Day', 'བོད་ཚེས་ ༣༠ གནམ་གང་།')} color="text-stone-900" />}
+                                 
+                                 {/* Personal Harmony Item */}
+                                 {userData.birthAnimal && (
+                                   <div className="flex items-center justify-between p-3 bg-stone-50/50 rounded-2xl border border-stone-100/50 group">
+                                     <div className="flex items-center gap-3">
+                                       <div className="w-10 h-10 rounded-xl bg-stone-950 flex items-center justify-center text-white group-hover:scale-105 transition-transform">
+                                         <Sparkles size={18} />
+                                       </div>
+                                       <div>
+                                         <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest leading-none mb-1">Sacred Alignment</p>
+                                         <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wide leading-none">Birth Chart Resonance</p>
+                                       </div>
+                                     </div>
+                                     <div className="px-3 py-1.5 rounded-full bg-white border border-stone-100 flex items-center gap-2">
+                                       <Compass size={10} className="text-stone-400" />
+                                       <span className="text-[9px] font-black text-stone-500 uppercase tracking-widest">
+                                         {getElementalHarmony(userData.birthElement, tibSelected.element)} Alignment
+                                       </span>
+                                     </div>
+                                   </div>
+                                 )}
+
+                                 {/* Doubled/Skipped */}
+                                 {tibSelected.isDoubleDay && <StatusItem icon={<span className="text-xl font-black text-saffron">⁺</span>} label={t('Double Day', 'ཚེས་ལྷག')} detail="A duplicated lunar period" />}
+                                 {tibSelected.isSkippedDay && <StatusItem icon={<span className="text-xl font-black text-red-500">⁻</span>} label={t('Skipped Day', 'ཚེས་ཆད།')} detail="This lunar day is omitted" />}
+                                 
+                                 {/* Festivals */}
+                                 {FESTIVALS.filter(f => f.month === tibSelected.month && f.day === tibSelected.day).map(f => (
+                                   <StatusItem key={f.name} icon="🏮" label={f.name} detail={f.description} color="text-tibetan-red" />
+                                 ))}
+                                 
+                                 {/* Generic Placeholder if empty */}
+                                 {tibSelected.day !== 15 && tibSelected.day !== 30 && !tibSelected.isDoubleDay && !tibSelected.isSkippedDay && FESTIVALS.filter(f => f.month === tibSelected.month && f.day === tibSelected.day).length === 0 && !userData.birthAnimal && (
+                                   <div className="py-4 text-[10px] text-stone-300 font-medium italic text-center border-2 border-dashed border-stone-50 rounded-3xl">No celestial markers.</div>
+                                 )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Display existing note/reminder/custom festival if any */}
+                          {(selectedNote || currentReminder || customFestivalToday) && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="space-y-4"
+                            >
+                              {customFestivalToday && (
+                                <div className="bg-amber-50 p-4 rounded-2xl space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[9px] font-black text-saffron uppercase tracking-widest">Custom Event</span>
+                                    <CalendarIcon size={12} className="text-saffron" />
+                                  </div>
+                                  <h4 className="text-sm font-bold text-stone-900 break-words">{customFestivalToday.name}</h4>
+                                  {customFestivalToday.description && (
+                                    <p className="text-[11px] text-stone-500 italic whitespace-pre-wrap break-words">{customFestivalToday.description}</p>
+                                  )}
+                                </div>
+                              )}
+                              {currentReminder && (
+                                <div className="flex items-center gap-3 bg-amber-50/50 p-3 rounded-2xl">
+                                  <Clock size={16} className="text-saffron" />
+                                  <span className="text-[10px] font-bold text-amber-900 uppercase tracking-widest">Remind me today</span>
+                                </div>
+                              )}
+                              {selectedNote && (
+                                <div className="bg-stone-50 p-4 rounded-2xl space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest">My Notes</span>
+                                    <StickyNote size={12} className="text-stone-300" />
+                                  </div>
+                                  <p className="text-xs font-medium text-stone-600 leading-relaxed whitespace-pre-wrap break-words">{selectedNote}</p>
+                                </div>
+                              )}
+                            </motion.div>
+                          )}
                         </div>
-                      </div>
-                      <button
-                        onClick={() => setIsNoteSheetOpen(true)}
-                        className="p-2.5 bg-stone-50 rounded-xl text-stone-400 hover:text-stone-600 transition-colors"
-                      >
-                        <Plus size={18} />
-                      </button>
+                      </>
+                    );
+                  })()}
+
+
+
+                  <div className="grid grid-cols-2 gap-4 border-t border-stone-50 pt-6">
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Trigram (Parkha)</p>
+                      <p className="text-xs font-bold text-stone-900">{PARKHA_ICONS[tibSelected.parkha]} {tibSelected.parkha}</p>
                     </div>
-
-                    {/* Display existing note/reminder/custom festival if any */}
-                    {(currentNote || currentReminder || customFestivalToday) && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="space-y-4"
-                      >
-                        {customFestivalToday && (
-                          <div className="bg-amber-50 p-4 rounded-2xl space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[9px] font-black text-saffron uppercase tracking-widest">Custom Event</span>
-                              <CalendarIcon size={12} className="text-saffron" />
-                            </div>
-                            <h4 className="text-sm font-bold text-stone-900 break-words">{customFestivalToday.name}</h4>
-                            {customFestivalToday.description && (
-                              <p className="text-[11px] text-stone-500 italic whitespace-pre-wrap break-words">{customFestivalToday.description}</p>
-                            )}
-                          </div>
-                        )}
-                        {currentReminder && (
-                          <div className="flex items-center gap-3 bg-amber-50/50 p-3 rounded-2xl">
-                            <Clock size={16} className="text-saffron" />
-                            <span className="text-[10px] font-bold text-amber-900 uppercase tracking-widest">Remind me today</span>
-                          </div>
-                        )}
-                        {currentNote && (
-                          <div className="bg-stone-50 p-4 rounded-2xl space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest">My Notes</span>
-                              <StickyNote size={12} className="text-stone-300" />
-                            </div>
-                            <p className="text-xs font-medium text-stone-600 leading-relaxed whitespace-pre-wrap break-words">{currentNote}</p>
-                          </div>
-                        )}
-                      </motion.div>
-                    )}
-
-                    {/* Personalized Alignment info */}
-                    {userData.birthElement && (
-                      <div className="space-y-4">
-                        <div className={cn(
-                          "p-6 rounded-[32px] transition-all duration-500 relative overflow-hidden group",
-                          (() => {
-                            const h = getElementalHarmony(userData.birthElement, tibSelected.element);
-                            const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
-                            if (h === 'life' || h === 'son' || a === 'trine') return "bg-emerald-50/40 border border-emerald-100/50";
-                            if (h === 'enemy' || a === 'conflict') return "bg-red-50/20 border border-red-100/20";
-                            return "bg-stone-50/50 border border-stone-100/30";
-                          })()
-                        )}>
-                          {/* Decorative Background Icon */}
-                          <div className="absolute -right-2 -bottom-2 opacity-[0.03] group-hover:scale-110 transition-transform duration-700">
-                            <Compass size={80} />
-                          </div>
-
-                          <div className="relative space-y-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className={cn(
-                                  "w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-sm",
-                                  (() => {
-                                    const h = getElementalHarmony(userData.birthElement, tibSelected.element);
-                                    if (h === 'life' || h === 'son') return "bg-emerald-500";
-                                    if (h === 'enemy') return "bg-red-500";
-                                    return "bg-stone-900";
-                                  })()
-                                )}>
-                                  <Sparkles size={18} />
-                                </div>
-                                <div>
-                                  <p className="text-[10px] font-black text-stone-950 uppercase tracking-[0.2em] leading-none mb-1">Sacred Alignment</p>
-                                  <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest leading-none">Birth Chart Resonance</p>
-                                </div>
-                              </div>
-
-                              {/* Status Badge */}
-                              <div className={cn(
-                                "px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest shadow-sm flex items-center gap-2",
-                                (() => {
-                                  const h = getElementalHarmony(userData.birthElement, tibSelected.element);
-                                  const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
-                                  if (h === 'life' || h === 'son' || a === 'trine') return "bg-emerald-500 text-white";
-                                  if (h === 'enemy' || a === 'conflict') return "bg-red-500 text-white";
-                                  return "bg-stone-100 text-stone-500";
-                                })()
-                              )}>
-                                {(() => {
-                                  const h = getElementalHarmony(userData.birthElement, tibSelected.element);
-                                  const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
-                                  if (h === 'life' || h === 'son' || a === 'trine') return <><Sparkles size={10} /> Highly Supportive</>;
-                                  if (h === 'enemy' || a === 'conflict') return <><Info size={10} /> Potentially Opposed</>;
-                                  return <><Compass size={10} /> Balanced Alignment</>;
-                                })()}
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3 pt-2">
-                              <div className="bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-white/50">
-                                <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest mb-1.5">Energy (Element)</p>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-bold text-stone-900">
-                                    {(() => {
-                                      const h = getElementalHarmony(userData.birthElement, tibSelected.element);
-                                      if (h === 'life') return 'Nourishing';
-                                      if (h === 'same') return 'Equanimous';
-                                      if (h === 'son') return 'Prosperous';
-                                      if (h === 'enemy') return 'Friction';
-                                      return 'Neutral';
-                                    })()}
-                                  </span>
-                                  <div className={cn("w-2 h-2 rounded-full", (() => {
-                                    const h = getElementalHarmony(userData.birthElement, tibSelected.element);
-                                    if (h === 'life' || h === 'son') return "bg-emerald-500";
-                                    if (h === 'enemy') return "bg-red-500";
-                                    return "bg-stone-300";
-                                  })())} />
-                                </div>
-                              </div>
-
-                              <div className="bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-white/50">
-                                <p className="text-[8px] font-black text-stone-400 uppercase tracking-widest mb-1.5">Social (Animal)</p>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-bold text-stone-900">
-                                    {(() => {
-                                      const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
-                                      if (a === 'trine') return 'Auspicious';
-                                      if (a === 'same') return 'Stable';
-                                      if (a === 'conflict') return 'Sensitive';
-                                      return 'Neutral';
-                                    })()}
-                                  </span>
-                                  <div className={cn("w-2 h-2 rounded-full", (() => {
-                                    const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
-                                    if (a === 'trine' || a === 'same') return "bg-emerald-500";
-                                    if (a === 'conflict') return "bg-red-500";
-                                    return "bg-stone-300";
-                                  })())} />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Dynamic Insight */}
-                            <div className="pt-2 px-1">
-                              <p className="text-[11px] text-stone-600 font-medium leading-relaxed italic">
-                                {(() => {
-                                  const h = getElementalHarmony(userData.birthElement, tibSelected.element);
-                                  const a = getAnimalAffinity(userData.birthAnimal, tibSelected.animal);
-                                  if (h === 'life') return "The day's energy acts as your celestial 'Mother'. Perfect for starting projects or seeking blessings.";
-                                  if (h === 'enemy') return "Cosmic friction detected. Practice patience and avoid major social confrontations today.";
-                                  if (h === 'son') return "A day of prosperity where your inner energy supports external growth. High success likelihood.";
-                                  if (a === 'conflict') return "Social interactions may feel tense. Focus on internal work and move with gentleness.";
-                                  return "Celestial energies are stable. A balanced time for routine spiritual practice and quiet awareness.";
-                                })()}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-4 border-t border-stone-50 pt-6">
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Trigram (Parkha)</p>
-                        <p className="text-xs font-bold text-stone-900">{PARKHA_ICONS[tibSelected.parkha]} {tibSelected.parkha}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Magic Sq (Mewa)</p>
-                        <p className="text-xs font-bold text-stone-900">{MEWA_ICONS[tibSelected.mewa]} {tibSelected.mewa}</p>
-                      </div>
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Magic Sq (Mewa)</p>
+                      <p className="text-xs font-bold text-stone-900">{MEWA_ICONS[tibSelected.mewa]} {tibSelected.mewa}</p>
                     </div>
+                  </div>
 
-                    <div className="grid grid-cols-2 gap-4 border-t border-stone-50 pt-6">
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Identity</p>
-                        <p className="text-xs font-bold text-amber-800">{tibSelected.yearName}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Logic</p>
-                        <p className="text-xs font-bold text-stone-800">{tibSelected.gender} • Month {tibSelected.month}</p>
-                      </div>
+                  <div className="grid grid-cols-2 gap-4 border-t border-stone-50 pt-6">
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Identity</p>
+                      <p className="text-xs font-bold text-amber-800">{tibSelected.yearName}</p>
                     </div>
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Logic</p>
+                      <p className="text-xs font-bold text-stone-800">{tibSelected.gender} • Month {tibSelected.month}</p>
+                    </div>
+                  </div>
 
-                    {/* Moon Legend Indicator */}
-                    <div className="flex items-center justify-center gap-6 pt-10 pb-12 opacity-30">
+                  <div className="grid grid-cols-2 gap-4 border-t border-stone-50 pt-6">
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Day Conjunction</p>
                       <div className="flex items-center gap-2">
-                         <span className="text-yellow-500 text-xs">🌕</span>
-                         <span className="text-[8px] font-black uppercase tracking-widest text-stone-500">{t('Full Moon', 'ཉ་གང་།')}</span>
+                        <span className="text-xs font-bold text-turquoise">
+                          {t(tibSelected.combination, COMBINATIONS[`${tibSelected.planetElement}-${tibSelected.mansionElement}`]?.tib || tibSelected.combination)}
+                        </span>
+                        <span className="text-[8px] font-black text-stone-300 uppercase tracking-widest">
+                          ({tibSelected.planetElement}-{tibSelected.mansionElement})
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                         <span className="text-stone-400 text-xs">🌑</span>
-                         <span className="text-[8px] font-black uppercase tracking-widest text-stone-500">{t('New Moon', 'གནམ་གང་།')}</span>
-                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Focus</p>
+                      <p className="text-[10px] font-medium text-stone-500 italic">
+                        {(() => {
+                          const combined = `${tibSelected.planetElement}-${tibSelected.mansionElement}`;
+                          if (combined === 'Earth-Water') return "Auspicious for building and growth.";
+                          if (combined === 'Earth-Fire') return "Caution advised; friction in social and fire-related activities.";
+                          if (combined === 'Water-Water') return "Fortunate for healing and longevity rituals.";
+                          return "A balanced day for routine spiritual practice.";
+                        })()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Moon Legend Indicator */}
+                  <div className="flex items-center justify-center gap-6 pt-10 pb-12 opacity-30">
+                    <div className="flex items-center gap-2">
+                      <span className="text-yellow-500 text-xs">🌕</span>
+                      <span className="text-[8px] font-black uppercase tracking-widest text-stone-500">{t('Full Moon', 'ཉ་གང་།')}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-stone-400 text-xs">🌑</span>
+                      <span className="text-[8px] font-black uppercase tracking-widest text-stone-500">{t('New Moon', 'གནམ་གང་།')}</span>
                     </div>
                   </div>
                 </>
@@ -1749,8 +1884,13 @@ export default function App() {
                   onClick={() => setIsProfileSheetOpen(true)}
                   className="relative group/avatar active:scale-95 transition-transform z-10"
                 >
-                  <div className="w-20 h-20 rounded-full bg-stone-900 flex items-center justify-center text-stone-100 text-3xl font-serif border-4 border-white shadow-xl group-hover:border-saffron transition-colors">
-                    <span className="text-saffron">࿇</span>
+                  <div className={cn(
+                    "w-20 h-20 rounded-full flex items-center justify-center text-stone-100 border-4 border-white shadow-xl transition-all",
+                    userData.gender === 'Female' 
+                      ? "bg-lotus group-hover:border-lotus/50 shadow-lotus/20" 
+                      : "bg-stone-900 group-hover:border-saffron"
+                  )}>
+                    <User size={32} className={userData.gender === 'Female' ? "text-white" : "text-saffron"} />
                   </div>
                   <div className="absolute -right-1 -bottom-1 w-7 h-7 bg-saffron rounded-full flex items-center justify-center text-white border-4 border-bg-warm shadow-lg group-hover/avatar:scale-110 transition-transform">
                     <Pencil size={12} strokeWidth={3} />
@@ -1772,12 +1912,51 @@ export default function App() {
                 <div className="space-y-5">
                   <div className="flex items-center justify-between group">
                     <div className="flex items-center gap-4">
+                      <User size={16} className="text-stone-300 group-hover:text-saffron transition-colors" />
+                      <div>
+                        <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">Gender Orientation</p>
+                        <p className="text-xs font-bold text-stone-800">
+                          {userData.gender ? userData.gender : 'Not specified'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
                       <CalendarIcon size={16} className="text-stone-300 group-hover:text-saffron transition-colors" />
                       <div>
                         <p className="text-[8px] font-black text-stone-300 uppercase tracking-widest">Birth Date</p>
                         <p className="text-xs font-bold text-stone-800">
-                          {userData.birthDate ? format(parseISO(userData.birthDate), 'MMMM do, yyyy') : 'Establish alignment'}
+                          {userData.birthDateSystem === 'Tibetan' 
+                            ? (userData.tibetanBirthYear 
+                                ? `${n(userData.tibetanBirthYear)}-${n(userData.tibetanBirthMonth || 1)}-${n(userData.tibetanBirthDay || 1)} (${t('Tibetan Year', 'བོད་ལོ།')} ${n(userData.tibetanBirthYear > 1000 ? userData.tibetanBirthYear + 127 : userData.tibetanBirthYear)})`
+                                : 'Establish alignment')
+                            : (userData.birthDate 
+                                ? `${n(format(parseISO(userData.birthDate), 'MMMM do, yyyy'))} (${t('Tibetan Year', 'བོད་ལོ།')} ${n(getTibetanDate(new Date(userData.birthDate)).year)})`
+                                : 'Establish alignment')}
                         </p>
+                        {convertedGregorian && (
+                          <p className="text-[9px] text-saffron font-bold mt-1.5 leading-relaxed bg-amber-50/50 p-2 rounded-xl border border-saffron/10">
+                            {t(`According to International format Your DOB is ${format(convertedGregorian, 'MMMM do, yyyy')}`, 
+                               `ཕྱི་ལོའི་བརྩི་སྟངས་ལྟར་ན། ཁྱེད་ཀྱི་སྐྱེས་ཚེས་ནི་ ${n(format(convertedGregorian, 'yyyy-MM-dd'))} རེད།`)}
+                          </p>
+                        )}
+                        {userData.birthDateSystem === 'International' || !userData.birthDateSystem ? (
+                          userData.birthDate && (
+                            <p className="text-[9px] text-saffron font-bold mt-1.5 leading-relaxed bg-amber-50/50 p-2 rounded-xl border border-saffron/10">
+                              {(() => {
+                                try {
+                                  const dateObj = new Date(userData.birthDate);
+                                  if (isNaN(dateObj.getTime())) return null;
+                                  const tib = getTibetanDate(dateObj);
+                                  return t(`According to Tibetan Calendar Your DOB is ${n(tib.year)}-${n(tib.month)}-${n(tib.day)}`, 
+                                           `བོད་ལོའི་བརྩི་སྟངས་ལྟར་ན། ཁྱེད་ཀྱི་སྐྱེས་ཚེས་ནི་ བོད་ལོ་ ${n(tib.year)} ཟླ་བ་ ${n(tib.month)} ཚེས་ ${n(tib.day)} རེད།`);
+                                } catch (e) { return null; }
+                              })()}
+                            </p>
+                          )
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -1872,18 +2051,108 @@ export default function App() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[9px] font-black text-stone-400 uppercase px-1">Birth Date</label>
-                      <input
-                        type="date"
-                        value={userData.birthDate || ''}
-                        onChange={(e) => handleBirthDateChange(e.target.value)}
-                        className="w-full bg-white rounded-2xl p-4 text-xs font-bold outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm"
-                      />
+                      <label className="text-[9px] font-black text-stone-400 uppercase px-1">Gender</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {['Male', 'Female'].map((g) => (
+                          <button
+                            key={g}
+                            type="button"
+                            onClick={() => setUserData(prev => ({ ...prev, gender: g as any }))}
+                            className={cn(
+                              "p-4 rounded-2xl border text-xs font-bold transition-all flex items-center justify-center gap-2",
+                              userData.gender === g 
+                                ? "bg-stone-900 text-white border-stone-800 shadow-lg scale-[1.02]" 
+                                : "bg-white text-stone-500 border-stone-100 shadow-sm"
+                            )}
+                          >
+                            <div className={cn(
+                              "w-2 h-2 rounded-full",
+                              userData.gender === g ? "bg-saffron" : "bg-stone-200"
+                            )} />
+                            {g}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between px-1">
+                        <label className="text-[9px] font-black text-stone-400 uppercase">Birth System</label>
+                        <div className="flex bg-white rounded-full p-1 border border-stone-100 shadow-sm">
+                          {['International', 'Tibetan'].map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => setUserData(prev => ({ ...prev, birthDateSystem: s as any }))}
+                              className={cn(
+                                "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all",
+                                (userData.birthDateSystem || 'International') === s ? "bg-stone-900 text-white shadow-md" : "text-stone-400"
+                              )}
+                            >
+                              {s === 'International' ? t('International', 'ཕྱི་ལོ།') : t('Tibetan Calendar', 'བོད་ལོ།')}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black text-stone-400 uppercase px-1">
+                          Birth Date
+                        </label>
+                        {(userData.birthDateSystem || 'International') === 'Tibetan' ? (
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="space-y-1.5 relative">
+                              <label className="text-[7px] font-black text-stone-400 uppercase px-1">Birth Year (AD)</label>
+                              <input
+                                type="number"
+                                placeholder="e.g., 1987"
+                                value={userData.tibetanBirthYear || ''}
+                                onChange={(e) => handleTibetanYearChange(parseInt(e.target.value))}
+                                className="w-full bg-white rounded-2xl p-4 text-[11px] font-bold outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[7px] font-black text-stone-400 uppercase px-1">Month</label>
+                              <select
+                                value={userData.tibetanBirthMonth || 1}
+                                onChange={(e) => setUserData(prev => ({ ...prev, tibetanBirthMonth: parseInt(e.target.value) }))}
+                                className="w-full bg-white rounded-2xl p-4 text-[11px] font-bold outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm appearance-none"
+                              >
+                                {Array.from({ length: 12 }, (_, i) => (
+                                  <option key={i + 1} value={i + 1}>{toTibetanNumerals(i + 1)}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[7px] font-black text-stone-400 uppercase px-1">Lunar Day</label>
+                              <select
+                                value={userData.tibetanBirthDay || 1}
+                                onChange={(e) => setUserData(prev => ({ ...prev, tibetanBirthDay: parseInt(e.target.value) }))}
+                                className="w-full bg-white rounded-2xl p-4 text-[11px] font-bold outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm appearance-none"
+                              >
+                                {Array.from({ length: 30 }, (_, i) => (
+                                  <option key={i + 1} value={i + 1}>{toTibetanNumerals(i + 1)}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        ) : (
+                          <input
+                            type="date"
+                            value={userData.birthDate || ''}
+                            onChange={(e) => handleBirthDateChange(e.target.value)}
+                            className="w-full bg-stone-50 rounded-2xl p-4 text-xs font-bold outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm"
+                          />
+                        )}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label className="text-[9px] font-black text-stone-400 uppercase px-1">Birth Animal</label>
+                        <div className="flex items-center justify-between px-1">
+                          <label className="text-[9px] font-black text-stone-400 uppercase">Birth Animal</label>
+                          {userData.birthDate && <span className="text-[7px] font-black text-emerald-500 uppercase tracking-tighter">System Calculated</span>}
+                        </div>
                         <div className="relative">
                           <select
                             value={userData.birthAnimal || ''}
@@ -1900,7 +2169,10 @@ export default function App() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[9px] font-black text-stone-400 uppercase px-1">Birth Element</label>
+                        <div className="flex items-center justify-between px-1">
+                          <label className="text-[9px] font-black text-stone-400 uppercase">Birth Element</label>
+                          {userData.birthDate && <span className="text-[7px] font-black text-emerald-500 uppercase tracking-tighter">System Calculated</span>}
+                        </div>
                         <div className="relative">
                           <select
                             value={userData.birthElement || ''}
@@ -2225,8 +2497,8 @@ export default function App() {
                             "w-12 h-12 rounded-2xl flex flex-col items-center justify-center flex-shrink-0",
                             result.isCustom ? "bg-amber-50 text-saffron" : "bg-stone-900 text-white"
                           )}>
-                            <span className="text-[10px] font-black uppercase leading-none">{format(result.date, 'MMM')}</span>
-                            <span className="text-lg font-black font-serif leading-none mt-0.5">{format(result.date, 'd')}</span>
+                            <span className="text-[10px] font-black uppercase leading-none">{n(format(result.date, 'MMM'))}</span>
+                            <span className="text-lg font-black font-serif leading-none mt-0.5">{n(format(result.date, 'd'))}</span>
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between">
@@ -2590,6 +2862,44 @@ function EndlessKnot({ className }: { className?: string }) {
       <circle cx="40" cy="40" r="7" stroke="currentColor" strokeWidth="1.8" fill="none" />
       <circle cx="40" cy="40" r="2.5" fill="currentColor" />
     </svg>
+  );
+}
+
+// ── Components ──────────────────────────────────────────────────────────────
+
+function MoonPhase({ day, size = 18, isDark = false }: { day: number, size?: number, isDark?: boolean }) {
+  // 15 = Full Moon (White with black outline)
+  // 30 = New Moon (Complete black)
+  if (day === 15) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10.5" fill="white" stroke={isDark ? "currentColor" : "black"} strokeWidth="2.5" />
+      </svg>
+    );
+  }
+  if (day === 30) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="11" fill={isDark ? "currentColor" : "black"} />
+      </svg>
+    );
+  }
+
+  // Generic moon for other days
+  return <Moon size={size} className={isDark ? "opacity-30" : "text-stone-300"} />;
+}
+
+function StatusItem({ icon, label, detail, color }: { icon: React.ReactNode, label: string, detail: string, color?: string }) {
+  return (
+    <div className="flex items-start gap-4 p-2 bg-white/40 rounded-2xl border border-white/60 group">
+      <div className={cn("w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-lg shrink-0 transition-transform group-hover:scale-110", color)}>
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <h5 className="text-[11px] font-black text-stone-900 uppercase tracking-wide">{label}</h5>
+        <p className="text-[10px] text-stone-500 line-clamp-2 mt-0.5 font-medium leading-relaxed">{detail}</p>
+      </div>
+    </div>
   );
 }
 
