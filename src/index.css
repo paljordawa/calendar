@@ -11,7 +11,7 @@
 
 @theme {
   --font-sans: "Inter", "MonlamUniOuChan2", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Cormorant Garamond", "MonlamUniOuChan2", Georgia, serif;
+  --font-serif: "Roboto Serif", "MonlamUniOuChan2", Georgia, serif;
   --font-tibetan: "MonlamUniOuChan2", serif;
 
   --color-bg-warm: #FDFBF7;
@@ -21,21 +21,62 @@
   --color-stone-line: #E5E0D5;
   --color-lapis: #1B4F8A;
   --color-lotus: #C97B8A;
+  
+  /* Modern Native Shadow tokens */
+  --shadow-native: 0 4px 20px -4px rgba(0, 0, 0, 0.08), 0 1px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-luminous: 0 20px 40px -12px rgba(217, 119, 6, 0.12);
+}
+
+html {
+  font-size: 106.25%; /* Increases 16px to 17px base */
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
   background-color: var(--color-bg-warm);
   color: var(--color-stone-800);
-  font-weight: 400 !important;
+  font-weight: 400;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  overscroll-behavior-y: none;
 }
 
-/* Global unbolding reset */
-* {
-  font-weight: 400 !important;
+/* Allow selection in inputs and textareas */
+input, textarea {
+  user-select: text !important;
+}
+
+/* Allow selection in specific content areas if needed */
+.selectable {
+  user-select: text !important;
 }
 
 .font-tibetan {
   font-family: var(--font-tibetan);
+}
+
+/* Glassmorphism Utilities */
+.glass {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.glass-dark {
+  background: rgba(12, 12, 12, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Custom Scrollbar for desktop (invisible) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 @keyframes subtle-pulse {
@@ -46,3 +87,4 @@ body {
 .pulse {
   animation: subtle-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+

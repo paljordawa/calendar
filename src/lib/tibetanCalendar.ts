@@ -58,6 +58,7 @@ export const COMBINATIONS: Record<string, { en: string; tib: string }> = {
   "Wind-Fire": { en: "Intensity", tib: "རླུང་མེ།" },
   "Fire-Earth": { en: "Stability", tib: "མེ་ས།" },
   "Fire-Water": { en: "Death", tib: "མེ་ཆུ།" },
+  "Water-Earth": { en: "Auspiciousness", tib: "ཆུ་ས།" },
 };
 
 export const FESTIVALS = [
