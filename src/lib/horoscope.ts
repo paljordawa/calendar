@@ -53,17 +53,17 @@ export const getAnimalAffinity = (birth: string | undefined, day: string) => {
   return 'neutral';
 };
 
-export const POWER_DAYS: Record<string, { power: string[]; weak: string[] }> = {
-  'Rat': { power: ['Tuesday', 'Wednesday'], weak: ['Saturday'] },
-  'Ox': { power: ['Wednesday', 'Saturday'], weak: ['Thursday'] },
-  'Tiger': { power: ['Thursday', 'Saturday'], weak: ['Friday'] },
-  'Rabbit': { power: ['Thursday', 'Saturday'], weak: ['Friday'] },
-  'Dragon': { power: ['Sunday', 'Wednesday'], weak: ['Thursday'] },
-  'Snake': { power: ['Tuesday', 'Friday'], weak: ['Wednesday'] },
-  'Horse': { power: ['Tuesday', 'Friday'], weak: ['Wednesday'] },
-  'Sheep': { power: ['Friday', 'Sunday'], weak: ['Thursday'] },
-  'Monkey': { power: ['Friday', 'Sunday'], weak: ['Thursday'] },
-  'Bird': { power: ['Friday', 'Saturday'], weak: ['Tuesday'] },
-  'Dog': { power: ['Monday', 'Wednesday'], weak: ['Thursday'] },
-  'Pig': { power: ['Monday', 'Wednesday'], weak: ['Saturday'] }
+export const POWER_DAYS: Record<string, { la: string; laTib: string; sok: string; sokTib: string; enemy: string; enemyTib: string }> = {
+  'Rat': { la: 'Tuesday', laTib: 'གཟའ་མིག་དམར།', sok: 'Wednesday', sokTib: 'གཟའ་ལྷག་པ།', enemy: 'Saturday', enemyTib: 'གཟའ་སྤེན་པ།' },
+  'Ox': { la: 'Wednesday', laTib: 'གཟའ་ལྷག་པ།', sok: 'Saturday', sokTib: 'གཟའ་སྤེན་པ།', enemy: 'Thursday', enemyTib: 'གཟའ་ཕུར་བུ།' },
+  'Tiger': { la: 'Thursday', laTib: 'གཟའ་ཕུར་བུ།', sok: 'Saturday', sokTib: 'གཟའ་སྤེན་པ།', enemy: 'Friday', enemyTib: 'གཟའ་པ་སངས་།' },
+  'Rabbit': { la: 'Thursday', laTib: 'གཟའ་ཕུར་བུ།', sok: 'Saturday', sokTib: 'གཟའ་སྤེན་པ།', enemy: 'Friday', enemyTib: 'གཟའ་པ་སངས་།' },
+  'Dragon': { la: 'Sunday', laTib: 'གཟའ་ཉི་མ།', sok: 'Wednesday', sokTib: 'གཟའ་ལྷག་པ།', enemy: 'Thursday', enemyTib: 'གཟའ་ཕུར་བུ།' },
+  'Snake': { la: 'Tuesday', laTib: 'གཟའ་མིག་དམར།', sok: 'Friday', sokTib: 'གཟའ་པ་སངས་།', enemy: 'Wednesday', enemyTib: 'གཟའ་ལྷག་པ།' },
+  'Horse': { la: 'Tuesday', laTib: 'གཟའ་མིག་དམར།', sok: 'Friday', sokTib: 'གཟའ་པ་སངས་།', enemy: 'Wednesday', enemyTib: 'གཟའ་ལྷག་པ།' },
+  'Sheep': { la: 'Friday', laTib: 'གཟའ་པ་སངས་།', sok: 'Sunday', sokTib: 'གཟའ་ཉི་མ།', enemy: 'Thursday', enemyTib: 'གཟའ་ཕུར་བུ།' },
+  'Monkey': { la: 'Friday', laTib: 'གཟའ་པ་སངས་།', sok: 'Sunday', sokTib: 'གཟའ་ཉི་མ།', enemy: 'Thursday', enemyTib: 'གཟའ་ཕུར་བུ།' },
+  'Bird': { la: 'Friday', laTib: 'གཟའ་པ་སངས་།', sok: 'Saturday', sokTib: 'གཟའ་སྤེན་པ།', enemy: 'Tuesday', enemyTib: 'གཟའ་མིག་དམར།' },
+  'Dog': { la: 'Monday', laTib: 'གཟའ་ཟླ་བ།', sok: 'Wednesday', sokTib: 'གཟའ་ལྷག་པ།', enemy: 'Thursday', enemyTib: 'གཟའ་ཕུར་བུ།' },
+  'Pig': { la: 'Monday', laTib: 'གཟའ་ཟླ་བ།', sok: 'Wednesday', sokTib: 'གཟའ་ལྷག་པ།', enemy: 'Saturday', enemyTib: 'གཟའ་སྤེན་པ།' }
 };

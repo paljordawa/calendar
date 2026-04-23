@@ -40,12 +40,14 @@ export function MonthView({
 
   return (
     <div className="overflow-hidden">
-      <div className="flex items-center justify-between mb-4 px-1">
-        <div className="flex gap-2">
-          <button onClick={handlePrevMonth} className="px-3 py-2 bg-stone-50 rounded-xl active:scale-95 transition-transform"><ChevronLeft size={16} /></button>
-          <button onClick={handleNextMonth} className="px-3 py-2 bg-stone-50 rounded-xl active:scale-95 transition-transform"><ChevronRight size={16} /></button>
+      <div className="flex items-center justify-between mb-6 px-1">
+        <div className="flex gap-3">
+          <button onClick={handlePrevMonth} className="p-2.5 bg-white/5 border border-white/5 rounded-xl active:scale-95 transition-transform hover:bg-white/10 text-stone-400 hover:text-white"><ChevronLeft size={18} /></button>
+          <button onClick={handleNextMonth} className="p-2.5 bg-white/5 border border-white/5 rounded-xl active:scale-95 transition-transform hover:bg-white/10 text-stone-400 hover:text-white"><ChevronRight size={18} /></button>
         </div>
-        <span className="text-[11.5px] font-bold text-stone-400 uppercase tracking-widest">{t('Lunar Month', 'བོད་ཟླ།')} {n(tibSelected.month)}</span>
+        <div className="px-4 py-1.5 rounded-full glass border border-white/5">
+          <span className="text-[11px] font-black text-stone-400 uppercase tracking-[0.2em]">{t('Lunar Month', 'བོད་ཟླ།')} {n(tibSelected.month)}</span>
+        </div>
       </div>
 
 
@@ -53,19 +55,19 @@ export function MonthView({
         <motion.div
           key={format(currentDate, 'yyyy-MM')}
           custom={direction}
-          initial={{ opacity: 0, x: direction * 50 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: direction * -50 }}
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 1.02 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className="touch-pan-y"
         >
-          <div className="grid grid-cols-7 gap-px text-[10.5px] font-black text-stone-400 tracking-[0.2em] uppercase mb-2">
+          <div className="grid grid-cols-7 gap-px text-[9px] font-black text-stone-600 tracking-[0.3em] uppercase mb-4 px-2">
             {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <div key={`${d}-${i}`} className="py-2 text-center">{d}</div>)}
           </div>
 
-          <div className="grid grid-cols-7 gap-px rounded-2xl overflow-hidden border border-stone-100 bg-stone-100">
+          <div className="grid grid-cols-7 gap-1 rounded-[32px] overflow-hidden p-1 bg-white/[0.02] border border-white/5">
             {Array.from({ length: startOfMonth(currentDate).getDay() }).map((_, i) => (
-              <div key={`pad-${i}`} className="bg-stone-50/50 aspect-square" />
+              <div key={`pad-${i}`} className="bg-transparent aspect-square" />
             ))}
             {monthDays.map((date, idx) => {
               const isSelected = isSameDay(date, selectedDate);
@@ -86,69 +88,68 @@ export function MonthView({
                   key={date.toISOString()}
                   onClick={() => setSelectedDate(date)}
                   className={cn(
-                    "relative aspect-square flex flex-col items-center justify-center gap-0 transition-all duration-300",
-                    isSelected ? "bg-stone-900 text-white z-10 shadow-lg scale-105" : "bg-white text-stone-900 hover:bg-stone-50"
+                    "relative aspect-square rounded-2xl flex flex-col items-center justify-center gap-0 transition-all duration-300 overflow-hidden",
+                    isSelected ? "bg-white/10 text-white z-10 shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20 scale-[1.05]" : "bg-white/[0.03] text-stone-400 hover:bg-white/[0.08] border border-white/[0.05]"
                   )}
                 >
                   {isSkippedBefore && (
-                    <div className="absolute top-0 left-0 bottom-0 w-1 bg-red-100/30" />
+                    <div className="absolute top-0 left-0 bottom-0 w-1 bg-red-500/20" />
                   )}
                   {/* Moon phase — top-left corner */}
                   <div className="absolute top-1.5 left-1.5">
-                    <MoonPhase day={tib.day} size={9} isDark={isSelected} />
+                    <MoonPhase day={tib.day} size={9} isDark={true} />
                   </div>
                   {/* Gregorian date — primary */}
                   <span className={cn(
-                    "text-[13px] font-serif font-black leading-none",
-                    isToday && !isSelected && "text-saffron"
+                    "text-[14px] font-serif font-black leading-none transition-colors",
+                    isToday && !isSelected ? "text-gold" : isSelected ? "text-white" : "text-stone-300"
                   )}>
                     {format(date, 'd')}
                   </span>
                   {/* Tibetan lunar day — MonlamUniOuChan2 font */}
                   <span className={cn(
-                    "font-tibetan text-[11px] leading-none mt-0.5",
-                    isSelected ? "text-stone-300" : "text-stone-500"
+                    "font-tibetan text-[10px] leading-none mt-1",
+                    isSelected ? "text-stone-400" : "text-stone-600"
                   )}>
                     {toTibetanNumerals(tib.day)}
                   </span>
-                  {/* Sticker / emoji indicator — bottom-left */}
-                  {(() => {
-                    const sticker = userData.stickers?.[format(date, 'yyyy-MM-dd')];
-                    return sticker?.emoji ? (
-                      <div className="absolute bottom-1 left-1 text-[10px] leading-none">
-                        {sticker.emoji}
-                      </div>
-                    ) : null;
-                  })()}
-                  {/* Mentskhang symbol — bottom-center */}
-                  {tib.lunarSymbol && MENTSKHANG_SYMBOLS[tib.lunarSymbol] && (
-                    <div
-                      className="absolute bottom-0.5 inset-x-0 flex justify-center"
-                      title={MENTSKHANG_SYMBOLS[tib.lunarSymbol].en}
-                    >
+                  
+                  {/* Indicators */}
+                  <div className="absolute top-1.5 right-1.5 flex flex-col items-end gap-1">
+                    {isToday && !isSelected && <div className="w-1 h-1 rounded-full bg-gold shadow-[0_0_5px_rgba(234,179,8,0.5)]" />}
+                    {isLungtaDay(tib.day, tib.combination || '') && (
+                      <span className={cn("text-[7px] filter grayscale opacity-60", isSelected && "grayscale-0 opacity-100")}>🐴</span>
+                    )}
+                    {getMeritMultiplier(tib.day, tib.month) && (
+                      <div className={cn("w-1 h-1 rounded-full", isSelected ? "bg-gold" : "bg-gold/40")} />
+                    )}
+                  </div>
+
+                  {/* Bottom artifacts */}
+                  <div className="absolute bottom-1.5 inset-x-0 flex items-center justify-center gap-1.5 px-1">
+                    {/* Mentskhang symbol */}
+                    {tib.lunarSymbol && MENTSKHANG_SYMBOLS[tib.lunarSymbol] && (
                       <span className={cn(
-                        "text-[9px] leading-none",
-                        isSelected ? "opacity-60" : "opacity-40"
+                        "text-[9px] leading-none transition-opacity",
+                        isSelected ? "opacity-100" : "opacity-40"
                       )}>
                         {MENTSKHANG_SYMBOLS[tib.lunarSymbol].icon}
                       </span>
-                    </div>
-                  )}
+                    )}
+                    
+                    {/* Note indicator */}
+                    {userData.notes?.[format(date, 'yyyy-MM-dd')] && (
+                      <div className={cn("w-1 h-1 rounded-full", isSelected ? "bg-white/80" : "bg-stone-600")} />
+                    )}
 
-                  {/* Sacred Indicators — top-right */}
-                  <div className="absolute top-1 right-1 flex flex-col items-end gap-0.5">
-                    {isToday && !isSelected && <div className="w-1.5 h-1.5 rounded-full bg-saffron" />}
-                    {isLungtaDay(tib.day, tib.combination || '') && (
-                      <span className={cn("text-[8px]", isSelected ? "text-stone-400" : "text-amber-500")}>🐴</span>
-                    )}
-                    {getMeritMultiplier(tib.day, tib.month) && (
-                      <div className={cn("w-1 h-1 rounded-full", isSelected ? "bg-stone-300" : "bg-emerald-400")} />
-                    )}
+                    {/* Sticker indicator */}
+                    {(() => {
+                      const sticker = userData.stickers?.[format(date, 'yyyy-MM-dd')];
+                      return sticker?.emoji ? (
+                        <span className="text-[9px] leading-none">{sticker.emoji}</span>
+                      ) : null;
+                    })()}
                   </div>
-                  {/* Note indicator — bottom-right */}
-                  {userData.notes?.[format(date, 'yyyy-MM-dd')] && (
-                    <div className={cn("absolute bottom-1.5 right-1.5 w-1.5 h-1.5 rounded-full", isSelected ? "bg-white/60" : "bg-stone-400")} />
-                  )}
                 </button>
               );
             })}

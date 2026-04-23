@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, X, Trash2, MoreHorizontal, Sparkles, Copy, StickyNote } from 'lucide-react';
+import { Plus, Search, X, Trash2, MoreHorizontal, Sparkles, Copy, StickyNote, Compass } from 'lucide-react';
 import { format, parseISO, startOfDay, isSameDay } from 'date-fns';
 import { cn, toTibetanNumerals } from '../../lib/utils';
 import { DATABASE_2026 } from '../../lib/database2026';
@@ -38,38 +38,42 @@ export function SacredTab({
     <motion.div
       initial={{ opacity: 0, x: 10 }}
       animate={{ opacity: 1, x: 0 }}
-      className="space-y-6"
+      className="space-y-10 pb-20"
     >
-      <header className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-[32px] font-serif font-black text-stone-950">
-            {t(UI_LABELS.GRAND.en, UI_LABELS.GRAND.tib)} <br /> 
-            <span className="text-stone-400 font-light italic">{t(UI_LABELS.GRAND_DUCHEN.en, UI_LABELS.GRAND_DUCHEN.tib)}</span>
-          </h1>
+      <header className="space-y-6">
+        <div className="flex items-center justify-between px-1">
+          <div>
+            <h1 className="text-[32px] font-serif font-black text-white leading-tight">
+              {t(UI_LABELS.GRAND.en, UI_LABELS.GRAND.tib)}
+            </h1>
+            <p className="text-[10px] text-gold font-black uppercase tracking-[0.2em] mt-1">
+              {t(UI_LABELS.GRAND_DUCHEN.en, UI_LABELS.GRAND_DUCHEN.tib)}
+            </p>
+          </div>
           <button
             onClick={() => setIsFestivalSheetOpen(true)}
-            className="p-4 bg-saffron text-white rounded-3xl active:scale-95 transition-transform"
+            className="w-14 h-14 bg-gold text-midnight rounded-2xl active:scale-95 transition-transform flex items-center justify-center shadow-lg shadow-gold/20 glow"
           >
-            <Plus size={24} />
+            <Plus size={28} />
           </button>
         </div>
 
         {/* Search Bar */}
-        <div className="relative group">
-          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-300 group-focus-within:text-saffron transition-colors" />
+        <div className="relative group px-1">
+          <Search size={16} className="absolute left-6 top-1/2 -translate-y-1/2 text-stone-500 group-focus-within:text-gold transition-colors" />
           <input
             type="text"
             value={festivalSearch}
             onChange={(e) => setFestivalSearch(e.target.value)}
             placeholder={t(UI_LABELS.SEARCH_FESTIVALS.en, UI_LABELS.SEARCH_FESTIVALS.tib)}
-            className="w-full bg-stone-100 border-none rounded-2xl py-3.5 pl-12 pr-4 text-[13.5px] font-bold text-stone-800 placeholder:text-stone-300 focus:ring-2 focus:ring-saffron/20 transition-all"
+            className="w-full bg-white/5 border border-white/5 rounded-2xl py-4 pl-14 pr-12 text-[14px] font-bold text-white placeholder:text-stone-700 focus:ring-2 focus:ring-gold/20 outline-none transition-all"
           />
           {festivalSearch && (
             <button 
               onClick={() => setFestivalSearch('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-stone-300 hover:text-stone-500"
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-stone-500 hover:text-white"
             >
-              <X size={14} />
+              <X size={16} />
             </button>
           )}
         </div>
@@ -77,30 +81,33 @@ export function SacredTab({
 
       {/* Custom Festivals Section */}
       {(userData.customFestivals && userData.customFestivals.length > 0) && (
-        <section className="space-y-4">
-          <h3 className="text-[11.5px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.IMPORTANT_DATES.en, UI_LABELS.IMPORTANT_DATES.tib)}</h3>
-          <div className="space-y-3">
+        <section className="space-y-6">
+          <div className="flex items-center gap-3 px-1">
+            <Sparkles size={13} className="text-stone-600" />
+            <h3 className="text-[10px] font-black text-stone-600 uppercase tracking-[0.2em]">{t(UI_LABELS.IMPORTANT_DATES.en, UI_LABELS.IMPORTANT_DATES.tib)}</h3>
+          </div>
+          <div className="space-y-4">
             {userData.customFestivals.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((f: any) => (
-              <div key={f.id} className="bg-amber-50/50 p-5 rounded-3xl flex items-center justify-between gap-4">
+              <div key={f.id} className="glass p-5 rounded-[32px] border border-white/5 flex items-center justify-between gap-4 group hover:border-gold/20 transition-all shadow-xl shadow-black/20">
                 <div className="flex items-center gap-5 min-w-0">
-                  <div className="w-12 h-12 shrink-0 rounded-2xl bg-saffron flex flex-col items-center justify-center text-white text-[11.5px] font-bold shadow-sm">
-                    <span className="text-[9.5px] opacity-70">{format(parseISO(f.date), 'MMM')}</span>
-                    <span className="text-[19.5px] leading-none">{format(parseISO(f.date), 'd')}</span>
+                  <div className="w-14 h-14 shrink-0 rounded-2xl bg-gold flex flex-col items-center justify-center text-midnight font-bold shadow-lg shadow-gold/10 glow">
+                    <span className="text-[10px] font-black uppercase tracking-tighter leading-none opacity-60">{format(parseISO(f.date), 'MMM')}</span>
+                    <span className="text-[22px] font-serif font-black leading-none mt-1">{format(parseISO(f.date), 'd')}</span>
                   </div>
                   <div className="min-w-0">
-                    <h4 className="text-[15.5px] font-bold text-stone-900 truncate">{f.name}</h4>
-                    <p className="text-[12.5px] text-stone-500 line-clamp-1 italic">{f.description}</p>
+                    <h4 className="text-[17px] font-serif font-black text-white truncate">{f.name}</h4>
+                    <p className="text-[12px] text-stone-500 line-clamp-1 italic font-medium mt-0.5">{f.description}</p>
                   </div>
                 </div>
                 <div className="relative">
                   <button 
                     onClick={() => setOpenMenuId(openMenuId === f.id ? null : f.id)}
                     className={cn(
-                      "p-2 rounded-full transition-all active:scale-90",
-                      openMenuId === f.id ? "bg-amber-100 text-stone-900" : "text-stone-300 hover:text-saffron"
+                      "w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-90",
+                      openMenuId === f.id ? "bg-gold text-midnight" : "bg-white/5 text-stone-500 hover:text-white"
                     )}
                   >
-                    <MoreHorizontal size={18} />
+                    <MoreHorizontal size={20} />
                   </button>
 
                   <AnimatePresence>
@@ -110,38 +117,38 @@ export function SacredTab({
                           className="fixed inset-0 z-10" 
                           onClick={() => setOpenMenuId(null)} 
                         />
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.95, y: 10, x: -10 }}
-                          animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
-                          exit={{ opacity: 0, scale: 0.95, y: 10, x: -10 }}
-                          className="absolute right-0 bottom-full mb-2 bg-white rounded-2xl shadow-2xl border border-stone-100 p-2 z-20 min-w-[140px] flex flex-col gap-1"
-                        >
-                          <button
-                            onClick={() => {
-                              setSelectedDate(new Date(f.date));
-                              setIsNoteSheetOpen(true);
-                              setActiveTab('calendar');
-                              setOpenMenuId(null);
-                            }}
-                            className="flex items-center gap-3 px-3 py-2.5 hover:bg-stone-50 rounded-xl transition-colors text-left"
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 10, x: -10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10, x: -10 }}
+                            className="absolute right-0 bottom-full mb-2 glass rounded-2xl shadow-2xl border border-white/10 p-2 z-20 min-w-[150px] flex flex-col gap-1"
                           >
-                            <StickyNote size={14} className="text-stone-400" />
-                            <span className="text-[12.5px] font-bold text-stone-700">{t('Add Note', 'ཟིན་ཐོ་འགོད།')}</span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              setUserData((prev: any) => ({
-                                ...prev,
-                                customFestivals: prev.customFestivals?.filter((cf: any) => cf.id !== f.id)
-                              }));
-                              setOpenMenuId(null);
-                            }}
-                            className="flex items-center gap-3 px-3 py-2.5 hover:bg-red-50 rounded-xl transition-colors text-left"
-                          >
-                            <Trash2 size={14} className="text-tibetan-red" />
-                            <span className="text-[12.5px] font-bold text-tibetan-red">{t('Delete', 'སུབ་པ།')}</span>
-                          </button>
-                        </motion.div>
+                            <button
+                              onClick={() => {
+                                setSelectedDate(new Date(f.date));
+                                setIsNoteSheetOpen(true);
+                                setActiveTab('calendar');
+                                setOpenMenuId(null);
+                              }}
+                              className="flex items-center gap-3 px-3 py-3 hover:bg-white/10 rounded-xl transition-colors text-left"
+                            >
+                              <StickyNote size={14} className="text-gold" />
+                              <span className="text-[12px] font-black uppercase tracking-widest text-white">{t('Add Note', 'ཟིན་ཐོ་འགོད།')}</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                setUserData((prev: any) => ({
+                                  ...prev,
+                                  customFestivals: prev.customFestivals?.filter((cf: any) => cf.id !== f.id)
+                                }));
+                                setOpenMenuId(null);
+                              }}
+                              className="flex items-center gap-3 px-3 py-3 hover:bg-red-400/20 rounded-xl transition-colors text-left"
+                            >
+                              <Trash2 size={14} className="text-red-400" />
+                              <span className="text-[12px] font-black uppercase tracking-widest text-red-400">{t('Delete', 'སུབ་པ།')}</span>
+                            </button>
+                          </motion.div>
                       </>
                     )}
                   </AnimatePresence>
@@ -153,9 +160,12 @@ export function SacredTab({
       )}
 
       {/* Traditional Festivals Section */}
-      <section className="space-y-4">
-        <h3 className="text-[11.5px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.TRADITIONAL_CALENDAR.en, UI_LABELS.TRADITIONAL_CALENDAR.tib)}</h3>
-        <div className="space-y-3">
+      <section className="space-y-6">
+        <div className="flex items-center gap-3 px-1">
+          <Compass size={13} className="text-stone-600" />
+          <h3 className="text-[10px] font-black text-stone-600 uppercase tracking-[0.2em]">{t(UI_LABELS.TRADITIONAL_CALENDAR.en, UI_LABELS.TRADITIONAL_CALENDAR.tib)}</h3>
+        </div>
+        <div className="space-y-4">
           {sortedFestivals
             .filter(f => 
               f.name.toLowerCase().includes(festivalSearch.toLowerCase()) || 
@@ -170,37 +180,37 @@ export function SacredTab({
 
               return (
                 <div key={i} className={cn(
-                  "bg-white p-5 rounded-3xl flex items-center gap-5 border border-stone-50 transition-all relative",
+                  "glass p-5 rounded-[32px] flex items-center gap-5 border border-white/5 transition-all relative group shadow-2xl shadow-black/40",
                   isPast && "opacity-40 grayscale-[0.5]",
-                  isTodayFestival && "ring-2 ring-saffron bg-saffron/5 border-saffron/20"
+                  isTodayFestival && "ring-2 ring-gold bg-gold/5 border-gold/20"
                 )}>
                   <div className={cn(
-                    "w-12 h-12 shrink-0 rounded-2xl flex flex-col items-center justify-center text-white font-bold",
-                    isTodayFestival ? "bg-saffron" : "bg-stone-900"
+                    "w-14 h-14 shrink-0 rounded-2xl flex flex-col items-center justify-center font-bold shadow-lg transition-all duration-500",
+                    isTodayFestival ? "bg-gold text-midnight glow" : "bg-white/10 text-stone-400 group-hover:bg-white/20 group-hover:text-white"
                   )}>
-                    <span className="text-[10.5px] opacity-70">ཟླ་{toTibetanNumerals(f.month)}</span>
-                    <span className="text-[15.5px] leading-none mt-0.5">ཚེས་{toTibetanNumerals(f.day)}</span>
+                    <span className="text-[9px] font-black uppercase tracking-tighter opacity-60 leading-none">ཟླ་{toTibetanNumerals(f.month)}</span>
+                    <span className="text-[18px] font-serif font-black leading-none mt-1">ཚེས་{toTibetanNumerals(f.day)}</span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className={cn(
-                      "text-[11.5px] font-black uppercase tracking-widest mb-0.5",
-                      isTodayFestival ? "text-saffron-700" : "text-saffron"
+                      "text-[9px] font-black uppercase tracking-[0.2em] mb-1 flex items-center gap-2",
+                      isTodayFestival ? "text-gold" : "text-stone-600"
                     )}>
-                      {westernDate || 'TBA'} {isTodayFestival && '• TODAY'}
+                      {westernDate || 'TBA'} {isTodayFestival && <span className="px-2 py-0.5 bg-gold text-midnight rounded-full text-[8px] tracking-widest shadow-sm">TODAY</span>}
                     </div>
-                    <h4 className="text-[15.5px] font-bold text-stone-900 truncate">{t(f.name, f.nameTib || f.name)}</h4>
-                    <p className="text-[12.5px] text-stone-400 line-clamp-1 italic">{t(f.description, f.descriptionTib || f.description)}</p>
+                    <h4 className="text-[17px] font-serif font-black text-white truncate leading-tight">{t(f.name, f.nameTib || f.name)}</h4>
+                    <p className="text-[12px] text-stone-500 line-clamp-1 italic font-medium mt-1">{t(f.description, f.descriptionTib || f.description)}</p>
                   </div>
                   
                   <div className="relative">
                     <button 
                       onClick={() => setOpenMenuId(openMenuId === i ? null : i)}
                       className={cn(
-                        "p-2 rounded-full transition-all active:scale-90",
-                        openMenuId === i ? "bg-stone-100 text-stone-900" : "text-stone-300 hover:text-stone-500"
+                        "w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-90",
+                        openMenuId === i ? "bg-gold text-midnight" : "bg-white/5 text-stone-500 hover:text-white"
                       )}
                     >
-                      <MoreHorizontal size={18} />
+                      <MoreHorizontal size={20} />
                     </button>
 
                     <AnimatePresence>
@@ -214,7 +224,7 @@ export function SacredTab({
                             initial={{ opacity: 0, scale: 0.95, y: 10, x: -10 }}
                             animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 10, x: -10 }}
-                            className="absolute right-0 bottom-full mb-2 bg-white rounded-2xl shadow-2xl border border-stone-100 p-2 z-20 min-w-[140px] flex flex-col gap-1"
+                            className="absolute right-0 bottom-full mb-2 glass rounded-2xl shadow-2xl border border-white/10 p-2 z-20 min-w-[150px] flex flex-col gap-1"
                           >
                             <button
                               onClick={() => {
@@ -225,10 +235,10 @@ export function SacredTab({
                                 }
                                 setOpenMenuId(null);
                               }}
-                              className="flex items-center gap-3 px-3 py-2.5 hover:bg-stone-50 rounded-xl transition-colors text-left"
+                              className="flex items-center gap-3 px-3 py-3 hover:bg-white/10 rounded-xl transition-colors text-left"
                             >
-                              <StickyNote size={14} className="text-stone-400" />
-                              <span className="text-[12.5px] font-bold text-stone-700">{t('Add Note', 'ཟིན་ཐོ་འགོད།')}</span>
+                              <StickyNote size={14} className="text-gold" />
+                              <span className="text-[12px] font-black uppercase tracking-widest text-white">{t('Add Note', 'ཟིན་ཐོ་འགོད།')}</span>
                             </button>
                             <button
                               onClick={() => {
@@ -236,10 +246,10 @@ export function SacredTab({
                                 navigator.clipboard.writeText(text);
                                 setOpenMenuId(null);
                               }}
-                              className="flex items-center gap-3 px-3 py-2.5 hover:bg-stone-50 rounded-xl transition-colors text-left"
+                              className="flex items-center gap-3 px-3 py-3 hover:bg-white/10 rounded-xl transition-colors text-left"
                             >
-                              <Copy size={14} className="text-stone-400" />
-                              <span className="text-[12.5px] font-bold text-stone-700">{t('Copy Info', 'འདྲ་བཤུས།')}</span>
+                              <Copy size={14} className="text-gold" />
+                              <span className="text-[12px] font-black uppercase tracking-widest text-white">{t('Copy Info', 'འདྲ་བཤུས།')}</span>
                             </button>
                           </motion.div>
                         </>

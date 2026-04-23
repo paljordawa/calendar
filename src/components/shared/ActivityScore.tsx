@@ -27,7 +27,7 @@ export function ActivityScore({ activities, t }: ActivityScoreProps) {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-3"
     >
-      <h4 className="text-[11.5px] font-black text-stone-300 uppercase tracking-[0.2em] px-1">
+      <h4 className="text-[11.5px] font-black text-stone-500 uppercase tracking-[0.2em] px-1">
         {t('Activity Guide', 'བྱ་བའི་ལམ་སྟོན།')}
       </h4>
       <div className="grid grid-cols-2 gap-2">
@@ -36,21 +36,21 @@ export function ActivityScore({ activities, t }: ActivityScoreProps) {
             key={i}
             className={cn(
               'flex items-center gap-2.5 p-3 rounded-2xl border',
-              act.status === 'green' ? 'bg-emerald-50/60 border-emerald-100' :
-              act.status === 'red'   ? 'bg-red-50/60 border-red-100' :
-                                       'bg-stone-50 border-stone-100'
+              act.status === 'green' ? 'bg-emerald-500/10 border-emerald-500/20' :
+              act.status === 'red'   ? 'bg-red-500/10 border-red-500/20' :
+                                       'bg-white/5 border-white/5'
             )}
           >
             <div className={cn('w-2 h-2 rounded-full flex-shrink-0', STATUS_DOT[act.status])} />
             <div className="min-w-0">
               <p className={cn(
                 'text-[10.5px] font-black leading-none',
-                act.status === 'green' ? 'text-emerald-800' :
-                act.status === 'red'   ? 'text-red-700' : 'text-stone-600'
+                act.status === 'green' ? 'text-emerald-400' :
+                act.status === 'red'   ? 'text-red-400' : 'text-stone-300'
               )}>
                 {t(act.name, act.nameTib)}
               </p>
-              <p className="text-[8.5px] font-bold uppercase tracking-wide text-stone-400 mt-0.5">
+              <p className="text-[8.5px] font-bold uppercase tracking-wide text-stone-600 mt-0.5">
                 {t(STATUS_LABEL[act.status].en, STATUS_LABEL[act.status].tib)}
               </p>
             </div>

@@ -44,22 +44,22 @@ export function DayDetailCard({
   const selectedSticker = userData.stickers?.[selectedDateKey];
 
   return (
-    <div className="mt-6 border-t border-stone-100 pt-5 space-y-4">
+    <div className="mt-8 border-t border-white/5 pt-8 space-y-6">
       {/* My Notes section — matches Home layout */}
-      <div className="space-y-2">
+      <div className="space-y-4">
         {/* Title row */}
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
-            <StickyNote size={13} className="text-stone-400" />
-            <span className="text-[11.5px] font-black text-stone-400 uppercase tracking-widest">
+            <StickyNote size={13} className="text-stone-500" />
+            <span className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em]">
               {t(UI_LABELS.MY_NOTES?.en || 'My Notes', UI_LABELS.MY_NOTES?.tib || 'ཟིན་ཐོ།')}
             </span>
           </div>
           <button
             onClick={() => setIsNoteSheetOpen(true)}
-            className="p-1.5 rounded-lg text-stone-300 hover:text-stone-600 hover:bg-stone-100 transition-all active:scale-90"
+            className="p-2 rounded-xl text-stone-400 hover:text-white hover:bg-white/5 transition-all active:scale-90"
           >
-            <Pencil size={12} />
+            <Pencil size={14} />
           </button>
         </div>
 
@@ -69,38 +69,41 @@ export function DayDetailCard({
           className="w-full text-left active:scale-[0.98] transition-all group"
         >
           {selectedNote ? (
-            <div className="bg-white p-4 rounded-[24px] border border-stone-100 flex items-start gap-4 group-hover:border-stone-200 transition-all">
+            <div className="glass p-5 rounded-[32px] border border-white/5 flex items-start gap-4 group-hover:border-white/10 transition-all">
               {/* Date badge */}
-              <div className="w-11 h-11 rounded-2xl bg-stone-50 flex flex-col items-center justify-center text-stone-400 font-bold flex-shrink-0 group-hover:bg-saffron/10 group-hover:text-saffron transition-colors">
+              <div className="w-12 h-12 rounded-2xl bg-white/5 flex flex-col items-center justify-center text-stone-500 font-bold flex-shrink-0 group-hover:bg-gold/10 group-hover:text-gold transition-colors">
                 <span className="text-[9px] uppercase tracking-tighter leading-none">{format(selectedDate, 'MMM')}</span>
-                <span className="text-[17px] leading-tight mt-0.5">{format(selectedDate, 'd')}</span>
+                <span className="text-[18px] leading-tight mt-0.5">{format(selectedDate, 'd')}</span>
               </div>
               {/* Content */}
               <div className="flex-1 min-w-0">
-                <p className="text-[12.5px] text-stone-400 font-black uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                <p className="text-[11px] text-stone-500 font-black uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                   {t(format(selectedDate, 'EEEE'), TIBETAN_WEEKDAYS[format(selectedDate, 'EEEE')] || format(selectedDate, 'EEEE'))}
-                  {currentReminder && <Bell size={10} className="text-saffron fill-saffron/20" />}
+                  {currentReminder && <Bell size={10} className="text-gold fill-gold/20" />}
                 </p>
-                <p className="text-[14px] text-stone-700 font-medium leading-snug line-clamp-2">{selectedNote}</p>
+                <p className="text-[15px] text-stone-200 font-medium leading-snug line-clamp-2">{selectedNote}</p>
                 {/* Sticker label */}
                 {selectedSticker && (selectedSticker.emoji || selectedSticker.label) && (
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    {selectedSticker.emoji && <span className="text-[11px]">{selectedSticker.emoji}</span>}
+                  <div className="flex items-center gap-1.5 mt-2">
+                    {selectedSticker.emoji && <span className="text-[12px]">{selectedSticker.emoji}</span>}
                     {selectedSticker.label && (
-                      <span className="text-[9.5px] font-black text-stone-400 uppercase tracking-widest bg-stone-50 px-2 py-0.5 rounded-full border border-stone-100">
+                      <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full border border-white/5">
                         {selectedSticker.label}
                       </span>
                     )}
                   </div>
                 )}
               </div>
-              <ChevronRight size={14} className="text-stone-200 group-hover:text-saffron transition-colors flex-shrink-0 mt-1" />
+              <ChevronRight size={16} className="text-stone-700 group-hover:text-gold transition-colors flex-shrink-0 mt-1" />
             </div>
           ) : (
-            <div className="flex items-center gap-2 px-1 py-1">
-              <p className="text-[12px] text-stone-300 font-medium italic">
-                {t('Tap to add a note…', 'ཟིན་ཐོ་འཁོད་རོགས།')}
-              </p>
+            <div className="flex items-center gap-3 px-2 py-2 group">
+              <div className="w-10 h-10 rounded-2xl border border-dashed border-stone-800 flex items-center justify-center text-stone-800 group-hover:border-gold/30 group-hover:text-gold/50 transition-colors">
+                <StickyNote size={16} />
+              </div>
+              <span className="text-[13px] text-stone-700 font-medium group-hover:text-stone-500">
+                {t(UI_LABELS.ADD_NOTE?.en || 'Add personal note...', UI_LABELS.ADD_NOTE?.tib || 'ཟིན་ཐོ་བཀོད་པ།')}
+              </span>
             </div>
           )}
         </button>
@@ -120,19 +123,19 @@ export function DayDetailCard({
 
             {/* Personal Harmony Item */}
             {userData?.birthAnimal && (
-              <div className="flex items-center justify-between p-3 bg-stone-50/50 rounded-2xl border border-stone-100/50 group">
+              <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5 group">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-stone-950 flex items-center justify-center text-white group-hover:scale-105 transition-transform">
+                  <div className="w-10 h-10 rounded-xl bg-gold/15 border border-gold/20 flex items-center justify-center text-gold group-hover:scale-105 transition-transform">
                     <Sparkles size={18} />
                   </div>
                   <div>
-                    <p className="text-[10.5px] font-black text-stone-400 uppercase tracking-widest leading-none mb-1">{t(UI_LABELS.SACRED_ALIGNMENT?.en || 'Sacred Alignment', UI_LABELS.SACRED_ALIGNMENT?.tib || 'མཐུན་འཕྲོད་བྱིན་རླབས།')}</p>
-                    <p className="text-[11.5px] font-bold text-stone-500 uppercase tracking-wide leading-none">{t(UI_LABELS.BIRTH_CHART_RESONANCE?.en || 'Birth Resonance', UI_LABELS.BIRTH_CHART_RESONANCE?.tib || 'སྐྱེས་རྩིས་མཐུན་ཆ།')}</p>
+                    <p className="text-[10.5px] font-black text-stone-500 uppercase tracking-widest leading-none mb-1">{t(UI_LABELS.SACRED_ALIGNMENT?.en || 'Sacred Alignment', UI_LABELS.SACRED_ALIGNMENT?.tib || 'མཐུན་འཕྲོད་བྱིན་རླབས།')}</p>
+                    <p className="text-[11.5px] font-bold text-stone-400 uppercase tracking-wide leading-none">{t(UI_LABELS.BIRTH_CHART_RESONANCE?.en || 'Birth Resonance', UI_LABELS.BIRTH_CHART_RESONANCE?.tib || 'སྐྱེས་རྩིས་མཐུན་ཆ།')}</p>
                   </div>
                 </div>
-                <div className="px-3 py-1.5 rounded-full bg-white border border-stone-100 flex items-center gap-2">
-                  <Compass size={10} className="text-stone-400" />
-                  <span className="text-[10.5px] font-black text-stone-500 uppercase tracking-widest">
+                <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-2">
+                  <Compass size={10} className="text-stone-500" />
+                  <span className="text-[10.5px] font-black text-stone-300 uppercase tracking-widest">
                     {getElementalHarmony(userData.birthElement, tibSelected.element) === 'life' ? t(UI_LABELS.LIFE_FORCE_ALIGNMENT?.en || 'Life Force', UI_LABELS.LIFE_FORCE_ALIGNMENT?.tib || 'སྲོག་རྩིས་མཐུན་པ།') :
                      getElementalHarmony(userData.birthElement, tibSelected.element) === 'son' ? t(UI_LABELS.PROSPERITY_ALIGNMENT?.en || 'Prosperity', UI_LABELS.PROSPERITY_ALIGNMENT?.tib || 'དཔལ་འབྱོར་མཐུན་པ།') :
                      getElementalHarmony(userData.birthElement, tibSelected.element) === 'enemy' ? t(UI_LABELS.OBSTACLE_ALIGNMENT?.en || 'Obstacle', UI_LABELS.OBSTACLE_ALIGNMENT?.tib || 'གཤེད་རྩིས་མཐུན་པ།') :
@@ -144,13 +147,13 @@ export function DayDetailCard({
 
             {/* Mentskhang Symbol Indicator */}
             {tibSelected.lunarSymbol && (
-              <div className="flex items-start gap-4 p-5 bg-saffron/[0.03] rounded-3xl border border-saffron/10 group">
-                <div className="w-12 h-12 rounded-2xl bg-saffron/10 flex items-center justify-center text-[25.5px] group-hover:scale-105 transition-transform shrink-0">
+              <div className="flex items-start gap-4 p-5 bg-white/5 rounded-3xl border border-white/5 group">
+                <div className="w-12 h-12 rounded-2xl bg-gold/10 border border-gold/10 flex items-center justify-center text-[25.5px] group-hover:scale-105 transition-transform shrink-0">
                   {MENTSKHANG_SYMBOLS[tibSelected.lunarSymbol]?.icon || '❓'}
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <h4 className="text-[15.5px] font-serif font-black text-stone-900">
+                    <h4 className="text-[15.5px] font-serif font-black text-stone-100">
                       {t(tibSelected.lunarSymbol, MENTSKHANG_SYMBOLS[tibSelected.lunarSymbol]?.tib || 'མི་གསལ།')} ({MENTSKHANG_SYMBOLS[tibSelected.lunarSymbol]?.en || 'Unknown'})
                     </h4>
                     {tibSelected.isHandDay && <span className="px-1.5 py-0.5 bg-stone-900 text-white text-[8.5px] font-black uppercase rounded">{t(UI_LABELS.HAND?.en || 'Hand', UI_LABELS.HAND?.tib || 'ལག་པ།')}</span>}
@@ -162,7 +165,7 @@ export function DayDetailCard({
                   {MENTSKHANG_SYMBOLS[tibSelected.lunarSymbol]?.forbidden && (
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       {t(MENTSKHANG_SYMBOLS[tibSelected.lunarSymbol]?.forbidden || [], MENTSKHANG_SYMBOLS[tibSelected.lunarSymbol]?.forbiddenTib || []).map((f: string, idx: number) => (
-                        <span key={idx} className="px-2 py-0.5 bg-red-50 text-red-500 text-[9.5px] font-black uppercase tracking-tighter rounded-full border border-red-100/50">
+                        <span key={idx} className="px-2 py-0.5 bg-red-500/15 text-red-400 text-[9.5px] font-black uppercase tracking-tighter rounded-full border border-red-500/20">
                           {userData.language === 'Tibetan' ? f : `No ${f}`}
                         </span>
                       ))}
@@ -218,21 +221,21 @@ export function DayDetailCard({
       )}
 
       {/* Grid Specifications (Mewa, Parkha, etc.) */}
-      <div className="grid grid-cols-2 gap-4 border-t border-stone-50 pt-6">
+      <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-6">
         <div className="space-y-1">
           <p className="text-[10.5px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.TRIGRAM_PARKHA?.en || 'Trigram', UI_LABELS.TRIGRAM_PARKHA?.tib || 'སྤར་ཁ།')}</p>
-          <p className="text-[13.5px] font-bold text-stone-900">{PARKHA_ICONS[tibSelected.parkha] || '❓'} {tibSelected.parkha}</p>
+          <p className="text-[13.5px] font-bold text-stone-200">{PARKHA_ICONS[tibSelected.parkha] || '❓'} {tibSelected.parkha}</p>
         </div>
         <div className="space-y-1">
           <p className="text-[10.5px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.MAGIC_SQ_MEWA?.en || 'Magic Square', UI_LABELS.MAGIC_SQ_MEWA?.tib || 'སྨེ་བ།')}</p>
-          <p className="text-[13.5px] font-bold text-stone-900">{MEWA_ICONS[tibSelected.mewa] || '❓'} {tibSelected.mewa}</p>
+          <p className="text-[13.5px] font-bold text-stone-200">{MEWA_ICONS[tibSelected.mewa] || '❓'} {tibSelected.mewa}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 border-t border-stone-50 pt-6">
+      <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-6">
         <div className="space-y-1">
           <p className="text-[10.5px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.YEAR_SIGNATURE?.en || 'Year', UI_LABELS.YEAR_SIGNATURE?.tib || 'ལོ་རྟགས།')}</p>
-          <p className="text-[13.5px] font-bold text-amber-800 italic">{tibSelected.yearName}</p>
+          <p className="text-[13.5px] font-bold text-gold/80 italic">{tibSelected.yearName}</p>
         </div>
         <div className="space-y-1">
           <p className="text-[10.5px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.LUNAR_CYCLE?.en || 'Lunar Cycle', UI_LABELS.LUNAR_CYCLE?.tib || 'ཟླ་ཐོ།')}</p>
@@ -240,7 +243,7 @@ export function DayDetailCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 border-t border-stone-50 pt-6">
+      <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-6">
         <div className="space-y-1">
           <p className="text-[10.5px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.DAY_CONJUNCTION?.en || 'Conjunction', UI_LABELS.DAY_CONJUNCTION?.tib || 'སྦྱོར་བ།')}</p>
           <div className="flex items-center gap-2">

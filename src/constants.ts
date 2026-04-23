@@ -190,27 +190,14 @@ export const UI_LABELS = {
   REMIND_ME_TODAY: { en: "Remind me today", tib: "དེ་རིང་དྲན་སྐུལ་བྱེད།" },
   TRIGRAM_PARKHA: { en: "Trigram (Parkha)", tib: "སྤར་ཁ།" },
   MAGIC_SQ_MEWA: { en: "Magic Sq (Mewa)", tib: "སྨེ་བ།" },
-  ANNUAL_ESSENCE: { en: "Annual Essence", tib: "ལོ་རེའི་ནུས་པ།" },
-  LUNAR_PATH: { en: "Lunar Path (12 Months)", tib: "ཟླ་བ་བཅུ་གཉིས་ཀྱི་བགྲོད་པ།" },
-  MONTH: { en: "Month", tib: "ཟླ་བ།" },
-  LOSAR_CYCLE: { en: "Losar Cycle", tib: "ལོ་གསར་དུས་ཆེན།" },
-  SAGA_DAWA: { en: "Saga Dawa", tib: "ས་ག་ཟླ་བ།" },
-  DAY_LABEL: { en: "Day", tib: "ཚེས།" },
-  BALANCED_PERIOD: { en: "A balanced period for focus.", tib: "ལས་དོན་གང་ལ་ཡང་འཚམས་པ།" },
-  WEEK_VIEW: { en: "Weekly Path", tib: "བདུན་ཕྲག་གི་བགྲོད་པ།" },
-  ANNUAL_CYCLE: { en: "Annual Cycle", tib: "ལོ་འཁོར་མོ་འཁོར།" },
-  HOME: { en: "Home", tib: "གཙོ་ངོས།" },
-  PLAN: { en: "Plan", tib: "འཆར་གཞི།" },
-  PROFILE: { en: "Profile", tib: "རང་རེ།" },
+  NO_ALIGNMENT: { en: "No alignments in this period", tib: "དུས་ཚོད་འདིའི་ནང་དུས་བཟང་མི་འདུག" },
+  MARK_SIGNIFICANT_MOMENT: { en: "Mark significant moment", tib: "དུས་བཟང་མཚོན་རྟགས།" },
+  ADD_NOTE: { en: "Add personal note...", tib: "ཟིན་ཐོ་བཀོད་པ།" },
+  HAND: { en: "Hand Day", tib: "ལག་པ།" },
   PUSH_NOTIFICATION: { en: "Push Notifications", tib: "བརྡ་ལེན།" },
   PERSONAL_NOTES: { en: "Personal Notes", tib: "སྒེར་གྱི་ཟིན་ཐོ།" },
-  HAND: { en: "Hand Day", tib: "ལག་པ།" },
-  MY_NOTES: { en: "My Notes", tib: "ཟིན་ཐོ།" },
-  UNLOCK_ALIGNMENT_DESC: { en: "Unlock your birth resonance by completing your profile.", tib: "རང་གི་གནས་ཚུལ་བསྐང་ནས་མཐུན་འཕྲོད་ལྟ་བ།" },
-  SPECIAL_OBSERVANCE: { en: "Special Observance", tib: "དུས་ཁྱད་པར་ཅན།" },
-  PERSONAL_JOURNAL: { en: "Personal Journal", tib: "སྒེར་གྱི་ཟིན་ཐོ།" },
-  ENTRIES: { en: "Entries", tib: "ཟིན་ཐོ།" },
-  UNLOCK_ALIGNMENT: { en: "Sacred Resonance", tib: "མཐུན་འཕྲོད་བྱིན་རླབས།" }
+  ASTRO_INSIGHTS: { en: "Astro Insights", tib: "རྩིས་ཀྱི་ལམ་སྟོན།" },
+  SET_BIRTH_DATE: { en: "Set Birth Date", tib: "སྐྱེས་ཚེས་གཏན་འབེབས།" }
 };
 
 export const TIBETAN_WEEKDAYS: Record<string, string> = {

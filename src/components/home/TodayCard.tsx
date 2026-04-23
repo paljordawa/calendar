@@ -45,85 +45,97 @@ Rabjung: ${tibCurrent.rabjung}`;
   };
 
   return (
-    <div className="relative rounded-[40px] bg-stone-950 p-8 text-white overflow-hidden shadow-native">
-      {/* Dharma Wheel watermark */}
-      <DharmaWheel className="absolute -right-16 -bottom-16 w-64 h-64 text-white/[0.04] pointer-events-none" />
+    <div className="relative rounded-[40px] glass-card p-8 text-white overflow-hidden shadow-2xl border border-white/5 group">
+      {/* Dynamic Background Glows */}
+      <div className="absolute -top-24 -left-24 w-64 h-64 bg-gold/5 blur-[100px] rounded-full pointer-events-none group-hover:bg-gold/10 transition-colors duration-1000" />
+      <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-lapis/5 blur-[100px] rounded-full pointer-events-none group-hover:bg-lapis/10 transition-colors duration-1000" />
 
-      <div className="relative space-y-6">
+      {/* Dharma Wheel watermark */}
+      <DharmaWheel className="absolute -right-16 -bottom-16 w-64 h-64 text-white/[0.03] pointer-events-none rotate-12 transition-transform duration-[10s] ease-linear group-hover:rotate-45" />
+
+      <div className="relative space-y-8">
         <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-stone-500">{t(UI_LABELS.PHUGPA_TRADITION.en, UI_LABELS.PHUGPA_TRADITION.tib)}</p>
-            <h1 className="text-[30px] font-serif font-black tracking-tight leading-[1.1]">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-stone-500">{t(UI_LABELS.PHUGPA_TRADITION.en, UI_LABELS.PHUGPA_TRADITION.tib)}</p>
+            </div>
+            <h1 className="text-[34px] font-serif font-black tracking-tight leading-[1.1] text-white">
               {t(format(new Date(), 'EEEE'), TIBETAN_WEEKDAYS[format(new Date(), 'EEEE')])}, <br />
-              <span className="text-saffron italic">{n(format(new Date(), 'MMM d'))}</span>
+              <span className="text-gold italic drop-shadow-[0_0_10px_rgba(234,179,8,0.3)]">{n(format(new Date(), 'MMM d'))}</span>
             </h1>
           </div>
           <div className="flex flex-col items-end gap-3">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleShare}
-                className="p-2 rounded-full   text-stone-400  transition-all active:scale-90"
-              >
-                <Share size={16} />
-              </button>
-              <div className="px-4 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
-                <span className="text-[10.5px]  uppercase tracking-widest text-stone-400">
-                  {t(UI_LABELS.RABJUNG.en, UI_LABELS.RABJUNG.tib)} {toTibetanNumerals(tibCurrent.rabjung)}
-                </span>
-              </div>
+            <button
+              onClick={handleShare}
+              className="p-3 rounded-2xl bg-white/5 text-stone-400 hover:text-gold hover:bg-white/10 transition-all active:scale-90"
+            >
+              <Share size={18} />
+            </button>
+            <div className="px-4 py-1.5 rounded-full bg-gold/10 border border-gold/20 backdrop-blur-md">
+              <span className="text-[10px] font-black uppercase tracking-widest text-gold">
+                {t(UI_LABELS.RABJUNG.en, UI_LABELS.RABJUNG.tib)} {toTibetanNumerals(tibCurrent.rabjung)}
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-6 pt-6 border-t border-white/5">
-          <div className="space-y-1">
-            <p className="text-[10px] uppercase font-bold text-stone-500 tracking-widest flex items-center gap-2">
-              {t(UI_LABELS.LUNAR_DAY.en, UI_LABELS.LUNAR_DAY.tib)}
-              {(tibCurrent.day === 15 || tibCurrent.day === 30) && <MoonPhase day={tibCurrent.day} size={10} isDark />}
-            </p>
-            <p className="text-[25.5px] font-serif font-black text-white">{toTibetanNumerals(tibCurrent.day)}</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-[10px] uppercase font-bold text-stone-500 tracking-widest">{t(UI_LABELS.CELESTIAL_SIGN.en, UI_LABELS.CELESTIAL_SIGN.tib)}</p>
-            <p className="text-[19.5px] font-serif font-bold text-stone-100">
-              {ANIMAL_ICONS[tibCurrent.animal]} {t(tibCurrent.animal, TIBETAN_ANIMALS[tibCurrent.animal])}
-            </p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-[10px] uppercase font-bold text-stone-500 tracking-widest">{t(UI_LABELS.INDICATOR.en, UI_LABELS.INDICATOR.tib)}</p>
+        <div className="grid grid-cols-2 gap-8 pt-8 border-t border-white/5">
+          <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-[19.5px] font-serif font-bold text-saffron">
-                {tibCurrent.lunarSymbol ? t(tibCurrent.lunarSymbol, MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol]?.tib) : toTibetanNumerals(tibCurrent.mewa)}
-              </span>
-              {tibCurrent.isHandDay && <span className="px-2 py-0.5 bg-saffron/10 text-saffron text-[8px] font-black uppercase rounded-md">Hand</span>}
+              <p className="text-[9px] uppercase font-black text-stone-500 tracking-[0.2em]">
+                {t(UI_LABELS.LUNAR_DAY.en, UI_LABELS.LUNAR_DAY.tib)}
+              </p>
+              {(tibCurrent.day === 15 || tibCurrent.day === 30) && <MoonPhase day={tibCurrent.day} size={10} isDark />}
+            </div>
+            <p className="text-[32px] font-serif font-black text-white leading-none">{toTibetanNumerals(tibCurrent.day)}</p>
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-[9px] uppercase font-black text-stone-500 tracking-[0.2em]">{t(UI_LABELS.CELESTIAL_SIGN.en, UI_LABELS.CELESTIAL_SIGN.tib)}</p>
+            <div className="flex items-center gap-2">
+              <span className="text-[24px] filter drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{ANIMAL_ICONS[tibCurrent.animal]}</span>
+              <p className="text-[20px] font-serif font-black text-stone-100">
+                {t(tibCurrent.animal, TIBETAN_ANIMALS[tibCurrent.animal])}
+              </p>
             </div>
           </div>
-          <div className="space-y-1">
-            <p className="text-[10px] uppercase font-bold text-stone-500 tracking-widest">{t(UI_LABELS.COMBINATION.en, UI_LABELS.COMBINATION.tib)}</p>
-            <p className="text-[15.5px] font-serif font-bold text-turquoise truncate">
+          <div className="space-y-1.5">
+            <p className="text-[9px] uppercase font-black text-stone-500 tracking-[0.2em]">{t(UI_LABELS.INDICATOR.en, UI_LABELS.INDICATOR.tib)}</p>
+            <div className="flex items-center gap-2">
+              <span className="text-[22px] font-serif font-black text-gold glow-text">
+                {tibCurrent.lunarSymbol ? t(tibCurrent.lunarSymbol, MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol]?.tib) : toTibetanNumerals(tibCurrent.mewa)}
+              </span>
+              {tibCurrent.isHandDay && <span className="px-2 py-0.5 bg-gold/10 text-gold text-[8px] font-black uppercase rounded-md border border-gold/20">Hand Day</span>}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-[9px] uppercase font-black text-stone-500 tracking-[0.2em]">{t(UI_LABELS.COMBINATION.en, UI_LABELS.COMBINATION.tib)}</p>
+            <p className="text-[16px] font-serif font-black text-turquoise truncate">
               {t(tibCurrent.combination, COMBINATIONS[tibCurrent.combination]?.tib || tibCurrent.combination)}
             </p>
           </div>
         </div>
 
         {userData.birthAnimal && (
-          <div className="pt-3 border-t border-white/5 flex items-center justify-between">
-            <span className="text-[9.5px] font-black uppercase tracking-widest text-stone-500">{t(UI_LABELS.PERSONAL_RESONANCE.en, UI_LABELS.PERSONAL_RESONANCE.tib)}</span>
-            <div className="flex items-center gap-2">
-              <span className={cn(
-                "px-2 py-0.5 rounded-full text-[9.5px] uppercase tracking-wider",
-                getElementalHarmony(userData.birthElement, tibCurrent.element) === 'life' ? "bg-turquoise/20 text-turquoise" :
-                  getElementalHarmony(userData.birthElement, tibCurrent.element) === 'enemy' ? "bg-red-500/20 text-red-100" : "bg-white/10 text-stone-400"
-              )}>
-                {getElementalHarmony(userData.birthElement, tibCurrent.element)} energy
-              </span>
-              <span className={cn(
-                "px-2 py-0.5 rounded-full text-[9.5px]  uppercase tracking-wider",
-                getAnimalAffinity(userData.birthAnimal, tibCurrent.animal) === 'trine' ? "bg-saffron/20 text-saffron" :
-                  getAnimalAffinity(userData.birthAnimal, tibCurrent.animal) === 'conflict' ? "bg-red-500/20 text-red-100" : "bg-white/10 text-stone-400"
-              )}>
-                {getAnimalAffinity(userData.birthAnimal, tibCurrent.animal)} affinity
-              </span>
+          <div className="pt-4 border-t border-white/5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-stone-600">{t(UI_LABELS.PERSONAL_RESONANCE.en, UI_LABELS.PERSONAL_RESONANCE.tib)}</span>
+              <div className="flex items-center gap-2">
+                <span className={cn(
+                  "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border",
+                  getElementalHarmony(userData.birthElement, tibCurrent.element) === 'life' ? "bg-turquoise/10 text-turquoise border-turquoise/20" :
+                    getElementalHarmony(userData.birthElement, tibCurrent.element) === 'enemy' ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-white/5 text-stone-500 border-white/5"
+                )}>
+                  {getElementalHarmony(userData.birthElement, tibCurrent.element)} energy
+                </span>
+                <span className={cn(
+                  "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border",
+                  getAnimalAffinity(userData.birthAnimal, tibCurrent.animal) === 'trine' ? "bg-gold/10 text-gold border-gold/20" :
+                    getAnimalAffinity(userData.birthAnimal, tibCurrent.animal) === 'conflict' ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-white/5 text-stone-500 border-white/5"
+                )}>
+                  {getAnimalAffinity(userData.birthAnimal, tibCurrent.animal)} affinity
+                </span>
+              </div>
             </div>
           </div>
         )}
@@ -131,18 +143,17 @@ Rabjung: ${tibCurrent.rabjung}`;
 
       {/* Daily Symbolic (Simplified Text Bar) */}
       {tibCurrent.lunarSymbol && MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol] && (
-        <div className="flex items-center gap-3 py-3 border-t border-white/10 mt-6">
-          <span className="text-[25.5px] shrink-0">{MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol].icon}</span>
+        <div className="flex items-center gap-4 p-5 bg-white/5 rounded-[32px] border border-white/5 mt-8 group-hover:bg-white/10 transition-colors">
+          <span className="text-[32px] shrink-0 filter drop-shadow-[0_0_10px_rgba(255,255,255,0.1)]">{MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol].icon}</span>
           <div className="flex-1 min-w-0">
-            <p className="text-[11.5px] leading-relaxed text-stone-500 italic">
-              <span className="font-black text-stone-200 not-italic uppercase tracking-widest mr-2">
+            <p className="text-[12px] leading-relaxed text-stone-400 font-medium">
+              <span className="font-black text-white uppercase tracking-widest mr-2">
                 {t(tibCurrent.lunarSymbol, MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol].en)}:
               </span>
 
               {t(MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol].description, MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol].descriptionTib)}
               {MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol].forbidden.length > 0 && (
-                <span className="ml-2 text-red-500 font-black  tracking-tighter not-italic">
-                  <br></br>
+                <span className="block mt-1 text-red-400 font-bold text-[11px] tracking-tight">
                   {t('Avoid', 'འཛེམས་བྱ།')} {t(MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol].forbidden.join(', '), MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol].forbiddenTib.join(', '))}
                 </span>
               )}

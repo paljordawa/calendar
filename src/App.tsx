@@ -24,7 +24,8 @@ import {
   User,
   Search,
   Pencil,
-  Share
+  Share,
+  Zap
 } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday as isDateToday, parseISO, isWithinInterval, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -364,15 +365,17 @@ export default function App() {
 
   const handleMainScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const currentScrollY = e.currentTarget.scrollTop;
+    setScrollY(currentScrollY);
 
     // Hide header on scroll down, show on scroll up
-    // threshold of 50px to prevent jitter at the very top
+    // threshold of 80px to prevent jitter at the very top
     if (currentScrollY > lastScrollY && currentScrollY > 80) {
       if (showHeader) setShowHeader(false);
     } else {
       if (!showHeader) setShowHeader(true);
     }
 
+    setShowJumpToday(currentScrollY > 400);
     setLastScrollY(currentScrollY);
   };
 
@@ -894,62 +897,57 @@ export default function App() {
         className="flex-1 overflow-y-auto pb-24 scroll-smooth"
       >
         {/* Global Branding Header */}
-        <motion.header
-          initial={false}
-          animate={{
+        <motion.header 
+          initial={{ y: 0, opacity: 1 }}
+          animate={{ 
             y: showHeader ? 0 : -100,
             opacity: showHeader ? 1 : 0
           }}
-          transition={{
-            duration: 0.4,
-            ease: [0.16, 1, 0.3, 1], // Custom cubic-bezier for a "premium" smooth feeling
-            delay: 0.1 // Adding the requested "little delay"
-          }}
+          transition={{ duration: 0.4, ease: "easeInOut" }}
           className={cn(
-            "px-6 py-4 sticky top-[5px] z-40 bg-bg-warm",
-            !showHeader && "pointer-events-none"
+            "fixed top-0 inset-x-0 z-[50]",
+            scrollY > 20 ? "glass py-3 border-b border-white/5" : "bg-transparent py-6"
           )}
         >
-          <div className="max-w-lg mx-auto flex items-center justify-between">
-            {/* User Profile Header */}
+          <div className="max-w-lg mx-auto px-6 flex items-center justify-between">
+
+            {/* Profile Identity */}
             <button
               onClick={() => setActiveTab('profile')}
               className="flex items-center gap-3 group active:scale-95 transition-transform"
             >
-              <div className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 shadow-sm transition-all",
-                userData.gender === 'Female'
-                  ? "bg-lotus border-lotus/20"
-                  : "bg-stone-900 border-stone-800 group-hover:border-saffron"
-              )}>
-                {userData.name
-                  ? <span className={cn("font-black text-[15.5px] leading-none", userData.gender === 'Female' ? "text-white" : "text-saffron")}>{userData.name.charAt(0).toUpperCase()}</span>
-                  : <User size={18} className={userData.gender === 'Female' ? "text-white" : "text-saffron"} />
-                }
+              {/* Avatar */}
+              <div className="relative">
+                <div className="w-10 h-10 rounded-2xl glass border border-white/10 flex items-center justify-center text-[20px] shadow-lg group-hover:border-gold/30 transition-colors">
+                  {userData.birthAnimal ? ANIMAL_ICONS[userData.birthAnimal] : '🧘'}
+                </div>
+                {/* Online dot */}
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-gold rounded-full border-2 border-midnight glow" />
               </div>
-              {/* Name + Sign */}
-              <div className="flex flex-col min-w-0 text-left">
-                <span className="text-[15.5px] font-serif font-bold text-stone-900 leading-none truncate group-hover:text-saffron">
-                  {userData.name || t(UI_LABELS.PRACTITIONER.en, UI_LABELS.PRACTITIONER.tib)}
+
+              {/* Name + Animal / Element */}
+              <div className="flex flex-col text-left">
+                <span className="text-[15px] font-serif font-black text-white leading-none tracking-tight">
+                  {userData.name ? userData.name : t(UI_LABELS.PRACTITIONER.en, UI_LABELS.PRACTITIONER.tib)}
                 </span>
-                <span className="text-[9.5px] font-black text-stone-400 uppercase tracking-widest mt-1 truncate">
-                  {ANIMAL_ICONS[userData.birthAnimal || tibCurrent.animal]}{' '}
-                  {t(userData.birthAnimal || tibCurrent.animal, TIBETAN_ANIMALS[userData.birthAnimal || tibCurrent.animal])}
-                  {' · '}
-                  {t(userData.birthElement || tibCurrent.element, TIBETAN_ELEMENTS[userData.birthElement || tibCurrent.element])}
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gold/60 mt-0.5 leading-none">
+                  {userData.birthAnimal && userData.birthElement
+                    ? `${t(userData.birthAnimal, TIBETAN_ANIMALS[userData.birthAnimal])} · ${t(userData.birthElement, TIBETAN_ELEMENTS[userData.birthElement])}`
+                    : t(UI_LABELS.PHUGPA_TRADITION?.en, UI_LABELS.PHUGPA_TRADITION?.tib)}
                 </span>
               </div>
             </button>
+            
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setIsSearchSheetOpen(true)}
-                className="p-2.5 bg-white/50 rounded-2xl text-stone-400 hover:text-saffron transition-colors"
+                className="p-2.5 bg-white/5 rounded-2xl text-stone-400 hover:text-gold transition-colors"
               >
                 <Search size={18} />
               </button>
               <button
                 onClick={() => setIsSettingsSheetOpen(true)}
-                className="p-2.5 bg-white/50 rounded-2xl text-stone-400 hover:text-stone-900 transition-colors"
+                className="p-2.5 bg-white/5 rounded-2xl text-stone-400 hover:text-gold transition-colors"
               >
                 <Settings size={18} />
               </button>
@@ -964,14 +962,14 @@ export default function App() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="max-w-lg mx-auto pb-32 pt-8"
+              className="max-w-lg mx-auto pb-32 pt-28"
             >
               {/* Modern Native Segmented Control */}
               <div className="px-6 mb-8">
-                <div className="relative flex bg-stone-100/40 p-1 rounded-2xl backdrop-blur-md border border-white/50">
+                <div className="relative flex bg-stone-900/50 p-1 rounded-2xl backdrop-blur-md border border-white/5">
                   <motion.div 
                     layoutId="segmented-pill"
-                    className="absolute inset-1 bg-white rounded-xl shadow-sm z-0"
+                    className="absolute inset-1 bg-white/10 rounded-xl shadow-sm z-0"
                     initial={false}
                     animate={{ 
                       x: homeTab === 'guidance' ? 0 : homeTab === 'astro' ? '100%' : '200%' 
@@ -989,7 +987,7 @@ export default function App() {
                       onClick={() => setHomeTab(sub.id as HomeTab)}
                       className={cn(
                         "relative z-10 flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[11.5px] font-black uppercase tracking-widest transition-colors duration-300",
-                        homeTab === sub.id ? "text-stone-900" : "text-stone-400"
+                        homeTab === sub.id ? "text-white" : "text-stone-500"
                       )}
                     >
                       {sub.icon}
@@ -1021,6 +1019,7 @@ export default function App() {
                     TIBETAN_ANIMALS={TIBETAN_ANIMALS}
                     ANIMAL_ICONS={ANIMAL_ICONS}
                     MONTHLY_OBSERVANCES={MONTHLY_OBSERVANCES}
+                    yearlyHoroscope={yearlyHoroscope}
                   />
                 )}
 
@@ -1061,16 +1060,16 @@ export default function App() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="p-6 max-w-lg mx-auto pb-32"
+              className="max-w-lg mx-auto pb-32 pt-28"
             >
               {/* Modern Calendar Header */}
-              <header className="flex flex-col gap-6 mb-10">
+              <header className="px-6 flex flex-col gap-6 mb-10">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <h2 className="text-[10px] font-black text-saffron uppercase tracking-widest leading-none">
+                    <h2 className="text-[10px] font-black text-gold uppercase tracking-widest leading-none">
                       {t('Tib. Year', 'བོད་ལོ།')} {n(tibSelected?.year)} • {tibSelected?.yearName}
                     </h2>
-                    <h2 className="text-[32px] font-serif font-black tracking-tight text-stone-950">
+                    <h2 className="text-[32px] font-serif font-black tracking-tight text-white">
                       {calendarView === 'month' 
                         ? n(format(currentDate, 'MMMM yyyy')) 
                         : calendarView === 'week' 
@@ -1079,15 +1078,15 @@ export default function App() {
                     </h2>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={handlePrevMonth} className="p-3 bg-stone-100 rounded-2xl active:scale-90 transition-transform"><ChevronLeft size={20} /></button>
-                    <button onClick={handleNextMonth} className="p-3 bg-stone-100 rounded-2xl active:scale-90 transition-transform"><ChevronRight size={20} /></button>
+                    <button onClick={handlePrevMonth} className="p-3 bg-white/5 rounded-2xl active:scale-90 transition-transform"><ChevronLeft size={20} /></button>
+                    <button onClick={handleNextMonth} className="p-3 bg-white/5 rounded-2xl active:scale-90 transition-transform"><ChevronRight size={20} /></button>
                   </div>
                 </div>
 
-                <div className="relative flex bg-stone-100/40 p-1 rounded-2xl backdrop-blur-md border border-white/50">
+                <div className="relative flex bg-stone-900/50 p-1 rounded-2xl backdrop-blur-md border border-white/5">
                   <motion.div 
                     layoutId="calendar-pill"
-                    className="absolute inset-1 bg-white rounded-xl shadow-sm z-0"
+                    className="absolute inset-1 bg-white/10 rounded-xl shadow-sm z-0"
                     initial={false}
                     animate={{ 
                       x: calendarView === 'week' ? 0 : calendarView === 'month' ? '100%' : '200%' 
@@ -1105,7 +1104,7 @@ export default function App() {
                       onClick={() => setCalendarView(v.id as 'week' | 'month' | 'year')}
                       className={cn(
                         "relative z-10 flex-1 py-3 rounded-xl text-[11.5px] font-black uppercase tracking-widest transition-colors duration-300",
-                        calendarView === v.id ? "text-stone-900" : "text-stone-400"
+                        calendarView === v.id ? "text-white" : "text-stone-500"
                       )}
                     >
                       {v.label}
@@ -1143,9 +1142,9 @@ export default function App() {
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.8, y: 20 }}
                           onClick={scrollToToday}
-                          className="fixed bottom-32 right-6 p-4 bg-stone-900 text-white rounded-2xl shadow-2xl z-50 flex items-center gap-3 active:scale-95 transition-transform"
+                          className="fixed bottom-32 right-6 p-4 bg-gold text-midnight rounded-2xl shadow-2xl z-50 flex items-center gap-3 active:scale-95 transition-transform"
                         >
-                          <div className="w-2 h-2 rounded-full bg-saffron animate-pulse" />
+                          <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
                           <span className="text-[11.5px] font-black uppercase tracking-widest">{t('Today', 'དེ་རིང་།')}</span>
                         </motion.button>
                       )}
@@ -1171,7 +1170,6 @@ export default function App() {
                     />
 
                     <DayDetailCard 
-                      key={selectedDate.toISOString()}
                       selectedDate={selectedDate}
                       tibSelected={tibSelected}
                       userData={userData}
@@ -1202,42 +1200,36 @@ export default function App() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="px-6 py-10 max-w-lg mx-auto pb-32 space-y-8"
+              className="px-6 py-10 max-w-lg mx-auto pb-32 space-y-8 pt-28"
             >
-              {/* Minimal Social Profile Header */}
-              <header className="flex flex-col items-center text-center space-y-4 relative py-4">
-                {/* Endless Knot (Palbu) — symbol of interdependence */}
-                <EndlessKnot className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-52 h-52 text-stone-300/50 pointer-events-none" />
+              {/* Celestial Profile Header */}
+              <header className="flex flex-col items-center justify-center gap-6 mb-10 pt-4 relative">
+                <EndlessKnot className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 text-white/5 pointer-events-none" />
+                
                 <button
                   onClick={() => setIsProfileSheetOpen(true)}
-                  className="relative group/avatar active:scale-95 transition-transform z-10"
+                  className="relative group active:scale-95 transition-transform z-10"
                 >
-                  <div className={cn(
-                    "w-20 h-20 rounded-full flex items-center justify-center text-stone-100 border-4 border-white shadow-xl transition-all",
-                    userData.gender === 'Female'
-                      ? "bg-lotus group-hover:border-lotus/50 shadow-lotus/20"
-                      : "bg-stone-900 group-hover:border-saffron"
-                  )}>
-                    <User size={32} className={userData.gender === 'Female' ? "text-white" : "text-saffron"} />
+                  <div className="w-28 h-28 rounded-[40px] glass flex items-center justify-center text-[48px] shadow-2xl border border-white/10 glow group-hover:border-gold/30 transition-colors">
+                    {userData.birthAnimal ? ANIMAL_ICONS[userData.birthAnimal] : '🧘'}
                   </div>
-                  <div className="absolute -right-1 -bottom-1 w-7 h-7 bg-saffron rounded-full flex items-center justify-center text-white border-4 border-bg-warm shadow-lg group-hover/avatar:scale-110 transition-transform">
-                    <Pencil size={12} strokeWidth={3} />
+                  <div className="absolute -right-2 -bottom-2 w-10 h-10 bg-gold rounded-2xl flex items-center justify-center text-midnight border-4 border-midnight shadow-xl glow">
+                    <Pencil size={16} strokeWidth={3} />
                   </div>
                 </button>
-                <div className="space-y-1 text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <h1 className="text-[25.5px] font-serif font-black text-stone-950 tracking-tight">
-                      {userData.name ? userData.name : t(UI_LABELS.PRACTITIONER.en, UI_LABELS.PRACTITIONER.tib)}
-                    </h1>
-                  </div>
-                  <div className="flex items-center justify-center gap-2 mt-2">
+
+                <div className="text-center space-y-2 relative z-10">
+                  <h1 className="text-[32px] font-serif font-black text-white tracking-tight">
+                    {userData.name ? userData.name : t(UI_LABELS.PRACTITIONER.en, UI_LABELS.PRACTITIONER.tib)}
+                  </h1>
+                  <div className="flex items-center justify-center gap-3">
                     {userData.birthAnimal && (
-                      <span className="px-2 py-0.5 rounded-full bg-saffron/10 text-saffron text-[9.5px] font-black uppercase tracking-widest border border-saffron/20">
-                        {ANIMAL_ICONS[userData.birthAnimal]} {t(userData.birthAnimal, TIBETAN_ANIMALS[userData.birthAnimal])}
+                      <span className="px-4 py-1.5 rounded-full bg-gold/10 text-gold text-[10px] font-black uppercase tracking-widest border border-gold/20 glow">
+                        {t(userData.birthAnimal, TIBETAN_ANIMALS[userData.birthAnimal])}
                       </span>
                     )}
                     {userData.birthElement && (
-                      <span className="px-2 py-0.5 rounded-full bg-turquoise/10 text-turquoise text-[9.5px] font-black uppercase tracking-widest border border-turquoise/20">
+                      <span className="px-4 py-1.5 rounded-full bg-white/5 text-stone-400 text-[10px] font-black uppercase tracking-widest border border-white/10">
                         {t(userData.birthElement, TIBETAN_ELEMENTS[userData.birthElement])}
                       </span>
                     )}
@@ -1245,87 +1237,52 @@ export default function App() {
                 </div>
               </header>
 
-              {/* Profile Info - Seamless List Style */}
-              <section className="space-y-6 pt-4 border-t border-stone-100">
-                <div className="space-y-5">
-                  <div className="flex items-center justify-between group">
-                    <div className="flex items-center gap-4">
-                      <User size={16} className="text-stone-300 group-hover:text-saffron transition-colors" />
-                      <div>
-                        <p className="text-[9.5px] font-black text-stone-300 uppercase tracking-widest">{t(UI_LABELS.GENDER_ORIENTATION.en, UI_LABELS.GENDER_ORIENTATION.tib)}</p>
-                        <p className="text-[13.5px] font-bold text-stone-800">
-                          {userData.gender ? t(userData.gender === 'Male' ? UI_LABELS.MALE.en : UI_LABELS.FEMALE.en, userData.gender === 'Male' ? UI_LABELS.MALE.tib : UI_LABELS.FEMALE.tib) : t(UI_LABELS.NOT_SPECIFIED.en, UI_LABELS.NOT_SPECIFIED.tib)}
-                        </p>
-                      </div>
+              {/* Profile Info - Celestial Grid */}
+              <section className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="glass p-6 rounded-[32px] border border-white/5 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <User size={16} className="text-stone-700" />
+                      <p className="text-[9px] font-black text-stone-600 uppercase tracking-widest leading-none">{t(UI_LABELS.GENDER_ORIENTATION.en, UI_LABELS.GENDER_ORIENTATION.tib)}</p>
                     </div>
+                    <p className="text-[16px] font-serif font-black text-white">
+                      {userData.gender ? t(userData.gender === 'Male' ? UI_LABELS.MALE.en : UI_LABELS.FEMALE.en, userData.gender === 'Male' ? UI_LABELS.MALE.tib : UI_LABELS.FEMALE.tib) : t(UI_LABELS.NOT_SPECIFIED.en, UI_LABELS.NOT_SPECIFIED.tib)}
+                    </p>
                   </div>
 
-                  <div className="flex items-center justify-between group">
-                    <div className="flex items-center gap-4">
-                      <CalendarIcon size={16} className="text-stone-300 group-hover:text-saffron transition-colors" />
-                      <div>
-                        <p className="text-[9.5px] font-black text-stone-300 uppercase tracking-widest">{t(UI_LABELS.BIRTH_DATE_LABEL.en, UI_LABELS.BIRTH_DATE_LABEL.tib)}</p>
-                        <p className="text-[13.5px] font-bold text-stone-800">
-                          {userData.birthDateSystem === 'Tibetan'
-                            ? (userData.tibetanBirthYear
-                              ? `${n(userData.tibetanBirthYear)}-${n(userData.tibetanBirthMonth || 1)}-${n(userData.tibetanBirthDay || 1)} (${t(UI_LABELS.TIBETAN_YEAR_LABEL.en, UI_LABELS.TIBETAN_YEAR_LABEL.tib)} ${n(userData.tibetanBirthYear > 1000 ? userData.tibetanBirthYear + 127 : userData.tibetanBirthYear)})`
-                              : t(UI_LABELS.ESTABLISH_ALIGNMENT.en, UI_LABELS.ESTABLISH_ALIGNMENT.tib))
-                            : (userData.birthDate
-                              ? `${n(format(parseISO(userData.birthDate), 'MMMM do, yyyy'))} (${t(UI_LABELS.TIBETAN_YEAR_LABEL.en, UI_LABELS.TIBETAN_YEAR_LABEL.tib)} ${n(getTibetanDate(new Date(userData.birthDate)).year)})`
-                              : t(UI_LABELS.ESTABLISH_ALIGNMENT.en, UI_LABELS.ESTABLISH_ALIGNMENT.tib))}
-                        </p>
-                        {convertedGregorian && (
-                          <p className="text-[10.5px] text-saffron font-bold mt-1.5 leading-relaxed bg-amber-50/50 p-2 rounded-xl border border-saffron/10">
-                            {t(`${UI_LABELS.INTERNATIONAL_FORMAT_HINT.en} ${format(convertedGregorian, 'MMMM do, yyyy')}`,
-                              `${UI_LABELS.INTERNATIONAL_FORMAT_HINT.tib} ${n(format(convertedGregorian, 'yyyy-MM-dd'))} རེད།`)}
-                          </p>
-                        )}
-                        {userData.birthDateSystem === 'International' || !userData.birthDateSystem ? (
-                          userData.birthDate && (
-                            <p className="text-[10.5px] text-saffron font-bold mt-1.5 leading-relaxed bg-amber-50/50 p-2 rounded-xl border border-saffron/10">
-                              {(() => {
-                                try {
-                                  const dateObj = new Date(userData.birthDate);
-                                  if (isNaN(dateObj.getTime())) return null;
-                                  const tib = getTibetanDate(dateObj);
-                                  return t(`${UI_LABELS.TIBETAN_CALENDAR_HINT.en} ${n(tib.year)}-${n(tib.month)}-${n(tib.day)}`,
-                                    `${UI_LABELS.TIBETAN_CALENDAR_HINT.tib} བོད་ལོ་ ${n(tib.year)} ཟླ་བ་ ${n(tib.month)} ཚེས་ ${n(tib.day)} རེད།`);
-                                } catch (e) { return null; }
-                              })()}
-                            </p>
-                          )
-                        ) : null}
-                      </div>
+                  <div className="glass p-6 rounded-[32px] border border-white/5 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <Zap size={16} className="text-stone-700" />
+                      <p className="text-[9px] font-black text-stone-600 uppercase tracking-widest leading-none">{t(UI_LABELS.PRIMARY_ELEMENT.en, UI_LABELS.PRIMARY_ELEMENT.tib)}</p>
                     </div>
+                    <p className="text-[16px] font-serif font-black text-turquoise">
+                      {userData.birthElement ? t(userData.birthElement, TIBETAN_ELEMENTS[userData.birthElement]) : t(UI_LABELS.UNCALCULATED.en, UI_LABELS.UNCALCULATED.tib)}
+                    </p>
                   </div>
+                </div>
 
-                  <div className="flex items-center justify-between group">
-                    <div className="flex items-center gap-4">
-                      <p className="w-4 text-center text-stone-300 group-hover:text-saffron transition-colors text-[19.5px] font-serif">
-                        {userData.birthAnimal ? ANIMAL_ICONS[userData.birthAnimal] : '🐾'}
+                <div className="glass p-6 rounded-[32px] border border-white/5 space-y-4 relative overflow-hidden">
+                  <div className="flex items-center gap-3">
+                    <CalendarIcon size={16} className="text-stone-700" />
+                    <p className="text-[9px] font-black text-stone-600 uppercase tracking-widest leading-none">{t(UI_LABELS.BIRTH_DATE_LABEL.en, UI_LABELS.BIRTH_DATE_LABEL.tib)}</p>
+                  </div>
+                  <p className="text-[18px] font-serif font-black text-white">
+                    {userData.birthDateSystem === 'Tibetan'
+                      ? (userData.tibetanBirthYear
+                        ? `${n(userData.tibetanBirthYear)}-${n(userData.tibetanBirthMonth || 1)}-${n(userData.tibetanBirthDay || 1)}`
+                        : t(UI_LABELS.ESTABLISH_ALIGNMENT.en, UI_LABELS.ESTABLISH_ALIGNMENT.tib))
+                      : (userData.birthDate
+                        ? format(parseISO(userData.birthDate), 'MMMM do, yyyy')
+                        : t(UI_LABELS.ESTABLISH_ALIGNMENT.en, UI_LABELS.ESTABLISH_ALIGNMENT.tib))}
+                  </p>
+                  {convertedGregorian && (
+                    <div className="bg-gold/5 p-3 rounded-2xl border border-gold/10">
+                      <p className="text-[11px] text-gold font-bold">
+                        {t(`${UI_LABELS.INTERNATIONAL_FORMAT_HINT.en} ${format(convertedGregorian, 'MMMM do, yyyy')}`,
+                          `${UI_LABELS.INTERNATIONAL_FORMAT_HINT.tib} ${n(format(convertedGregorian, 'yyyy-MM-dd'))} རེད།`)}
                       </p>
-                      <div>
-                        <p className="text-[9.5px] font-black text-stone-300 uppercase tracking-widest">{t(UI_LABELS.ANIMAL_SIGN.en, UI_LABELS.ANIMAL_SIGN.tib)}</p>
-                        <p className="text-[13.5px] font-bold text-stone-800">
-                          {userData.birthAnimal ? t(userData.birthAnimal, TIBETAN_ANIMALS[userData.birthAnimal]) : t(UI_LABELS.UNCALCULATED.en, UI_LABELS.UNCALCULATED.tib)}
-                        </p>
-                      </div>
                     </div>
-                  </div>
-
-                  <div className="flex items-center justify-between group">
-                    <div className="flex items-center gap-4">
-                      <div className="w-4 h-4 rounded-full border border-stone-300 group-hover:border-saffron transition-colors flex items-center justify-center">
-                        <div className="w-1.5 h-1.5 rounded-full bg-stone-300 group-hover:bg-saffron transition-colors" />
-                      </div>
-                      <div>
-                        <p className="text-[9.5px] font-black text-stone-300 uppercase tracking-widest">{t(UI_LABELS.PRIMARY_ELEMENT.en, UI_LABELS.PRIMARY_ELEMENT.tib)}</p>
-                        <p className="text-[13.5px] font-bold text-stone-800">
-                          {userData.birthElement ? t(userData.birthElement, TIBETAN_ELEMENTS[userData.birthElement]) : t(UI_LABELS.UNCALCULATED.en, UI_LABELS.UNCALCULATED.tib)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </section>
 
@@ -1334,13 +1291,13 @@ export default function App() {
                 <section className="space-y-6">
                   {/* Dhun-Zur Alert */}
                   {yearlyHoroscope?.isDhunZur && (
-                    <div className="p-5 rounded-3xl bg-red-50 border border-red-100 flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-2xl bg-red-100 flex items-center justify-center text-red-500 shrink-0">
+                    <div className="p-5 rounded-3xl bg-red-900/10 border border-red-900/20 flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-2xl bg-red-900/20 flex items-center justify-center text-red-500 shrink-0">
                         <Info size={20} />
                       </div>
                       <div>
-                        <h4 className="text-[15.5px] font-bold text-red-900">{t(UI_LABELS.DHUN_ZUR_CONFLICT.en, UI_LABELS.DHUN_ZUR_CONFLICT.tib)}</h4>
-                        <p className="text-[11.5px] text-red-600 leading-relaxed mt-1">
+                        <h4 className="text-[15.5px] font-bold text-red-200">{t(UI_LABELS.DHUN_ZUR_CONFLICT.en, UI_LABELS.DHUN_ZUR_CONFLICT.tib)}</h4>
+                        <p className="text-[11.5px] text-red-400 leading-relaxed mt-1">
                           {t(UI_LABELS.DHUN_ZUR_DESC.en, UI_LABELS.DHUN_ZUR_DESC.tib)}
                         </p>
                       </div>
@@ -1348,10 +1305,10 @@ export default function App() {
                   )}
 
                   {/* The Four Vitalities (Scores) */}
-                  <div className="p-6 rounded-[32px] bg-stone-900 text-white space-y-5">
+                  <div className="p-6 rounded-[32px] bg-white/5 border border-white/5 text-stone-200 space-y-5">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-[13.5px] font-black uppercase tracking-widest text-stone-400">{t(UI_LABELS.YEARLY_ENERGY_SCORES.en, UI_LABELS.YEARLY_ENERGY_SCORES.tib)}</h3>
-                      <span className="text-[11.5px] font-bold text-saffron uppercase tracking-widest">{toTibetanNumerals(2026)} {t(UI_LABELS.FIRE_HORSE_YEAR.en, UI_LABELS.FIRE_HORSE_YEAR.tib)}</span>
+                      <h3 className="text-[13.5px] font-black uppercase tracking-widest text-stone-500">{t(UI_LABELS.YEARLY_ENERGY_SCORES.en, UI_LABELS.YEARLY_ENERGY_SCORES.tib)}</h3>
+                      <span className="text-[11.5px] font-bold text-gold uppercase tracking-widest">{toTibetanNumerals(2026)} {t(UI_LABELS.FIRE_HORSE_YEAR.en, UI_LABELS.FIRE_HORSE_YEAR.tib)}</span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -1374,14 +1331,14 @@ export default function App() {
                         return (
                           <div key={key} className="space-y-2">
                             <div className="flex items-center justify-between px-0.5">
-                              <p className="text-[10.5px] font-bold text-stone-400 uppercase tracking-tight">{t(labels[key].en, labels[key].tib)}</p>
+                              <p className="text-[10.5px] font-bold text-stone-500 uppercase tracking-tight">{t(labels[key].en, labels[key].tib)}</p>
                               <p className={cn("text-[9.5px] font-black uppercase", s.color.replace('bg-', 'text-'))}>{t(s.label, s.tib)}</p>
                             </div>
-                            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                              <motion.div 
+                            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                              <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: `${s.percent}%` }}
-                                className={cn("h-full rounded-full shadow-sm", s.color)} 
+                                className={cn("h-full glow shadow-sm", s.color)}
                               />
                             </div>
                           </div>
@@ -1391,55 +1348,56 @@ export default function App() {
                   </div>
 
                   {/* Personal Power Days */}
-                  <div className="grid grid-cols-1 gap-3">
-                    <h3 className="text-[11.5px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.WEEKLY_POWER_DAYS.en, UI_LABELS.WEEKLY_POWER_DAYS.tib)}</h3>
-                    <div className="bg-white rounded-3xl border border-stone-100 p-5 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-green-50 text-green-600 flex items-center justify-center">
-                            <Sparkles size={16} />
+                  <div className="space-y-4">
+                    <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] px-1">{t(UI_LABELS.WEEKLY_POWER_DAYS.en, UI_LABELS.WEEKLY_POWER_DAYS.tib)}</h3>
+                    <div className="glass rounded-[32px] border border-white/5 overflow-hidden shadow-xl">
+                      <div className="divide-y divide-white/5">
+                        <div className="flex items-center justify-between p-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-emerald-400/10 text-emerald-400 flex items-center justify-center glow shadow-emerald-500/20">
+                              <Sparkles size={18} />
+                            </div>
+                            <div>
+                              <p className="text-[9px] font-black text-stone-600 uppercase tracking-widest leading-none mb-1.5">{t(UI_LABELS.SOUL_DAY.en, UI_LABELS.SOUL_DAY.tib)}</p>
+                              <p className="text-[17px] font-serif font-black text-white">{t(powerDays?.la || '', powerDays?.laTib || '')}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-[9.5px] font-black text-stone-300 uppercase tracking-widest leading-none mb-1">{t(UI_LABELS.SOUL_DAY.en, UI_LABELS.SOUL_DAY.tib)}</p>
-                            <p className="text-[13.5px] font-bold text-stone-800">{t(powerDays?.la || '', powerDays?.laTib || '')}</p>
-                          </div>
+                          <span className="text-[9px] font-black text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full uppercase border border-emerald-400/20">{t(UI_LABELS.BEST.en, UI_LABELS.BEST.tib)}</span>
                         </div>
-                        <span className="text-[11.5px] font-bold text-green-500 bg-green-50 px-2 py-1 rounded-lg uppercase">{t(UI_LABELS.BEST.en, UI_LABELS.BEST.tib)}</span>
-                      </div>
 
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                            <Star size={16} />
+                        <div className="flex items-center justify-between p-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-blue-400/10 text-blue-400 flex items-center justify-center glow shadow-blue-500/20">
+                              <Star size={18} />
+                            </div>
+                            <div>
+                              <p className="text-[9px] font-black text-stone-600 uppercase tracking-widest leading-none mb-1.5">{t(UI_LABELS.VITALITY_DAY.en, UI_LABELS.VITALITY_DAY.tib)}</p>
+                              <p className="text-[17px] font-serif font-black text-white">{t(powerDays?.sok || '', powerDays?.sokTib || '')}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-[9.5px] font-black text-stone-300 uppercase tracking-widest leading-none mb-1">{t(UI_LABELS.VITALITY_DAY.en, UI_LABELS.VITALITY_DAY.tib)}</p>
-                            <p className="text-[13.5px] font-bold text-stone-800">{t(powerDays?.sok || '', powerDays?.sokTib || '')}</p>
-                          </div>
+                          <span className="text-[9px] font-black text-blue-400 bg-blue-400/10 px-3 py-1 rounded-full uppercase border border-blue-400/20">{t(UI_LABELS.STRONG.en, UI_LABELS.STRONG.tib)}</span>
                         </div>
-                        <span className="text-[11.5px] font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg uppercase">{t(UI_LABELS.STRONG.en, UI_LABELS.STRONG.tib)}</span>
-                      </div>
 
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
-                            <X size={16} />
+                        <div className="flex items-center justify-between p-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-red-400/10 text-red-400 flex items-center justify-center glow shadow-red-500/20">
+                              <X size={18} />
+                            </div>
+                            <div>
+                              <p className="text-[9px] font-black text-stone-600 uppercase tracking-widest leading-none mb-1.5">{t(UI_LABELS.CONFLICT_DAY.en, UI_LABELS.CONFLICT_DAY.tib)}</p>
+                              <p className="text-[17px] font-serif font-black text-white">{t(powerDays?.enemy || '', powerDays?.enemyTib || '')}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-[9.5px] font-black text-stone-300 uppercase tracking-widest leading-none mb-1">{t(UI_LABELS.CONFLICT_DAY.en, UI_LABELS.CONFLICT_DAY.tib)}</p>
-                            <p className="text-[13.5px] font-bold text-stone-800">{t(powerDays?.enemy || '', powerDays?.enemyTib || '')}</p>
-                          </div>
+                          <span className="text-[9px] font-black text-red-400 bg-red-400/10 px-3 py-1 rounded-full uppercase border border-red-400/20">{t(UI_LABELS.AVOID.en, UI_LABELS.AVOID.tib)}</span>
                         </div>
-                        <span className="text-[11.5px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded-lg uppercase">{t(UI_LABELS.AVOID.en, UI_LABELS.AVOID.tib)}</span>
                       </div>
                     </div>
                   </div>
-
                 </section>
               )}
 
               <div className="pt-8 text-center opacity-40">
-                <p className="text-[10.5px] text-stone-400 font-medium italic max-w-[180px] mx-auto leading-relaxed">
+                <p className="text-[10.5px] text-stone-500 font-medium italic max-w-[180px] mx-auto leading-relaxed">
                   {t(UI_LABELS.HONOUR_PATH.en, UI_LABELS.HONOUR_PATH.tib)}
                 </p>
               </div>
@@ -1457,48 +1415,48 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsProfileSheetOpen(false)}
-              className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[100]"
+              className="fixed inset-0 bg-midnight/80 backdrop-blur-md z-[100]"
             />
             <motion.div
               initial={{ y: '105%' }}
               animate={{ y: 0 }}
               exit={{ y: '105%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 inset-x-0 bg-white rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe overflow-y-auto max-h-[90vh]"
+              className="fixed bottom-0 inset-x-0 glass rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe overflow-y-auto max-h-[90vh] shadow-[0_-20px_50px_rgba(0,0,0,0.5)] border-t border-white/10"
             >
-              <div className="w-12 h-1.5 bg-stone-100 rounded-full mx-auto" />
+              <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto" />
 
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-stone-900 flex items-center justify-center text-white">
-                    <Pencil size={20} />
+                <div className="flex items-center gap-5">
+                  <div className="w-14 h-14 rounded-2xl bg-gold flex items-center justify-center text-midnight glow">
+                    <User size={24} />
                   </div>
                   <div>
-                    <h2 className="text-[21.5px] font-serif font-black text-stone-950">{t(UI_LABELS.UPDATE_PROFILE.en, UI_LABELS.UPDATE_PROFILE.tib)}</h2>
-                    <p className="text-[11.5px] text-stone-400 font-bold uppercase tracking-widest italic">{t(UI_LABELS.SACRED_ALIGNMENT_UPDATE.en, UI_LABELS.SACRED_ALIGNMENT_UPDATE.tib)}</p>
+                    <h2 className="text-[24px] font-serif font-black text-white">{t(UI_LABELS.UPDATE_PROFILE.en, UI_LABELS.UPDATE_PROFILE.tib)}</h2>
+                    <p className="text-[10px] text-gold font-black uppercase tracking-[0.2em]">{t(UI_LABELS.SACRED_ALIGNMENT_UPDATE.en, UI_LABELS.SACRED_ALIGNMENT_UPDATE.tib)}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsProfileSheetOpen(false)} className="p-3 bg-stone-50 rounded-full text-stone-400">
+                <button onClick={() => setIsProfileSheetOpen(false)} className="p-3 bg-white/5 rounded-full text-stone-400 hover:text-white transition-colors">
                   <X size={20} />
                 </button>
               </div>
 
               <div className="space-y-6">
                 <section className="space-y-4">
-                  <div className="bg-stone-50 rounded-[32px] p-6 space-y-6 border border-stone-100/30">
+                  <div className="bg-white/5 rounded-[32px] p-6 space-y-6 border border-white/5">
                     <div className="space-y-2">
-                      <label className="text-[10.5px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.DHARMA_NAME.en, UI_LABELS.DHARMA_NAME.tib)}</label>
+                      <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest px-1">{t(UI_LABELS.DHARMA_NAME.en, UI_LABELS.DHARMA_NAME.tib)}</label>
                       <input
                         type="text"
                         placeholder={t('Enter name', 'མིང་བྲིས།')}
                         value={userData.name || ''}
                         onChange={(e) => setUserData(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full bg-white rounded-2xl p-4 text-[13.5px] font-bold outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm"
+                        className="w-full bg-white/5 rounded-2xl p-4 text-[15px] font-medium outline-none focus:ring-2 focus:ring-gold/20 border border-white/10 text-white shadow-inner"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10.5px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.GENDER.en, UI_LABELS.GENDER.tib)}</label>
+                      <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest px-1">{t(UI_LABELS.GENDER.en, UI_LABELS.GENDER.tib)}</label>
                       <div className="grid grid-cols-2 gap-3">
                         {['Male', 'Female'].map((g) => (
                           <button
@@ -1508,13 +1466,13 @@ export default function App() {
                             className={cn(
                               "p-4 rounded-2xl border text-[13.5px] font-bold transition-all flex items-center justify-center gap-2",
                               userData.gender === g
-                                ? "bg-stone-900 text-white border-stone-800 shadow-lg scale-[1.02]"
-                                : "bg-white text-stone-500 border-stone-100 shadow-sm"
+                                ? "bg-white text-midnight border-white shadow-lg scale-[1.02]"
+                                : "bg-white/5 text-stone-500 border-white/10 shadow-sm"
                             )}
                           >
                             <div className={cn(
                               "w-2 h-2 rounded-full",
-                              userData.gender === g ? "bg-saffron" : "bg-stone-200"
+                              userData.gender === g ? "bg-gold" : "bg-stone-500"
                             )} />
                             {g === 'Male' ? t(UI_LABELS.MALE.en, UI_LABELS.MALE.tib) : t(UI_LABELS.FEMALE.en, UI_LABELS.FEMALE.tib)}
                           </button>
@@ -1524,8 +1482,8 @@ export default function App() {
 
                     <div className="space-y-4">
                       <div className="flex items-center justify-between px-1">
-                        <label className="text-[10.5px] font-black text-stone-400 uppercase">{t(UI_LABELS.BIRTH_SYSTEM.en, UI_LABELS.BIRTH_SYSTEM.tib)}</label>
-                        <div className="flex bg-white rounded-full p-1 border border-stone-100 shadow-sm">
+                        <label className="text-[10.5px] font-black text-stone-500 uppercase">{t(UI_LABELS.BIRTH_SYSTEM.en, UI_LABELS.BIRTH_SYSTEM.tib)}</label>
+                        <div className="flex bg-midnight rounded-full p-1 border border-white/10 shadow-sm">
                           {['International', 'Tibetan'].map((s) => (
                             <button
                               key={s}
@@ -1533,7 +1491,7 @@ export default function App() {
                               onClick={() => setUserData(prev => ({ ...prev, birthDateSystem: s as any }))}
                               className={cn(
                                 "px-3 py-1 rounded-full text-[9.5px] font-black uppercase tracking-widest transition-all",
-                                (userData.birthDateSystem || 'International') === s ? "bg-stone-900 text-white shadow-md" : "text-stone-400"
+                                (userData.birthDateSystem || 'International') === s ? "bg-white text-midnight shadow-md" : "text-stone-500"
                               )}
                             >
                               {s === 'International' ? t(UI_LABELS.INTERNATIONAL.en, UI_LABELS.INTERNATIONAL.tib) : t(UI_LABELS.TIBETAN_CALENDAR.en, UI_LABELS.TIBETAN_CALENDAR.tib)}
@@ -1543,27 +1501,27 @@ export default function App() {
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-[10.5px] font-black text-stone-400 uppercase px-1">
+                        <label className="text-[10.5px] font-black text-stone-500 uppercase px-1">
                           {t(UI_LABELS.BIRTH_DATE_LABEL.en, UI_LABELS.BIRTH_DATE_LABEL.tib)}
                         </label>
                         {(userData.birthDateSystem || 'International') === 'Tibetan' ? (
                           <div className="grid grid-cols-3 gap-3">
                             <div className="space-y-1.5 relative">
-                              <label className="text-[8.5px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.BIRTH_YEAR_AD.en, UI_LABELS.BIRTH_YEAR_AD.tib)}</label>
+                              <label className="text-[8.5px] font-black text-stone-500 uppercase px-1">{t(UI_LABELS.BIRTH_YEAR_AD.en, UI_LABELS.BIRTH_YEAR_AD.tib)}</label>
                               <input
                                 type="number"
                                 placeholder="e.g., 1987"
                                 value={userData.tibetanBirthYear || ''}
                                 onChange={(e) => handleTibetanYearChange(parseInt(e.target.value))}
-                                className="w-full bg-white rounded-2xl p-4 text-[12.5px] font-bold outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm"
+                                className="w-full bg-midnight rounded-2xl p-4 text-[12.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm"
                               />
                             </div>
                             <div className="space-y-1.5">
-                              <label className="text-[8.5px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.MONTH_LABEL.en, UI_LABELS.MONTH_LABEL.tib)}</label>
+                              <label className="text-[8.5px] font-black text-stone-500 uppercase px-1">{t(UI_LABELS.MONTH_LABEL.en, UI_LABELS.MONTH_LABEL.tib)}</label>
                               <select
                                 value={userData.tibetanBirthMonth || 1}
                                 onChange={(e) => setUserData(prev => ({ ...prev, tibetanBirthMonth: parseInt(e.target.value) }))}
-                                className="w-full bg-white rounded-2xl p-4 text-[12.5px] font-bold outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm appearance-none"
+                                className="w-full bg-midnight rounded-2xl p-4 text-[12.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm appearance-none"
                               >
                                 {Array.from({ length: 12 }, (_, i) => (
                                   <option key={i + 1} value={i + 1}>{toTibetanNumerals(i + 1)}</option>
@@ -1571,11 +1529,11 @@ export default function App() {
                               </select>
                             </div>
                             <div className="space-y-1.5">
-                              <label className="text-[8.5px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.LUNAR_DAY_LABEL.en, UI_LABELS.LUNAR_DAY_LABEL.tib)}</label>
+                              <label className="text-[8.5px] font-black text-stone-500 uppercase px-1">{t(UI_LABELS.LUNAR_DAY_LABEL.en, UI_LABELS.LUNAR_DAY_LABEL.tib)}</label>
                               <select
                                 value={userData.tibetanBirthDay || 1}
                                 onChange={(e) => setUserData(prev => ({ ...prev, tibetanBirthDay: parseInt(e.target.value) }))}
-                                className="w-full bg-white rounded-2xl p-4 text-[12.5px] font-bold outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm appearance-none"
+                                className="w-full bg-midnight rounded-2xl p-4 text-[12.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm appearance-none"
                               >
                                 {Array.from({ length: 30 }, (_, i) => (
                                   <option key={i + 1} value={i + 1}>{toTibetanNumerals(i + 1)}</option>
@@ -1588,7 +1546,7 @@ export default function App() {
                             type="date"
                             value={userData.birthDate || ''}
                             onChange={(e) => handleBirthDateChange(e.target.value)}
-                            className="w-full bg-stone-50 rounded-2xl p-4 text-[13.5px] font-bold outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm"
+                            className="w-full bg-midnight rounded-2xl p-4 text-[13.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm"
                           />
                         )}
                       </div>
@@ -1597,7 +1555,7 @@ export default function App() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between px-1">
-                          <label className="text-[10.5px] font-black text-stone-400 uppercase">{t(UI_LABELS.ANIMAL_SIGN.en, UI_LABELS.ANIMAL_SIGN.tib)}</label>
+                          <label className="text-[10.5px] font-black text-stone-500 uppercase">{t(UI_LABELS.ANIMAL_SIGN.en, UI_LABELS.ANIMAL_SIGN.tib)}</label>
                           {userData.birthDate && <span className="text-[8.5px] font-black text-emerald-500 uppercase tracking-tighter">{t(UI_LABELS.SYSTEM_CALCULATED.en, UI_LABELS.SYSTEM_CALCULATED.tib)}</span>}
                         </div>
                         <div className="relative">
@@ -1606,17 +1564,17 @@ export default function App() {
                             onChange={(e) => {
                               setUserData(prev => ({ ...prev, birthAnimal: e.target.value }));
                             }}
-                            className="w-full bg-white rounded-2xl p-4 text-[13.5px] font-bold appearance-none outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm px-4"
+                            className="w-full bg-midnight rounded-2xl p-4 text-[13.5px] font-bold appearance-none outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm px-4"
                           >
                             <option value="">{t(UI_LABELS.ANIMAL_SIGN.en, UI_LABELS.ANIMAL_SIGN.tib)}</option>
                             {ANIMALS.map(a => <option key={a} value={a}>{ANIMAL_ICONS[a]} {t(a, TIBETAN_ANIMALS[a])}</option>)}
                           </select>
-                          <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 pointer-events-none" />
+                          <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
                         </div>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between px-1">
-                          <label className="text-[10.5px] font-black text-stone-400 uppercase">{t(UI_LABELS.PRIMARY_ELEMENT.en, UI_LABELS.PRIMARY_ELEMENT.tib)}</label>
+                          <label className="text-[10.5px] font-black text-stone-500 uppercase">{t(UI_LABELS.PRIMARY_ELEMENT.en, UI_LABELS.PRIMARY_ELEMENT.tib)}</label>
                           {userData.birthDate && <span className="text-[8.5px] font-black text-emerald-500 uppercase tracking-tighter">{t(UI_LABELS.SYSTEM_CALCULATED.en, UI_LABELS.SYSTEM_CALCULATED.tib)}</span>}
                         </div>
                         <div className="relative">
@@ -1625,12 +1583,12 @@ export default function App() {
                             onChange={(e) => {
                               setUserData(prev => ({ ...prev, birthElement: e.target.value }));
                             }}
-                            className="w-full bg-white rounded-2xl p-4 text-[13.5px] font-bold appearance-none outline-none focus:ring-2 focus:ring-saffron/20 border-none shadow-sm px-4"
+                            className="w-full bg-midnight rounded-2xl p-4 text-[13.5px] font-bold appearance-none outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm px-4"
                           >
                             <option value="">{t(UI_LABELS.PRIMARY_ELEMENT.en, UI_LABELS.PRIMARY_ELEMENT.tib)}</option>
                             {ELEMENTS.map(e => <option key={e} value={e}>{t(e, TIBETAN_ELEMENTS[e])}</option>)}
                           </select>
-                          <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 pointer-events-none" />
+                          <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
                         </div>
                       </div>
                     </div>
@@ -1640,7 +1598,7 @@ export default function App() {
 
                 <button
                   onClick={() => setIsProfileSheetOpen(false)}
-                  className="w-full bg-stone-900 text-white p-6 rounded-[32px] font-black uppercase tracking-[0.2em] text-[13.5px] active:scale-[0.98] transition-all"
+                  className="w-full bg-gold text-midnight p-6 rounded-[32px] font-black uppercase tracking-[0.2em] text-[13.5px] active:scale-[0.98] transition-all"
                 >
                   {t(UI_LABELS.CONFIRM_SYNC.en, UI_LABELS.CONFIRM_SYNC.tib)}
                 </button>
@@ -1655,78 +1613,78 @@ export default function App() {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-            className="fixed inset-0 bg-bg-warm z-[101] flex flex-col pt-safe px-4 pb-safe"
+            className="fixed inset-0 glass z-[101] flex flex-col pt-safe px-6 pb-safe"
           >
             {/* Header */}
-            <div className="flex items-center justify-between py-6 px-1 flex-shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-stone-900 flex items-center justify-center text-white shadow-sm">
-                  <Settings size={20} />
+            <div className="flex items-center justify-between py-8 px-1 flex-shrink-0">
+              <div className="flex items-center gap-5">
+                <div className="w-12 h-12 rounded-2xl bg-gold flex items-center justify-center text-midnight glow">
+                  <Settings size={22} />
                 </div>
                 <div>
-                  <h2 className="text-[19.5px] font-serif font-black text-stone-950 leading-tight">{t(UI_LABELS.SETTINGS.en, UI_LABELS.SETTINGS.tib)}</h2>
-                  <p className="text-[10.5px] text-stone-400 font-bold uppercase tracking-widest leading-none">{t(UI_LABELS.SYSTEM_ALIGNMENT.en, UI_LABELS.SYSTEM_ALIGNMENT.tib)}</p>
+                  <h2 className="text-[24px] font-serif font-black text-white leading-tight">{t(UI_LABELS.SETTINGS.en, UI_LABELS.SETTINGS.tib)}</h2>
+                  <p className="text-[10px] text-gold font-black uppercase tracking-[0.2em]">{t(UI_LABELS.SYSTEM_ALIGNMENT.en, UI_LABELS.SYSTEM_ALIGNMENT.tib)}</p>
                 </div>
               </div>
               <button
                 onClick={() => setIsSettingsSheetOpen(false)}
-                className="w-10 h-10 flex items-center justify-center bg-stone-100 rounded-full text-stone-500 hover:bg-stone-200 transition-colors"
+                className="w-12 h-12 flex items-center justify-center bg-white/5 rounded-full text-stone-500 hover:bg-white/10 hover:text-white transition-colors"
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 pb-12">
-              <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto no-scrollbar space-y-6 pb-12">
+              <div className="space-y-6">
 
-                <div id={UI_IDS.SETTINGS.LANGUAGE_SELECTOR} className="p-4 bg-white/60 rounded-[28px] border border-white/40 space-y-4">
-                  <h3 className="text-[11.5px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.SELECT_LANGUAGE.en, UI_LABELS.SELECT_LANGUAGE.tib)}</h3>
-                  <div className="grid grid-cols-2 gap-2">
+                <div id={UI_IDS.SETTINGS.LANGUAGE_SELECTOR} className="p-6 glass rounded-[32px] border border-white/5 space-y-4 shadow-xl">
+                  <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] px-1">{t(UI_LABELS.SELECT_LANGUAGE.en, UI_LABELS.SELECT_LANGUAGE.tib)}</h3>
+                  <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => setUserData(prev => ({ ...prev, language: 'English' }))}
                       className={cn(
-                        "flex items-center justify-between p-3 rounded-2xl border transition-all",
-                        userData.language !== 'Tibetan' ? "bg-stone-900 text-white border-stone-800 shadow-md" : "bg-stone-50/50 text-stone-600 border-stone-100/30"
+                        "flex items-center justify-between p-4 rounded-2xl border transition-all",
+                        userData.language !== 'Tibetan' ? "bg-gold text-midnight border-gold glow" : "bg-white/5 text-stone-400 border-white/5"
                       )}
                     >
-                      <span className="text-[12.5px] font-bold">{t('English', 'དབྱིན་ཡིག')}</span>
-                      {userData.language !== 'Tibetan' && <Check size={12} className="text-saffron" />}
+                      <span className="text-[14px] font-bold">{t('English', 'དབྱིན་ཡིག')}</span>
+                      {userData.language !== 'Tibetan' && <Check size={14} className="text-midnight" />}
                     </button>
                     <button
                       onClick={() => setUserData(prev => ({ ...prev, language: 'Tibetan' }))}
                       className={cn(
-                        "flex items-center justify-between p-3 rounded-2xl border transition-all",
-                        userData.language === 'Tibetan' ? "bg-stone-900 text-white border-stone-800 shadow-md" : "bg-stone-50/50 text-stone-600 border-stone-100/30"
+                        "flex items-center justify-between p-4 rounded-2xl border transition-all",
+                        userData.language === 'Tibetan' ? "bg-gold text-midnight border-gold glow" : "bg-white/5 text-stone-400 border-white/5"
                       )}
                     >
-                      <span className="text-[12.5px] font-bold">བོད་ཡིག</span>
-                      {userData.language === 'Tibetan' && <Check size={12} className="text-saffron" />}
+                      <span className="text-[14px] font-bold">བོད་ཡིག</span>
+                      {userData.language === 'Tibetan' && <Check size={14} className="text-midnight" />}
                     </button>
                   </div>
                 </div>
 
-                <div className="p-4 bg-white/60 rounded-[28px] border border-white/40 space-y-3">
-                  <h3 className="text-[11.5px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.TRADITIONAL_METHOD.en, UI_LABELS.TRADITIONAL_METHOD.tib)}</h3>
-                  <div className="flex items-center justify-between p-3 bg-stone-50/50 rounded-2xl border border-stone-100/30">
-                    <span className="text-[12.5px] font-bold text-stone-900">{t(UI_LABELS.PHUGPA_ANCHOR_SYSTEM.en, UI_LABELS.PHUGPA_ANCHOR_SYSTEM.tib)}</span>
-                    <Check size={12} className="text-saffron" />
+                <div className="p-6 glass rounded-[32px] border border-white/5 space-y-4 shadow-xl">
+                  <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] px-1">{t(UI_LABELS.TRADITIONAL_METHOD.en, UI_LABELS.TRADITIONAL_METHOD.tib)}</h3>
+                  <div className="flex items-center justify-between p-4 bg-gold/10 rounded-2xl border border-gold/20 glow">
+                    <span className="text-[14px] font-bold text-white">{t(UI_LABELS.PHUGPA_ANCHOR_SYSTEM.en, UI_LABELS.PHUGPA_ANCHOR_SYSTEM.tib)}</span>
+                    <Check size={14} className="text-gold" />
                   </div>
-                  <p className="text-[9.5px] text-stone-400 font-medium italic px-1 leading-relaxed">{t(UI_LABELS.MODERN_CALCULATIONS.en, UI_LABELS.MODERN_CALCULATIONS.tib)}</p>
+                  <p className="text-[10px] text-stone-500 font-medium italic px-1 leading-relaxed">{t(UI_LABELS.MODERN_CALCULATIONS.en, UI_LABELS.MODERN_CALCULATIONS.tib)}</p>
                 </div>
 
-                <div className="p-4 bg-white/60 rounded-[28px] border border-white/40 space-y-3">
-                  <h3 className="text-[11.5px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.SYNC_ALIGNMENT.en, UI_LABELS.SYNC_ALIGNMENT.tib)}</h3>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="p-6 glass rounded-[32px] border border-white/5 space-y-4 shadow-xl">
+                  <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] px-1">{t(UI_LABELS.SYNC_ALIGNMENT.en, UI_LABELS.SYNC_ALIGNMENT.tib)}</h3>
+                  <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={handleExportData}
-                      className="flex flex-col items-center gap-1.5 p-4 bg-stone-50/50 rounded-2xl border border-stone-100/30 hover:border-saffron/20 group transition-all"
+                      className="flex flex-col items-center gap-2 p-5 bg-white/5 rounded-2xl border border-white/5 hover:border-gold/30 hover:bg-white/10 group transition-all glow"
                     >
-                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-stone-400 group-hover:text-saffron shadow-sm transition-colors">
-                        <Compass size={16} />
+                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-stone-400 group-hover:text-gold transition-colors">
+                        <Compass size={18} />
                       </div>
-                      <span className="text-[10.5px] font-black text-stone-900 uppercase tracking-tight">{t(UI_LABELS.EXPORT_PROFILE.en, UI_LABELS.EXPORT_PROFILE.tib)}</span>
+                      <span className="text-[11px] font-black text-white uppercase tracking-tight">{t(UI_LABELS.EXPORT_PROFILE.en, UI_LABELS.EXPORT_PROFILE.tib)}</span>
                     </button>
-                    <label className="flex flex-col items-center gap-1.5 p-4 bg-stone-50/50 rounded-2xl border border-stone-100/30 hover:border-saffron/20 group transition-all cursor-pointer">
+                    <label className="flex flex-col items-center gap-2 p-5 bg-white/5 rounded-2xl border border-white/5 hover:border-gold/30 hover:bg-white/10 group transition-all cursor-pointer glow">
                       <input
                         type="file"
                         accept=".json"
@@ -1736,20 +1694,20 @@ export default function App() {
                         }}
                         className="hidden"
                       />
-                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-stone-400 group-hover:text-saffron shadow-sm transition-colors">
-                        <Loader2 size={16} />
+                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-stone-400 group-hover:text-gold transition-colors">
+                        <Loader2 size={18} />
                       </div>
-                      <span className="text-[10.5px] font-black text-stone-900 uppercase tracking-tight">{t(UI_LABELS.RESTORE_DATA.en, UI_LABELS.RESTORE_DATA.tib)}</span>
+                      <span className="text-[11px] font-black text-white uppercase tracking-tight">{t(UI_LABELS.RESTORE_DATA.en, UI_LABELS.RESTORE_DATA.tib)}</span>
                     </label>
                   </div>
-                  <p className="text-[9.5px] text-stone-400 italic text-center">{t(UI_LABELS.BACKUP_HINT.en, UI_LABELS.BACKUP_HINT.tib)}</p>
+                  <p className="text-[10px] text-stone-500 italic text-center opacity-60">{t(UI_LABELS.BACKUP_HINT.en, UI_LABELS.BACKUP_HINT.tib)}</p>
                 </div>
 
-                <div className="p-4 bg-stone-50/30 rounded-[28px] border border-stone-100/50 space-y-3">
-                  <h3 className="text-[11.5px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.DANGER_ZONE.en, UI_LABELS.DANGER_ZONE.tib)}</h3>
+                <div className="p-6 glass rounded-[32px] border border-white/5 space-y-4 shadow-xl">
+                  <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] px-1">{t(UI_LABELS.DANGER_ZONE.en, UI_LABELS.DANGER_ZONE.tib)}</h3>
                   <button
                     onClick={() => setIsPrivacySheetOpen(true)}
-                    className="w-full flex items-center justify-between p-3 bg-white rounded-2xl text-stone-600 border border-stone-100/50 hover:bg-stone-50 transition-colors mb-2"
+                    className="w-full flex items-center justify-between p-4 bg-red-400/5 rounded-2xl text-red-400 border border-red-400/10 hover:bg-red-400/10 transition-colors"
                   >
                     <span className="text-[12.5px] font-bold">{t(UI_LABELS.PRIVACY_POLICY.en, UI_LABELS.PRIVACY_POLICY.tib)}</span>
                     <Info size={14} />
@@ -1762,7 +1720,7 @@ export default function App() {
                         window.location.reload();
                       }
                     }}
-                    className="w-full flex items-center justify-between p-3 bg-white rounded-2xl text-red-500 border border-red-100/50 hover:bg-red-50/50 transition-colors"
+                    className="w-full flex items-center justify-between p-3 bg-white/5 rounded-2xl text-red-500 border border-red-900/20 hover:bg-red-900/20 transition-colors"
                   >
                     <span className="text-[12.5px] font-bold">{t(UI_LABELS.CLEAR_CACHE.en, UI_LABELS.CLEAR_CACHE.tib)}</span>
                     <Trash2 size={14} />
@@ -1770,7 +1728,7 @@ export default function App() {
                 </div>
 
                 <div className="py-2 text-center">
-                  <p className="text-[10.5px] text-stone-400 font-black uppercase tracking-widest opacity-30">Phugpa Edition v1.2.0</p>
+                  <p className="text-[10.5px] text-stone-500 font-black uppercase tracking-widest opacity-30">Phugpa Edition v1.2.0</p>
                 </div>
               </div>
             </div>
@@ -1784,55 +1742,55 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsPrivacySheetOpen(false)}
-              className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[200]"
+              className="fixed inset-0 bg-midnight/80 backdrop-blur-md z-[200]"
             />
             <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 inset-x-0 bg-bg-warm rounded-t-[40px] z-[201] p-8 space-y-8 max-w-lg mx-auto pb-safe flex flex-col h-[70vh]"
+              className="fixed bottom-0 inset-x-0 bg-midnight rounded-t-[40px] z-[201] p-8 space-y-8 max-w-lg mx-auto pb-safe flex flex-col h-[70vh]"
             >
-              <div className="w-12 h-1.5 bg-stone-200/50 rounded-full mx-auto flex-shrink-0" />
+              <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto flex-shrink-0" />
 
               <div className="flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-stone-900 flex items-center justify-center text-white">
+                  <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-midnight">
                     <Info size={24} />
                   </div>
                   <div>
-                    <h2 className="text-[21.5px] font-serif font-black text-stone-950">{t(UI_LABELS.PRIVACY_POLICY.en, UI_LABELS.PRIVACY_POLICY.tib)}</h2>
-                    <p className="text-[11.5px] text-stone-400 font-bold uppercase tracking-widest">{t(UI_LABELS.DIGITAL_SANCTUARY_GUARDS.en, UI_LABELS.DIGITAL_SANCTUARY_GUARDS.tib)}</p>
+                    <h2 className="text-[21.5px] font-serif font-black text-white">{t(UI_LABELS.PRIVACY_POLICY.en, UI_LABELS.PRIVACY_POLICY.tib)}</h2>
+                    <p className="text-[11.5px] text-stone-500 font-bold uppercase tracking-widest">{t(UI_LABELS.DIGITAL_SANCTUARY_GUARDS.en, UI_LABELS.DIGITAL_SANCTUARY_GUARDS.tib)}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsPrivacySheetOpen(false)} className="p-3 bg-stone-100 rounded-full text-stone-400">
+                <button onClick={() => setIsPrivacySheetOpen(false)} className="p-3 bg-white/5 rounded-full text-stone-400">
                   <X size={20} />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto no-scrollbar space-y-6 text-stone-600 text-[15.5px] leading-relaxed pb-8">
+              <div className="flex-1 overflow-y-auto no-scrollbar space-y-6 text-stone-400 text-[15.5px] leading-relaxed pb-8">
                 <section className="space-y-3">
-                  <h4 className="text-[11.5px] font-black text-stone-950 uppercase tracking-widest">{t(UI_LABELS.LOCAL_SANCTUARY.en, UI_LABELS.LOCAL_SANCTUARY.tib)}</h4>
+                  <h4 className="text-[11.5px] font-black text-white uppercase tracking-widest">{t(UI_LABELS.LOCAL_SANCTUARY.en, UI_LABELS.LOCAL_SANCTUARY.tib)}</h4>
                   <p>{t(UI_LABELS.LOCAL_SANCTUARY_DESC.en, UI_LABELS.LOCAL_SANCTUARY_DESC.tib)}</p>
                 </section>
 
                 <section className="space-y-3">
-                  <h4 className="text-[11.5px] font-black text-stone-950 uppercase tracking-widest">{t(UI_LABELS.DATA_SOVEREIGNTY.en, UI_LABELS.DATA_SOVEREIGNTY.tib)}</h4>
+                  <h4 className="text-[11.5px] font-black text-white uppercase tracking-widest">{t(UI_LABELS.DATA_SOVEREIGNTY.en, UI_LABELS.DATA_SOVEREIGNTY.tib)}</h4>
                   <p>{t(UI_LABELS.DATA_SOVEREIGNTY_DESC.en, UI_LABELS.DATA_SOVEREIGNTY_DESC.tib)}</p>
                 </section>
 
                 <section className="space-y-3">
-                  <h4 className="text-[11.5px] font-black text-stone-950 uppercase tracking-widest">{t(UI_LABELS.THIRD_PARTY_SERVICES.en, UI_LABELS.THIRD_PARTY_SERVICES.tib)}</h4>
+                  <h4 className="text-[11.5px] font-black text-white uppercase tracking-widest">{t(UI_LABELS.THIRD_PARTY_SERVICES.en, UI_LABELS.THIRD_PARTY_SERVICES.tib)}</h4>
                   <p>{t(UI_LABELS.THIRD_PARTY_SERVICES_DESC.en, UI_LABELS.THIRD_PARTY_SERVICES_DESC.tib)}</p>
                 </section>
 
                 <section className="space-y-3">
-                  <h4 className="text-[11.5px] font-black text-stone-950 uppercase tracking-widest">{t(UI_LABELS.CONTACT.en, UI_LABELS.CONTACT.tib)}</h4>
+                  <h4 className="text-[11.5px] font-black text-white uppercase tracking-widest">{t(UI_LABELS.CONTACT.en, UI_LABELS.CONTACT.tib)}</h4>
                   <p>{t(UI_LABELS.CONTACT_DESC.en, UI_LABELS.CONTACT_DESC.tib)}</p>
                 </section>
 
-                <div className="pt-6 border-t border-stone-100">
-                  <p className="text-[11.5px] text-stone-400 italic">{t(UI_LABELS.EFFECTIVE_ALIGNMENT_DATE.en, UI_LABELS.EFFECTIVE_ALIGNMENT_DATE.tib)}</p>
+                <div className="pt-6 border-t border-white/10">
+                  <p className="text-[11.5px] text-stone-600 italic">{t(UI_LABELS.EFFECTIVE_ALIGNMENT_DATE.en, UI_LABELS.EFFECTIVE_ALIGNMENT_DATE.tib)}</p>
                 </div>
               </div>
             </motion.div>
@@ -1846,28 +1804,28 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsSearchSheetOpen(false)}
-              className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[100]"
+              className="fixed inset-0 bg-midnight/80 backdrop-blur-md z-[100]"
             />
             <motion.div
               initial={{ y: '105%' }}
               animate={{ y: 0 }}
               exit={{ y: '105%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 inset-x-0 bg-bg-warm rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe flex flex-col h-[85vh]"
+              className="fixed bottom-0 inset-x-0 glass rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe flex flex-col h-[85vh] shadow-[0_-20px_50px_rgba(0,0,0,0.5)] border-t border-white/10"
             >
-              <div className="w-12 h-1.5 bg-stone-200/50 rounded-full mx-auto flex-shrink-0" />
+              <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto flex-shrink-0" />
 
               <div className="flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-stone-900 flex items-center justify-center text-white">
+                <div className="flex items-center gap-5">
+                  <div className="w-14 h-14 rounded-2xl bg-gold flex items-center justify-center text-midnight glow">
                     <Search size={24} />
                   </div>
                   <div>
-                    <h2 className="text-[21.5px] font-serif font-black text-stone-950">{t(UI_LABELS.EVENT_SEARCH.en, UI_LABELS.EVENT_SEARCH.tib)}</h2>
-                    <p className="text-[11.5px] text-stone-400 font-bold uppercase tracking-widest">{t(UI_LABELS.FIND_ALIGNMENTS.en, UI_LABELS.FIND_ALIGNMENTS.tib)}</p>
+                    <h2 className="text-[24px] font-serif font-black text-white">{t(UI_LABELS.EVENT_SEARCH.en, UI_LABELS.EVENT_SEARCH.tib)}</h2>
+                    <p className="text-[10px] text-gold font-black uppercase tracking-[0.2em]">{t(UI_LABELS.FIND_ALIGNMENTS.en, UI_LABELS.FIND_ALIGNMENTS.tib)}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsSearchSheetOpen(false)} className="p-3 bg-stone-100 rounded-full text-stone-400">
+                <button onClick={() => setIsSearchSheetOpen(false)} className="p-3 bg-white/5 rounded-full text-stone-400 hover:text-white transition-colors">
                   <X size={20} />
                 </button>
               </div>
@@ -1875,47 +1833,46 @@ export default function App() {
               {/* Date Range Picker */}
               <div className="grid grid-cols-2 gap-4 flex-shrink-0">
                 <div className="space-y-2">
-                  <label className="text-[11.5px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.START_DATE.en, UI_LABELS.START_DATE.tib)}</label>
+                  <label className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] px-1">{t(UI_LABELS.START_DATE.en, UI_LABELS.START_DATE.tib)}</label>
                   <input
                     type="date"
                     value={searchRange.start}
                     onChange={(e) => setSearchRange(prev => ({ ...prev, start: e.target.value }))}
-                    className="w-full p-4 bg-white/50 rounded-2xl text-[13.5px] font-bold border border-transparent focus:border-stone-200 outline-none transition-all"
+                    className="w-full p-4 bg-white/5 rounded-2xl text-[14px] font-medium border border-white/5 focus:ring-2 focus:ring-gold/20 outline-none transition-all text-white shadow-inner"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11.5px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.END_DATE.en, UI_LABELS.END_DATE.tib)}</label>
+                  <label className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] px-1">{t(UI_LABELS.END_DATE.en, UI_LABELS.END_DATE.tib)}</label>
                   <input
                     type="date"
                     value={searchRange.end}
                     onChange={(e) => setSearchRange(prev => ({ ...prev, end: e.target.value }))}
-                    className="w-full p-4 bg-white/50 rounded-2xl text-[13.5px] font-bold border border-transparent focus:border-stone-200 outline-none transition-all"
+                    className="w-full p-4 bg-white/5 rounded-2xl text-[14px] font-medium border border-white/5 focus:ring-2 focus:ring-gold/20 outline-none transition-all text-white shadow-inner"
                   />
                 </div>
               </div>
 
               {/* Search Results */}
-              <div className="flex-1 overflow-y-auto no-scrollbar space-y-4">
+              <div className="flex-1 overflow-y-auto no-scrollbar space-y-6">
                 <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] font-black text-stone-600 uppercase tracking-[0.2em]">
                     {toTibetanNumerals(searchResults.length)} {t(UI_LABELS.EVENTS_FOUND.en, UI_LABELS.EVENTS_FOUND.tib)}
+                  </span>
                 </div>
 
                 {searchResults.length === 0 ? (
-                  <div className="py-20 text-center space-y-4">
-                    <div className="w-16 h-16 bg-stone-50 rounded-full flex items-center justify-center mx-auto text-stone-200">
+                  <div className="py-20 text-center space-y-6">
+                    <div className="w-20 h-20 bg-white/5 rounded-[32px] flex items-center justify-center mx-auto text-stone-800 border border-white/5">
                       <Sparkles size={32} />
                     </div>
-                    <p className="text-[15.5px] font-medium text-stone-400 font-serif italic">{t(UI_LABELS.NO_ALIGNMENTS.en, UI_LABELS.NO_ALIGNMENTS.tib)}</p>
+                    <p className="text-[17px] font-medium text-stone-500 font-serif italic">{t(UI_LABELS.NO_ALIGNMENTS.en, UI_LABELS.NO_ALIGNMENT.tib)}</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {searchResults.map((result, i) => (
-                      <motion.div
+                      <motion.button
                         key={i}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                        className="bg-white/60 p-5 rounded-[24px] group hover:bg-white transition-all duration-300"
+                        className="bg-white/5 p-5 rounded-[24px] group hover:bg-white/10 transition-all duration-300"
                         onClick={() => {
                           setSelectedDate(result.date);
                           setCurrentDate(result.date);
@@ -1925,25 +1882,25 @@ export default function App() {
                         <div className="flex items-start gap-4">
                           <div className={cn(
                             "w-12 h-12 rounded-2xl flex flex-col items-center justify-center flex-shrink-0",
-                            result.isCustom ? "bg-amber-50 text-saffron" : "bg-stone-900 text-white"
+                            result.isCustom ? "bg-gold/10 text-gold" : "bg-white text-midnight"
                           )}>
                             <span className="text-[11.5px] font-black uppercase leading-none">{n(format(result.date, 'MMM'))}</span>
                             <span className="text-[19.5px] font-black font-serif leading-none mt-0.5">{n(format(result.date, 'd'))}</span>
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between">
-                              <h3 className="text-[15.5px] font-black text-stone-900 truncate pr-2">{result.name}</h3>
-                              {result.isCustom && <Star size={12} className="text-saffron fill-saffron mt-1" />}
+                              <h3 className="text-[15.5px] font-black text-white truncate pr-2">{result.name}</h3>
+                              {result.isCustom && <Star size={12} className="text-gold fill-gold mt-1" />}
                             </div>
-                            <p className="text-[13.5px] text-stone-500 line-clamp-1 mt-1 font-medium">{result.description}</p>
+                            <p className="text-[13.5px] text-stone-400 line-clamp-1 mt-1 font-medium">{result.description}</p>
                             <div className="flex items-center gap-2 mt-2">
-                              <span className="text-[9.5px] font-bold text-stone-300 uppercase tracking-[0.2em]">
+                              <span className="text-[9.5px] font-bold text-stone-700 uppercase tracking-[0.2em]">
                                 Tshe {getTibetanDate(result.date).day} · {getTibetanDate(result.date).animal}
                               </span>
                             </div>
                           </div>
                         </div>
-                      </motion.div>
+                      </motion.button>
                     ))}
                   </div>
                 )}
@@ -1959,69 +1916,69 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsFestivalSheetOpen(false)}
-              className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[100]"
+              className="fixed inset-0 bg-midnight/80 backdrop-blur-md z-[100]"
             />
             <motion.div
               initial={{ y: '105%' }}
               animate={{ y: 0 }}
               exit={{ y: '105%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 inset-x-0 bg-white rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe"
+              className="fixed bottom-0 inset-x-0 glass rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe shadow-[0_-20px_50px_rgba(0,0,0,0.5)] border-t border-white/10"
             >
-              <div className="w-12 h-1.5 bg-stone-100 rounded-full mx-auto" />
+              <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto" />
 
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-saffron flex items-center justify-center text-white">
+                <div className="flex items-center gap-5">
+                  <div className="w-14 h-14 rounded-2xl bg-gold flex items-center justify-center text-midnight glow">
                     <CalendarIcon size={24} />
                   </div>
                   <div>
-                    <h2 className="text-[21.5px] font-serif font-black text-stone-950">{t(UI_LABELS.ADD_CUSTOM_EVENT.en, UI_LABELS.ADD_CUSTOM_EVENT.tib)}</h2>
-                    <p className="text-[11.5px] text-stone-400 font-bold uppercase tracking-widest italic">Mark a significant moment</p>
+                    <h2 className="text-[24px] font-serif font-black text-white">{t(UI_LABELS.ADD_CUSTOM_EVENT.en, UI_LABELS.ADD_CUSTOM_EVENT.tib)}</h2>
+                    <p className="text-[10px] text-gold font-black uppercase tracking-[0.2em]">{t(UI_LABELS.MARK_SIGNIFICANT_MOMENT?.en || 'Mark a significant moment', UI_LABELS.MARK_SIGNIFICANT_MOMENT?.tib || 'དུས་དྲན་གལ་ཆེན་རྟགས་རྒྱག་པ།')}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsFestivalSheetOpen(false)} className="p-3 bg-stone-50 rounded-full text-stone-400">
+                <button onClick={() => setIsFestivalSheetOpen(false)} className="p-3 bg-white/5 rounded-full text-stone-400 hover:text-white transition-colors">
                   <X size={20} />
                 </button>
               </div>
 
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-[10.5px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.EVENT_NAME.en, UI_LABELS.EVENT_NAME.tib)}</label>
+                  <label className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] px-1">{t(UI_LABELS.EVENT_NAME.en, UI_LABELS.EVENT_NAME.tib)}</label>
                   <input
                     type="text"
                     placeholder="e.g., Birthday, Special Prayer"
                     value={newFestival.name}
                     onChange={(e) => setNewFestival(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full bg-stone-50 rounded-2xl p-4 text-[15.5px] font-bold outline-none focus:ring-2 focus:ring-saffron/20"
+                    className="w-full bg-white/5 rounded-2xl p-4 text-[15px] font-medium border border-white/5 focus:ring-2 focus:ring-gold/20 outline-none transition-all text-white shadow-inner"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10.5px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.DATE.en, UI_LABELS.DATE.tib)}</label>
+                  <label className="text-[10.5px] font-black text-stone-500 uppercase px-1">{t(UI_LABELS.DATE.en, UI_LABELS.DATE.tib)}</label>
                   <input
                     type="date"
                     value={newFestival.date}
                     onChange={(e) => setNewFestival(prev => ({ ...prev, date: e.target.value }))}
-                    className="w-full bg-stone-50 rounded-2xl p-4 text-[15.5px] font-bold outline-none focus:ring-2 focus:ring-saffron/20"
+                    className="w-full bg-white/5 rounded-2xl p-4 text-[15.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 text-white"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10.5px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.SHORT_DESCRIPTION.en, UI_LABELS.SHORT_DESCRIPTION.tib)}</label>
+                  <label className="text-[10.5px] font-black text-stone-500 uppercase px-1">{t(UI_LABELS.SHORT_DESCRIPTION.en, UI_LABELS.SHORT_DESCRIPTION.tib)}</label>
                   <textarea
                     placeholder="Adding context to this day..."
                     value={newFestival.description}
                     onChange={(e) => setNewFestival(prev => ({ ...prev, description: e.target.value }))}
                     rows={3}
-                    className="w-full bg-stone-50 rounded-2xl p-4 text-[15.5px] font-bold outline-none focus:ring-2 focus:ring-saffron/20 resize-none"
+                    className="w-full bg-white/5 rounded-2xl p-4 text-[15.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 resize-none text-white"
                   />
                 </div>
 
                 <button
                   onClick={addCustomFestival}
                   disabled={!newFestival.name || !newFestival.date}
-                  className="w-full bg-stone-900 text-white p-5 rounded-3xl font-black uppercase tracking-[0.2em] text-[13.5px] disabled:opacity-50 active:scale-[0.98] transition-all"
+                  className="w-full bg-white text-midnight p-5 rounded-3xl font-black uppercase tracking-[0.2em] text-[13.5px] disabled:opacity-50 active:scale-[0.98] transition-all"
                 >
                   Save to Calendar
                 </button>
@@ -2037,28 +1994,28 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsNoteSheetOpen(false)}
-              className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[100]"
+              className="fixed inset-0 bg-midnight/80 backdrop-blur-md z-[100]"
             />
             <motion.div
               initial={{ y: '105%' }}
               animate={{ y: 0 }}
               exit={{ y: '105%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 inset-x-0 bg-white rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe max-h-[90vh] overflow-y-auto"
+              className="fixed bottom-0 inset-x-0 bg-midnight rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe max-h-[90vh] overflow-y-auto"
             >
-              <div className="w-12 h-1.5 bg-stone-100 rounded-full mx-auto" />
+              <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto" />
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-saffron flex items-center justify-center text-white">
+                  <div className="w-12 h-12 rounded-2xl bg-gold flex items-center justify-center text-midnight">
                     <StickyNote size={24} />
                   </div>
                   <div>
-                    <h2 className="text-[21.5px] font-serif font-black text-stone-950">{t(UI_LABELS.ADD_DETAILS.en, UI_LABELS.ADD_DETAILS.tib)}</h2>
-                    <p className="text-[11.5px] text-stone-400 font-bold uppercase tracking-widest">{format(selectedDate, 'MMMM do')}</p>
+                    <h2 className="text-[21.5px] font-serif font-black text-white">{t(UI_LABELS.ADD_DETAILS.en, UI_LABELS.ADD_DETAILS.tib)}</h2>
+                    <p className="text-[11.5px] text-stone-500 font-bold uppercase tracking-widest">{format(selectedDate, 'MMMM do')}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsNoteSheetOpen(false)} className="p-3 bg-stone-50 rounded-full text-stone-400">
+                <button onClick={() => setIsNoteSheetOpen(false)} className="p-3 bg-white/5 rounded-full text-stone-400">
                   <X size={20} />
                 </button>
               </div>
@@ -2068,29 +2025,29 @@ export default function App() {
                 onClick={toggleReminder}
                 className={cn(
                   "w-full p-6 rounded-3xl border flex items-center justify-between transition-all duration-300",
-                  currentReminder ? "bg-amber-50 border-saffron shadow-sm" : "bg-white border-stone-100"
+                  currentReminder ? "bg-gold/10 border-gold shadow-sm" : "bg-white/5 border-white/5"
                 )}
               >
                 <div className="flex items-center gap-4">
-                  <div className={cn("w-10 h-10 rounded-full flex items-center justify-center transition-colors", currentReminder ? "bg-saffron text-white" : "bg-stone-50 text-stone-300")}>
+                  <div className={cn("w-10 h-10 rounded-full flex items-center justify-center transition-colors", currentReminder ? "bg-gold text-midnight" : "bg-white/10 text-stone-500")}>
                     <Bell size={18} />
                   </div>
                   <div className="text-left">
-                    <p className="text-[15.5px] font-bold text-stone-900">{t(UI_LABELS.PUSH_NOTIFICATION.en, UI_LABELS.PUSH_NOTIFICATION.tib)}</p>
-                    <p className="text-[11.5px] font-medium text-stone-400 uppercase tracking-widest">Remind me on this date</p>
+                    <p className="text-[15.5px] font-bold text-white">{t(UI_LABELS.PUSH_NOTIFICATION.en, UI_LABELS.PUSH_NOTIFICATION.tib)}</p>
+                    <p className="text-[11.5px] font-medium text-stone-500 uppercase tracking-widest">Remind me on this date</p>
                   </div>
                 </div>
-                {currentReminder && <Check size={20} className="text-saffron" />}
+                {currentReminder && <Check size={20} className="text-gold" />}
               </button>
 
               {/* Note Input */}
               <div className="space-y-2">
-                <label className="text-[11.5px] font-black text-stone-400 uppercase tracking-widest px-1">{t(UI_LABELS.PERSONAL_NOTES.en, UI_LABELS.PERSONAL_NOTES.tib)}</label>
+                <label className="text-[11.5px] font-black text-stone-500 uppercase tracking-widest px-1">{t(UI_LABELS.PERSONAL_NOTES.en, UI_LABELS.PERSONAL_NOTES.tib)}</label>
                 <textarea
                   value={currentNote}
                   onChange={(e) => handleSaveNote(e.target.value)}
                   placeholder="Enter your notes here..."
-                  className="w-full h-40 bg-stone-50 rounded-3xl p-6 text-[15.5px] font-medium focus:ring-2 focus:ring-saffron/20 border-none outline-none resize-none placeholder:text-stone-300"
+                  className="w-full h-40 bg-white/5 rounded-3xl p-6 text-[15.5px] font-medium focus:ring-2 focus:ring-gold/20 border-none outline-none resize-none placeholder:text-stone-700 text-white"
                 />
               </div>
 
@@ -2098,20 +2055,20 @@ export default function App() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between px-1">
                   <div className="space-y-0.5">
-                    <label className="text-[11.5px] font-black text-stone-400 uppercase tracking-widest">Icon & Custom Label</label>
-                    <p className="text-[9.5px] text-stone-300 font-bold uppercase tracking-widest">Personalize the calendar view</p>
+                    <label className="text-[11.5px] font-black text-stone-500 uppercase tracking-widest">Icon & Custom Label</label>
+                    <p className="text-[9.5px] text-stone-700 font-bold uppercase tracking-widest">Personalize the calendar view</p>
                   </div>
                   {(currentSticker.emoji || currentSticker.label) && (
                     <button
                       onClick={() => handleSetSticker(undefined, undefined)}
-                      className="text-[10.5px] font-black text-stone-400 uppercase bg-stone-50 px-3 py-1 rounded-lg hover:text-tibetan-red hover:bg-red-50 transition-all"
+                      className="text-[10.5px] font-black text-stone-500 uppercase bg-white/5 px-3 py-1 rounded-lg hover:text-red-400 transition-all"
                     >
                       Clear All
                     </button>
                   )}
                 </div>
 
-                <div className="grid grid-cols-6 gap-2 bg-stone-50/50 p-4 rounded-3xl">
+                <div className="grid grid-cols-6 gap-2 bg-white/5 p-4 rounded-3xl">
                   {STICKERS.map(s => (
                     <button
                       key={s}
@@ -2119,8 +2076,8 @@ export default function App() {
                       className={cn(
                         "aspect-square rounded-2xl flex items-center justify-center text-[21.5px] transition-all duration-300",
                         currentSticker.emoji === s
-                          ? "bg-white scale-110 shadow-md ring-2 ring-saffron/20"
-                          : "bg-white/50 hover:bg-white text-stone-300 hover:text-stone-900"
+                          ? "bg-white/10 scale-110 shadow-md ring-2 ring-gold/20"
+                          : "bg-white/5 hover:bg-white/10 text-stone-600 hover:text-white"
                       )}
                     >
                       {s}
@@ -2135,9 +2092,9 @@ export default function App() {
                     placeholder="Short label (e.g., RETREAT)"
                     value={currentSticker.label || ''}
                     onChange={(e) => handleSetSticker(currentSticker.emoji, e.target.value.toUpperCase())}
-                    className="w-full bg-stone-50 border-2 border-transparent focus:border-saffron/10 rounded-2xl p-4 text-[11.5px] font-black tracking-widest outline-none transition-all placeholder:text-stone-300 uppercase"
+                    className="w-full bg-white/5 border-2 border-transparent focus:border-gold/20 rounded-2xl p-4 text-[11.5px] font-black tracking-widest outline-none transition-all placeholder:text-stone-700 uppercase text-white"
                   />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[9.5px] font-black text-stone-300 uppercase bg-white px-2 py-1 rounded-md shadow-sm">
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[9.5px] font-black text-stone-500 uppercase bg-white/5 px-2 py-1 rounded-md shadow-sm">
                     {(currentSticker.label || '').length}/12
                   </div>
                 </div>
@@ -2146,7 +2103,7 @@ export default function App() {
               <div className="flex gap-4 pt-4 pb-4">
                 <button
                   onClick={handleDeleteNote}
-                  className="p-4 bg-red-50 text-red-500 rounded-3xl hover:bg-red-100 transition-colors"
+                  className="p-4 bg-red-900/10 text-red-500 rounded-3xl hover:bg-red-900/20 transition-colors"
                 >
                   <Trash2 size={24} />
                 </button>
