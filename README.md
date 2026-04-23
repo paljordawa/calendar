@@ -1,7 +1,7 @@
-# Sacred Minimalist: Technical Developer Guide
+# TibetAstro: Technical Developer Guide
 [https://calendar-opal-five.vercel.app/](https://calendar-opal-five.vercel.app/)
 
-This README provides a deep technical dive into the architecture, logic, and calculation engines powering the Sacred Minimalist Tibetan Calendar.
+This README provides a deep technical dive into the architecture, logic, and calculation engines powering the TibetAstro Tibetan Calendar.
 
 ---
 

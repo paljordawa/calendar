@@ -5,7 +5,7 @@ export const UI_LABELS = {
   INDICATOR: { en: "Indicator", tib: "མཚོན་རྟགས།" },
   PERSONAL_RESONANCE: { en: "Personal Resonance", tib: "རང་རེའི་འཕྲོད་སྦྱོར།" },
   PHUGPA_TRADITION: { en: "Phugpa Tradition", tib: "ཕུག་ལུགས་རྩིས་རིག་པ།" },
-  TIBETAN_CALENDAR: { en: "Tibetan Calendar", tib: "བོད་ལོའི་ལོ་ཐོ།" },
+  TIBETAN_CALENDAR: { en: "TibetAstro", tib: "བོད་ལོའི་ལོ་ཐོ།" },
   MEWA: { en: "Mewa", tib: "སྨེ་བ།" },
   TODAYS_ALIGNMENT: { en: "Today's Alignment", tib: "དེ་རིང་གི་རྩིས་འབྲས།" },
   SACRED_DAY: { en: "Sacred Day", tib: "དུས་བཟང་།" },

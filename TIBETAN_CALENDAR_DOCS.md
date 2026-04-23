@@ -1,4 +1,4 @@
-# Tibetan Calendar & Astronomical Logic (Phugpa Tradition)
+# TibetAstro: Tibetan Calendar & Astronomical Logic (Phugpa Tradition)
 
 This document explains the mathematical and astrological foundations used in the **Men-Tsee-Khang** (Tibetan Medical & Astro-Science Institute) style calendar integrated into this application.
 
