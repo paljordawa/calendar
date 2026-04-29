@@ -35,7 +35,7 @@ export function ActivityScore({ activities, t }: ActivityScoreProps) {
           <div
             key={i}
             className={cn(
-              'flex items-center gap-2.5 p-3 rounded-2xl border',
+              'flex items-center gap-2.5 p-3 rounded-[10px] border',
               act.status === 'green' ? 'bg-emerald-500/10 border-emerald-500/20' :
               act.status === 'red'   ? 'bg-red-500/10 border-red-500/20' :
                                        'bg-white/5 border-white/5'

@@ -27,11 +27,12 @@ import {
   Share,
   Zap
 } from 'lucide-react';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday as isDateToday, parseISO, isWithinInterval, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday as isDateToday, parseISO, isWithinInterval, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks, getWeekOfMonth } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { getTibetanDate, getTibetanYearInfo, FESTIVALS, MONTHLY_OBSERVANCES, TibetanDate, ANIMALS, ELEMENTS, COMBINATIONS } from './lib/tibetanCalendar';
 import { cn, cn_id, UI_IDS, toTibetanNumerals } from './lib/utils';
 import { DATABASE_2026 } from './lib/database2026';
+import { NotificationService } from './lib/notifications';
 import {
   STICKERS,
   HOROSCOPE_RULES,
@@ -58,6 +59,7 @@ import { MoonPhase } from './components/shared/MoonPhase';
 import { TodayCard } from './components/home/TodayCard';
 import { AstroTab } from './components/home/AstroTab';
 import { SacredTab } from './components/home/SacredTab';
+import { ReferenceSheet } from './components/shared/ReferenceSheet';
 import { WeekView } from './components/calendar/WeekView';
 import { MonthView } from './components/calendar/MonthView';
 import { YearView } from './components/calendar/YearView';
@@ -109,7 +111,9 @@ export default function App() {
   const [isFestivalSheetOpen, setIsFestivalSheetOpen] = useState(false);
   const [isProfileSheetOpen, setIsProfileSheetOpen] = useState(false);
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
+  const [isReferenceSheetOpen, setIsReferenceSheetOpen] = useState(false);
   const [isSearchSheetOpen, setIsSearchSheetOpen] = useState(false);
+  const [isNotificationSheetOpen, setIsNotificationSheetOpen] = useState(false);
   const [isPrivacySheetOpen, setIsPrivacySheetOpen] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [scrollY, setScrollY] = useState(0);
@@ -121,7 +125,6 @@ export default function App() {
     end: format(addMonths(new Date(), 1), 'yyyy-MM-dd')
   });
   const todayRef = useRef<HTMLDivElement>(null);
-  const [showJumpToday, setShowJumpToday] = useState(false);
   const [festivalSearch, setFestivalSearch] = useState('');
   const [newFestival, setNewFestival] = useState({ name: '', date: format(new Date(), 'yyyy-MM-dd'), description: '' });
   const [userData, setUserData] = useState<UserData>(() => {
@@ -219,10 +222,19 @@ export default function App() {
   useEffect(() => {
     const handleScroll = () => {
       setScrollY(window.scrollY);
-      setShowJumpToday(window.scrollY > 400);
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const initNotifications = async () => {
+      const granted = await NotificationService.requestPermissions();
+      if (granted) {
+        await NotificationService.scheduleFestivalReminders(DATABASE_2026);
+      }
+    };
+    initNotifications();
   }, []);
 
   const scrollToToday = () => {
@@ -244,6 +256,32 @@ export default function App() {
   const tibSelected = useMemo(() => getTibetanDate(selectedDate), [selectedDate]);
   const tibView = useMemo(() => getTibetanDate(currentDate), [currentDate]);
   const tibCurrent = useMemo(() => getTibetanDate(new Date()), []);
+
+
+  const upcomingEvents = useMemo(() => {
+    const today = startOfDay(new Date());
+    const events: any[] = [];
+    
+    FESTIVALS.forEach(f => {
+      const dateStr = Object.keys(DATABASE_2026).find(k => {
+        const d = DATABASE_2026[k];
+        return d.tibMonth === f.month && d.tibDay === f.day;
+      });
+      if (dateStr) {
+        const d = parseISO(dateStr);
+        if (d >= today) events.push({ type: 'festival', date: d, title: f.name, titleTib: f.nameTib });
+      }
+    });
+
+    Object.keys(userData.reminders || {}).forEach(dateStr => {
+      if (userData.reminders[dateStr]) {
+        const d = parseISO(dateStr);
+        if (d >= today) events.push({ type: 'reminder', date: d, title: 'Personal Reminder', titleTib: 'སྒེར་གྱི་དྲན་སྐུལ།', note: userData.notes[dateStr] });
+      }
+    });
+
+    return events.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, 10);
+  }, [userData]);
 
   const t = useCallback((en: any, tib: any) => {
     const val = userData.language === 'Tibetan' ? (tib || en) : (en || tib);
@@ -375,7 +413,6 @@ export default function App() {
       if (!showHeader) setShowHeader(true);
     }
 
-    setShowJumpToday(currentScrollY > 400);
     setLastScrollY(currentScrollY);
   };
 
@@ -459,7 +496,16 @@ export default function App() {
     });
   };
 
-  const toggleReminder = () => {
+  const toggleReminder = async () => {
+    const isAdding = !userData.reminders[selectedDateKey];
+    
+    if (isAdding) {
+      const note = userData.notes[selectedDateKey];
+      await NotificationService.schedulePersonalReminder(selectedDateKey, note);
+    } else {
+      await NotificationService.cancelReminder(selectedDateKey);
+    }
+
     setUserData(prev => ({
       ...prev,
       reminders: { ...prev.reminders, [selectedDateKey]: !prev.reminders[selectedDateKey] }
@@ -507,61 +553,58 @@ export default function App() {
 
   if (!userData.onboardingComplete) {
     return (
-      <div className="fixed inset-0 bg-stone-50 z-[100] flex flex-col overflow-hidden font-sans">
+      <div className="fixed inset-0 bg-midnight z-[100] flex flex-col overflow-hidden font-sans">
+        <div className="fixed inset-0 tibetan-diamond-bg opacity-[0.15] pointer-events-none mix-blend-overlay"></div>
         <AnimatePresence mode="wait">
           {onboardingStep === 1 && (
             <motion.div
               key="step1"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="flex-1 flex flex-col items-center justify-center p-8 space-y-12"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              className="flex-1 flex flex-col items-center justify-center p-6 space-y-16 relative z-10"
             >
-              <div className="text-center space-y-4">
-                <div className="w-24 h-24 bg-stone-900 rounded-[40px] flex items-center justify-center text-stone-100 text-5xl font-serif mx-auto shadow-2xl shadow-stone-200">
-                  <span className="text-saffron">࿇</span>
+              <div className="text-center space-y-6">
+                <div className="flex items-center justify-center text-stone-100 text-6xl font-serif mx-auto">
+                  <span className="text-gold">࿇</span>
                 </div>
                 <div>
-                  <h1 className="text-[32px] font-serif font-black text-stone-950">{t(UI_LABELS.WELCOME.en, UI_LABELS.WELCOME.tib)}</h1>
-                  <p className="text-[13.5px] text-stone-400 font-bold uppercase tracking-widest mt-1">{t(UI_LABELS.SINO_TIBETAN_GUIDANCE.en, UI_LABELS.SINO_TIBETAN_GUIDANCE.tib)}</p>
+                  <h1 className="text-[32px] font-serif font-black text-white leading-tight">{t(UI_LABELS.WELCOME.en, UI_LABELS.WELCOME.tib)}</h1>
+                  <p className="text-[13.5px] text-stone-400 font-bold uppercase tracking-widest mt-2">{t(UI_LABELS.SINO_TIBETAN_GUIDANCE.en, UI_LABELS.SINO_TIBETAN_GUIDANCE.tib)}</p>
                 </div>
               </div>
 
-              <div className="w-full max-w-xs space-y-6">
-                <div className="space-y-4">
-                  <h2 className="text-[11.5px] font-black text-stone-400 uppercase tracking-widest text-center px-1">{t(UI_LABELS.SELECT_LANGUAGE.en, UI_LABELS.SELECT_LANGUAGE.tib)}</h2>
-                  <div className="grid grid-cols-1 gap-3">
+              <div className="w-full max-w-xs space-y-10">
+                <div className="space-y-6">
+                  <h2 className="text-[11.5px] font-black text-stone-500 uppercase tracking-widest text-center px-1">{t(UI_LABELS.SELECT_LANGUAGE.en, UI_LABELS.SELECT_LANGUAGE.tib)}</h2>
+                  <div className="flex flex-col gap-6 items-center">
                     <button
                       onClick={() => {
                         setUserData(prev => ({ ...prev, language: 'English' }));
                         setOnboardingStep(2);
                       }}
-                      className="w-full p-6 bg-white border border-stone-100 rounded-3xl flex items-center justify-between hover:border-saffron/50 transition-all group shadow-sm"
+                      className="group flex flex-col items-center justify-center"
                     >
-                      <span className="font-serif text-[21.5px] font-bold text-stone-900">{t('English', 'དབྱིན་ཡིག')}</span>
-                      <ChevronRight size={20} className="text-stone-300 group-hover:text-saffron group-hover:translate-x-1 transition-all" />
+                      <span className="font-serif text-[24px] font-bold text-white group-hover:text-gold transition-colors">{t('English', 'དབྱིན་ཡིག')}</span>
                     </button>
                     <button
                       onClick={() => {
                         setUserData(prev => ({ ...prev, language: 'Tibetan' }));
                         setOnboardingStep(2);
                       }}
-                      className="w-full p-6 bg-white border border-stone-100 rounded-3xl flex items-center justify-between hover:border-saffron/50 transition-all group shadow-sm"
+                      className="group flex flex-col items-center justify-center"
                     >
-                      <div className="text-left">
-                        <span className="font-serif text-[21.5px] font-bold text-stone-900 block leading-tight">བོད་ཡིག</span>
-                        <span className="text-[9.5px] font-bold text-stone-300 uppercase tracking-tighter">{t('Tibetan', 'བོད་ཡིག')}</span>
-                      </div>
-                      <ChevronRight size={20} className="text-stone-300 group-hover:text-saffron group-hover:translate-x-1 transition-all" />
+                      <span className="font-serif text-[24px] font-bold text-white group-hover:text-gold transition-colors block leading-tight">བོད་ཡིག</span>
+                      <span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mt-1">{t('Tibetan', 'བོད་ཡིག')}</span>
                     </button>
                   </div>
                 </div>
 
-                <div className="flex justify-center gap-1.5">
-                  <div className="w-10 h-1 rounded-full bg-saffron" />
-                  <div className="w-2 h-1 rounded-full bg-stone-200" />
-                  <div className="w-2 h-1 rounded-full bg-stone-200" />
-                  <div className="w-2 h-1 rounded-full bg-stone-200" />
+                <div className="flex justify-center gap-2 pt-8">
+                  <div className="w-2 h-2 rounded-full bg-gold" />
+                  <div className="w-2 h-2 rounded-full bg-white/20" />
+                  <div className="w-2 h-2 rounded-full bg-white/20" />
+                  <div className="w-2 h-2 rounded-full bg-white/20" />
                 </div>
               </div>
             </motion.div>
@@ -573,23 +616,23 @@ export default function App() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="flex-1 flex flex-col p-8 pt-16 space-y-8 overflow-y-auto"
+              className="flex-1 flex flex-col p-4 pt-8 space-y-8 overflow-y-auto relative z-10"
             >
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <button onClick={() => setOnboardingStep(1)} className="p-2 -ml-2 text-stone-400 hover:text-stone-900 transition-colors">
+                  <button onClick={() => setOnboardingStep(1)} className="p-2 -ml-2 text-stone-500 hover:text-white transition-colors">
                     <ChevronLeft size={20} />
                   </button>
                   <div className="flex gap-1.5">
-                    <div className="w-2 h-1 rounded-full bg-saffron/30" />
-                    <div className="w-10 h-1 rounded-full bg-saffron" />
-                    <div className="w-2 h-1 rounded-full bg-stone-200" />
-                    <div className="w-2 h-1 rounded-full bg-stone-200" />
+                    <div className="w-2 h-1 rounded-[10px] bg-gold/30" />
+                    <div className="w-10 h-1 rounded-[10px] bg-gold" />
+                    <div className="w-2 h-1 rounded-[10px] bg-white/10" />
+                    <div className="w-2 h-1 rounded-[10px] bg-white/10" />
                   </div>
                 </div>
 
                 <div>
-                  <h2 className="text-[25.5px] font-serif font-black text-stone-950">{t(UI_LABELS.PRACTITIONER_DETAILS.en, UI_LABELS.PRACTITIONER_DETAILS.tib)}</h2>
+                  <h2 className="text-[25.5px] font-serif font-black text-white">{t(UI_LABELS.PRACTITIONER_DETAILS.en, UI_LABELS.PRACTITIONER_DETAILS.tib)}</h2>
                   <p className="text-[11.5px] text-stone-400 font-bold uppercase tracking-widest leading-none mt-1">{t(UI_LABELS.FOUNDATIONAL_HINT.en, UI_LABELS.FOUNDATIONAL_HINT.tib)}</p>
                 </div>
 
@@ -601,7 +644,7 @@ export default function App() {
                       placeholder="e.g. Tenzin"
                       value={userData.name || ''}
                       onChange={(e) => setUserData(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full bg-white border border-stone-100 shadow-sm rounded-2xl p-4 text-[13.5px] font-bold focus:ring-2 focus:ring-saffron/20 outline-none"
+                      className="w-full bg-white/5 rounded-[10px] p-4 text-[13.5px] font-bold text-white focus:ring-2 focus:ring-gold/20 outline-none"
                     />
                   </div>
 
@@ -614,15 +657,15 @@ export default function App() {
                           type="button"
                           onClick={() => setUserData(prev => ({ ...prev, gender: g as any }))}
                           className={cn(
-                            "p-4 rounded-2xl border text-[13.5px] font-bold transition-all flex items-center justify-center gap-2",
+                            "p-4 rounded-[10px] text-[13.5px] font-bold transition-all flex items-center justify-center gap-2",
                             userData.gender === g
-                              ? "bg-stone-900 text-white border-stone-800 shadow-lg scale-[1.02]"
-                              : "bg-white text-stone-500 border-stone-100 shadow-sm"
+                              ? "bg-white/10 text-white"
+                              : "bg-white/5 text-stone-500"
                           )}
                         >
                           <div className={cn(
-                            "w-2 h-1 rounded-full",
-                            userData.gender === g ? "bg-saffron" : "bg-stone-200"
+                            "w-2 h-1 rounded-[10px]",
+                            userData.gender === g ? "bg-gold" : "bg-white/10"
                           )} />
                           {g === 'Male' ? t(UI_LABELS.MALE.en, UI_LABELS.MALE.tib) : t(UI_LABELS.FEMALE.en, UI_LABELS.FEMALE.tib)}
                         </button>
@@ -633,18 +676,18 @@ export default function App() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between px-1">
                       <label className="text-[10.5px] font-black text-stone-400 uppercase">{t(UI_LABELS.BIRTH_SYSTEM.en, UI_LABELS.BIRTH_SYSTEM.tib)}</label>
-                      <div className="flex bg-white rounded-full p-1 border border-stone-100 shadow-sm">
+                      <div className="flex bg-white/5 rounded-[10px] p-1">
                         {['International', 'Tibetan'].map((s) => (
                           <button
                             key={s}
                             type="button"
                             onClick={() => setUserData(prev => ({ ...prev, birthDateSystem: s as any }))}
                             className={cn(
-                              "px-3 py-1 rounded-full text-[9.5px] font-black uppercase tracking-widest transition-all",
-                              (userData.birthDateSystem || 'International') === s ? "bg-stone-900 text-white shadow-md" : "text-stone-400"
+                              "px-3 py-1 rounded-[10px] text-[9.5px] font-black uppercase tracking-widest transition-all",
+                              (userData.birthDateSystem || 'International') === s ? "bg-white/10 text-white" : "text-stone-500"
                             )}
                           >
-                             {s === 'International' ? t(UI_LABELS.INTERNATIONAL.en, UI_LABELS.INTERNATIONAL.tib) : t(UI_LABELS.TIBETAN_CALENDAR.en, UI_LABELS.TIBETAN_CALENDAR.tib)}
+                            {s === 'International' ? t(UI_LABELS.INTERNATIONAL.en, UI_LABELS.INTERNATIONAL.tib) : t(UI_LABELS.TIBETAN_CALENDAR.en, UI_LABELS.TIBETAN_CALENDAR.tib)}
                           </button>
                         ))}
                       </div>
@@ -657,36 +700,36 @@ export default function App() {
                       {(userData.birthDateSystem || 'International') === 'Tibetan' ? (
                         <div className="grid grid-cols-3 gap-3">
                           <div className="space-y-1 relative">
-                            <label className="text-[8.5px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.BIRTH_YEAR_AD.en, UI_LABELS.BIRTH_YEAR_AD.tib)}</label>
+                            <label className="text-[8.5px] font-black text-stone-500 uppercase px-1">{t(UI_LABELS.BIRTH_YEAR_AD.en, UI_LABELS.BIRTH_YEAR_AD.tib)}</label>
                             <input
                               type="number"
                               placeholder="e.g., 1987"
                               value={userData.tibetanBirthYear || ''}
                               onChange={(e) => handleTibetanYearChange(parseInt(e.target.value))}
-                              className="w-full bg-white border border-stone-100 shadow-sm rounded-2xl p-4 text-[12.5px] font-bold outline-none focus:ring-2 focus:ring-saffron/20"
+                              className="w-full bg-white/5 rounded-[10px] p-4 text-[12.5px] font-bold text-white outline-none focus:ring-2 focus:ring-gold/20"
                             />
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[8.5px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.MONTH_LABEL.en, UI_LABELS.MONTH_LABEL.tib)}</label>
+                            <label className="text-[8.5px] font-black text-stone-500 uppercase px-1">{t(UI_LABELS.MONTH_LABEL.en, UI_LABELS.MONTH_LABEL.tib)}</label>
                             <select
                               value={userData.tibetanBirthMonth || 1}
                               onChange={(e) => setUserData(prev => ({ ...prev, tibetanBirthMonth: parseInt(e.target.value) }))}
-                              className="w-full bg-white border border-stone-100 shadow-sm rounded-2xl p-4 text-[12.5px] font-bold outline-none focus:ring-2 focus:ring-saffron/20 appearance-none"
+                              className="w-full bg-white/5 rounded-[10px] p-4 text-[12.5px] font-bold text-white outline-none focus:ring-2 focus:ring-gold/20 appearance-none"
                             >
                               {Array.from({ length: 12 }, (_, i) => (
-                                <option key={i + 1} value={i + 1}>{toTibetanNumerals(i + 1)}</option>
+                                <option key={i + 1} value={i + 1} className="bg-midnight text-white">{toTibetanNumerals(i + 1)}</option>
                               ))}
                             </select>
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[8.5px] font-black text-stone-400 uppercase px-1">{t(UI_LABELS.LUNAR_DAY_LABEL.en, UI_LABELS.LUNAR_DAY_LABEL.tib)}</label>
+                            <label className="text-[8.5px] font-black text-stone-500 uppercase px-1">{t(UI_LABELS.LUNAR_DAY_LABEL.en, UI_LABELS.LUNAR_DAY_LABEL.tib)}</label>
                             <select
                               value={userData.tibetanBirthDay || 1}
                               onChange={(e) => setUserData(prev => ({ ...prev, tibetanBirthDay: parseInt(e.target.value) }))}
-                              className="w-full bg-white border border-stone-100 shadow-sm rounded-2xl p-4 text-[12.5px] font-bold outline-none focus:ring-2 focus:ring-saffron/20 appearance-none"
+                              className="w-full bg-white/5 rounded-[10px] p-4 text-[12.5px] font-bold text-white outline-none focus:ring-2 focus:ring-gold/20 appearance-none"
                             >
                               {Array.from({ length: 30 }, (_, i) => (
-                                <option key={i + 1} value={i + 1}>{toTibetanNumerals(i + 1)}</option>
+                                <option key={i + 1} value={i + 1} className="bg-midnight text-white">{toTibetanNumerals(i + 1)}</option>
                               ))}
                             </select>
                           </div>
@@ -696,7 +739,7 @@ export default function App() {
                           type="date"
                           value={userData.birthDate || ''}
                           onChange={(e) => handleBirthDateChange(e.target.value)}
-                          className="w-full bg-white border border-stone-100 shadow-sm rounded-2xl p-4 text-[13.5px] font-bold focus:ring-2 focus:ring-saffron/20 outline-none"
+                          className="w-full bg-white/5 rounded-[10px] p-4 text-[13.5px] font-bold text-white focus:ring-2 focus:ring-gold/20 outline-none"
                         />
                       )}
                     </div>
@@ -712,12 +755,12 @@ export default function App() {
                         <select
                           value={userData.birthAnimal || ''}
                           onChange={(e) => setUserData(prev => ({ ...prev, birthAnimal: e.target.value }))}
-                          className="w-full bg-white border border-stone-100 shadow-sm rounded-2xl p-4 text-[13.5px] font-bold appearance-none outline-none focus:ring-2 focus:ring-saffron/20"
+                          className="w-full bg-white/5 rounded-[10px] p-4 text-[13.5px] font-bold text-white appearance-none outline-none focus:ring-2 focus:ring-gold/20"
                         >
-                          <option value="">{t(UI_LABELS.SELECT_SIGN.en, UI_LABELS.SELECT_SIGN.tib)}</option>
-                          {ANIMALS.map(a => <option key={a} value={a}>{ANIMAL_ICONS[a]} {a}</option>)}
+                          <option value="" className="bg-midnight text-stone-500">{t(UI_LABELS.SELECT_SIGN.en, UI_LABELS.SELECT_SIGN.tib)}</option>
+                          {ANIMALS.map(a => <option key={a} value={a} className="bg-midnight text-white">{ANIMAL_ICONS[a]} {a}</option>)}
                         </select>
-                        <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 pointer-events-none" />
+                        <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
                       </div>
                     </div>
 
@@ -730,22 +773,22 @@ export default function App() {
                         <select
                           value={userData.birthElement || ''}
                           onChange={(e) => setUserData(prev => ({ ...prev, birthElement: e.target.value }))}
-                          className="w-full bg-white border border-stone-100 shadow-sm rounded-2xl p-4 text-[13.5px] font-bold appearance-none outline-none focus:ring-2 focus:ring-saffron/20"
+                          className="w-full bg-white/5 rounded-[10px] p-4 text-[13.5px] font-bold text-white appearance-none outline-none focus:ring-2 focus:ring-gold/20"
                         >
-                          <option value="">{t(UI_LABELS.SELECT_ELEMENT.en, UI_LABELS.SELECT_ELEMENT.tib)}</option>
-                          {ELEMENTS.map(e => <option key={e} value={e}>{e}</option>)}
+                          <option value="" className="bg-midnight text-stone-500">{t(UI_LABELS.SELECT_ELEMENT.en, UI_LABELS.SELECT_ELEMENT.tib)}</option>
+                          {ELEMENTS.map(e => <option key={e} value={e} className="bg-midnight text-white">{e}</option>)}
                         </select>
-                        <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 pointer-events-none" />
+                        <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="pt-8">
+              <div className="pt-4">
                 <button
                   onClick={() => setOnboardingStep(3)}
-                  className="w-full bg-stone-950 text-white p-5 rounded-3xl font-black uppercase tracking-widest text-[13.5px] shadow-xl shadow-stone-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  className="w-full bg-gold text-midnight p-3 rounded-[10px] font-black uppercase tracking-widest text-[13.5px] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
                   {t(UI_LABELS.CONTINUE_DISCOVERY.en, UI_LABELS.CONTINUE_DISCOVERY.tib)}
                   <ChevronRight size={16} />
@@ -757,61 +800,58 @@ export default function App() {
           {onboardingStep === 3 && (
             <motion.div
               key="step3"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="flex-1 flex flex-col p-8 pt-16 space-y-10 overflow-y-auto"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              className="flex-1 flex flex-col p-6 pt-12 space-y-10 overflow-y-auto relative z-10 items-center text-center"
             >
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <button onClick={() => setOnboardingStep(2)} className="p-2 -ml-2 text-stone-400 hover:text-stone-900 transition-colors">
-                    <ChevronLeft size={20} />
-                  </button>
-                  <div className="flex gap-1.5">
-                    <div className="w-2 h-1 rounded-full bg-saffron/30" />
-                    <div className="w-2 h-1 rounded-full bg-saffron/30" />
-                    <div className="w-10 h-1 rounded-full bg-saffron" />
-                    <div className="w-2 h-1 rounded-full bg-stone-200" />
-                  </div>
+              <div className="w-full flex items-center justify-between absolute top-6 left-0 px-6">
+                <button onClick={() => setOnboardingStep(2)} className="p-2 -ml-2 text-stone-500 hover:text-white transition-colors">
+                  <ChevronLeft size={24} />
+                </button>
+                <div className="flex gap-2">
+                  <div className="w-2 h-2 rounded-full bg-gold/30" />
+                  <div className="w-2 h-2 rounded-full bg-gold/30" />
+                  <div className="w-2 h-2 rounded-full bg-gold" />
+                  <div className="w-2 h-2 rounded-full bg-white/20" />
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <h2 className="text-[25.5px] font-serif font-black text-stone-950">{t(UI_LABELS.ASTRO_SCIENCE.en, UI_LABELS.ASTRO_SCIENCE.tib)}</h2>
-                  <p className="text-[13.5px] text-stone-500 font-medium leading-relaxed">
+              <div className="max-w-xs w-full space-y-12 pt-8">
+                <div className="space-y-4">
+                  <h2 className="text-[28px] font-serif font-black text-white leading-tight">{t(UI_LABELS.ASTRO_SCIENCE.en, UI_LABELS.ASTRO_SCIENCE.tib)}</h2>
+                  <p className="text-[13px] text-stone-400 font-medium leading-relaxed">
                     {t(UI_LABELS.ASTRO_SCIENCE_DESC.en, UI_LABELS.ASTRO_SCIENCE_DESC.tib)}
                   </p>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="bg-white p-6 rounded-3xl border border-stone-100 space-y-3">
-                    <div className="w-10 h-10 rounded-2xl bg-turquoise/10 flex items-center justify-center text-turquoise">
-                      <Compass size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-[15.5px] font-bold text-stone-900">{t(UI_LABELS.ATMOSPHERIC_ALMANAC.en, UI_LABELS.ATMOSPHERIC_ALMANAC.tib)}</h4>
-                      <p className="text-[12.5px] text-stone-500 italic">{t(UI_LABELS.ATMOSPHERIC_ALMANAC_DESC.en, UI_LABELS.ATMOSPHERIC_ALMANAC_DESC.tib)}</p>
+                <div className="space-y-10">
+                  <div className="flex flex-col items-center space-y-4">
+                    <Compass size={32} className="text-turquoise" />
+                    <div className="space-y-2">
+                      <h4 className="text-[16px] font-serif font-bold text-white">{t(UI_LABELS.ATMOSPHERIC_ALMANAC.en, UI_LABELS.ATMOSPHERIC_ALMANAC.tib)}</h4>
+                      <p className="text-[13px] text-stone-500 italic leading-relaxed">{t(UI_LABELS.ATMOSPHERIC_ALMANAC_DESC.en, UI_LABELS.ATMOSPHERIC_ALMANAC_DESC.tib)}</p>
                     </div>
                   </div>
-                  <div className="bg-white p-6 rounded-3xl border border-stone-100 space-y-3">
-                    <div className="w-10 h-10 rounded-2xl bg-saffron/10 flex items-center justify-center text-saffron">
-                      <Sparkles size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-[15.5px] font-bold text-stone-900">{t(UI_LABELS.PERSONAL_RESONANCE.en, UI_LABELS.PERSONAL_RESONANCE.tib)}</h4>
-                      <p className="text-[12.5px] text-stone-500 italic">{t(UI_LABELS.PERSONAL_RESONANCE_DESC.en, UI_LABELS.PERSONAL_RESONANCE_DESC.tib)}</p>
+                  
+                  <div className="flex flex-col items-center space-y-4">
+                    <Sparkles size={32} className="text-gold" />
+                    <div className="space-y-2">
+                      <h4 className="text-[16px] font-serif font-bold text-white">{t(UI_LABELS.PERSONAL_RESONANCE.en, UI_LABELS.PERSONAL_RESONANCE.tib)}</h4>
+                      <p className="text-[13px] text-stone-500 italic leading-relaxed">{t(UI_LABELS.PERSONAL_RESONANCE_DESC.en, UI_LABELS.PERSONAL_RESONANCE_DESC.tib)}</p>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="pt-4">
-                <button
-                  onClick={() => setOnboardingStep(4)}
-                  className="w-full bg-stone-950 text-white p-5 rounded-3xl font-black uppercase tracking-widest text-[13.5px] shadow-xl shadow-stone-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                >
-                  {t(UI_LABELS.SACRED_PLANNING.en, UI_LABELS.SACRED_PLANNING.tib)}
-                  <ChevronRight size={16} />
-                </button>
+                <div className="pt-10">
+                  <button
+                    onClick={() => setOnboardingStep(4)}
+                    className="w-full text-gold py-4 font-black uppercase tracking-widest text-[14px] hover:text-white transition-colors flex items-center justify-center gap-2"
+                  >
+                    {t(UI_LABELS.SACRED_PLANNING.en, UI_LABELS.SACRED_PLANNING.tib)}
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}
@@ -819,61 +859,58 @@ export default function App() {
           {onboardingStep === 4 && (
             <motion.div
               key="step4"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="flex-1 flex flex-col p-8 pt-16 space-y-10 overflow-y-auto"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              className="flex-1 flex flex-col p-6 pt-12 space-y-10 overflow-y-auto relative z-10 items-center text-center"
             >
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <button onClick={() => setOnboardingStep(3)} className="p-2 -ml-2 text-stone-400 hover:text-stone-900 transition-colors">
-                    <ChevronLeft size={20} />
-                  </button>
-                  <div className="flex gap-1.5">
-                    <div className="w-2 h-1 rounded-full bg-saffron/30" />
-                    <div className="w-2 h-1 rounded-full bg-saffron/30" />
-                    <div className="w-2 h-1 rounded-full bg-saffron/30" />
-                    <div className="w-10 h-1 rounded-full bg-saffron" />
-                  </div>
+              <div className="w-full flex items-center justify-between absolute top-6 left-0 px-6">
+                <button onClick={() => setOnboardingStep(3)} className="p-2 -ml-2 text-stone-500 hover:text-white transition-colors">
+                  <ChevronLeft size={24} />
+                </button>
+                <div className="flex gap-2">
+                  <div className="w-2 h-2 rounded-full bg-gold/30" />
+                  <div className="w-2 h-2 rounded-full bg-gold/30" />
+                  <div className="w-2 h-2 rounded-full bg-gold/30" />
+                  <div className="w-2 h-2 rounded-full bg-gold" />
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <h2 className="text-[25.5px] font-serif font-black text-stone-950">{t(UI_LABELS.DAILY_DISCIPLINE.en, UI_LABELS.DAILY_DISCIPLINE.tib)}</h2>
-                  <p className="text-[13.5px] text-stone-500 font-medium leading-relaxed">
+              <div className="max-w-xs w-full space-y-12 pt-8">
+                <div className="space-y-4">
+                  <h2 className="text-[28px] font-serif font-black text-white leading-tight">{t(UI_LABELS.DAILY_DISCIPLINE.en, UI_LABELS.DAILY_DISCIPLINE.tib)}</h2>
+                  <p className="text-[13px] text-stone-400 font-medium leading-relaxed">
                     {t(UI_LABELS.DAILY_DISCIPLINE_DESC.en, UI_LABELS.DAILY_DISCIPLINE_DESC.tib)}
                   </p>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="bg-white p-6 rounded-3xl border border-stone-100 space-y-3">
-                    <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-                      <Bell size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-[15.5px] font-bold text-stone-900">{t(UI_LABELS.DUCHEN_FESTIVALS.en, UI_LABELS.DUCHEN_FESTIVALS.tib)}</h4>
-                      <p className="text-[12.5px] text-stone-500 italic">{t(UI_LABELS.DUCHEN_FESTIVALS_DESC.en, UI_LABELS.DUCHEN_FESTIVALS_DESC.tib)}</p>
+                <div className="space-y-10">
+                  <div className="flex flex-col items-center space-y-4">
+                    <Bell size={32} className="text-emerald-400" />
+                    <div className="space-y-2">
+                      <h4 className="text-[16px] font-serif font-bold text-white">{t(UI_LABELS.DUCHEN_FESTIVALS.en, UI_LABELS.DUCHEN_FESTIVALS.tib)}</h4>
+                      <p className="text-[13px] text-stone-500 italic leading-relaxed">{t(UI_LABELS.DUCHEN_FESTIVALS_DESC.en, UI_LABELS.DUCHEN_FESTIVALS_DESC.tib)}</p>
                     </div>
                   </div>
-                  <div className="bg-white p-6 rounded-3xl border border-stone-100 space-y-3">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600">
-                      <StickyNote size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-[15.5px] font-bold text-stone-900">{t(UI_LABELS.PRACTITIONER_LOGS.en, UI_LABELS.PRACTITIONER_LOGS.tib)}</h4>
-                      <p className="text-[12.5px] text-stone-500 italic">{t(UI_LABELS.PRACTITIONER_LOGS_DESC.en, UI_LABELS.PRACTITIONER_LOGS_DESC.tib)}</p>
+                  
+                  <div className="flex flex-col items-center space-y-4">
+                    <StickyNote size={32} className="text-amber-400" />
+                    <div className="space-y-2">
+                      <h4 className="text-[16px] font-serif font-bold text-white">{t(UI_LABELS.PRACTITIONER_LOGS.en, UI_LABELS.PRACTITIONER_LOGS.tib)}</h4>
+                      <p className="text-[13px] text-stone-500 italic leading-relaxed">{t(UI_LABELS.PRACTITIONER_LOGS_DESC.en, UI_LABELS.PRACTITIONER_LOGS_DESC.tib)}</p>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="pt-4">
-                <button
-                  onClick={() => setUserData(prev => ({ ...prev, onboardingComplete: true }))}
-                  className="w-full bg-saffron text-white p-5 rounded-3xl font-black uppercase tracking-widest text-[13.5px] shadow-xl shadow-saffron/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                >
-                  {t(UI_LABELS.ENTER_SANCTUARY.en, UI_LABELS.ENTER_SANCTUARY.tib)}
-                  <Check size={16} />
-                </button>
+                <div className="pt-10">
+                  <button
+                    onClick={() => setUserData(prev => ({ ...prev, onboardingComplete: true }))}
+                    className="w-full text-gold py-4 font-black uppercase tracking-widest text-[14px] hover:text-white transition-colors flex items-center justify-center gap-2"
+                  >
+                    {t(UI_LABELS.ENTER_SANCTUARY.en, UI_LABELS.ENTER_SANCTUARY.tib)}
+                    <Check size={18} />
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}
@@ -897,19 +934,19 @@ export default function App() {
         className="flex-1 overflow-y-auto pb-24 scroll-smooth"
       >
         {/* Global Branding Header */}
-        <motion.header 
+        <motion.header
           initial={{ y: 0, opacity: 1 }}
-          animate={{ 
+          animate={{
             y: showHeader ? 0 : -100,
             opacity: showHeader ? 1 : 0
           }}
           transition={{ duration: 0.4, ease: "easeInOut" }}
           className={cn(
             "fixed top-0 inset-x-0 z-[50]",
-            scrollY > 20 ? "glass py-3 border-b border-white/5" : "bg-transparent py-6"
+            scrollY > 20 ? "glass py-3 border-b border-white/5" : "bg-transparent py-4"
           )}
         >
-          <div className="max-w-lg mx-auto px-6 flex items-center justify-between">
+          <div className="max-w-lg mx-auto px-4 flex items-center justify-between">
 
             {/* Profile Identity */}
             <button
@@ -918,7 +955,7 @@ export default function App() {
             >
               {/* Avatar */}
               <div className="relative">
-                <div className="w-10 h-10 rounded-2xl glass border border-white/10 flex items-center justify-center text-[20px] shadow-lg group-hover:border-gold/30 transition-colors">
+                <div className="w-10 h-10 flex items-center justify-center text-[20px] text-stone-500 group-hover:text-gold transition-colors">
                   {userData.birthAnimal ? ANIMAL_ICONS[userData.birthAnimal] : '🧘'}
                 </div>
                 {/* Online dot */}
@@ -937,19 +974,107 @@ export default function App() {
                 </span>
               </div>
             </button>
-            
+
             <div className="flex items-center gap-2">
+              <div className="relative">
+                <button
+                  onClick={() => setIsNotificationSheetOpen(!isNotificationSheetOpen)}
+                  className="p-2 text-stone-400 hover:text-gold transition-colors relative"
+                >
+                  <Bell size={18} />
+                  {upcomingEvents.length > 0 && (
+                    <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-gold rounded-full glow" />
+                  )}
+                </button>
+
+                <AnimatePresence>
+                  {isNotificationSheetOpen && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-40" 
+                        onClick={() => setIsNotificationSheetOpen(false)} 
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95, transformOrigin: 'top right' }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="absolute right-0 mt-3 w-80 max-h-[480px] bg-midnight/95 backdrop-blur-xl border border-white/10 rounded-[14px] shadow-2xl z-50 overflow-hidden flex flex-col"
+                      >
+                        <div className="p-4 border-b border-white/5 bg-white/5 flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-gold">
+                            <Sparkles size={14} />
+                            <span className="text-[11px] font-black uppercase tracking-widest">{t('Sacred Alerts', 'བརྡ་ལེན།')}</span>
+                          </div>
+                          {upcomingEvents.length > 0 && (
+                            <span className="text-[9px] font-black bg-gold/20 text-gold px-2 py-0.5 rounded-full uppercase">
+                              {n(upcomingEvents.length)} {t('Events', 'བྱུང་བ།')}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto no-scrollbar p-2 space-y-1">
+                          {upcomingEvents.length === 0 ? (
+                            <div className="py-12 text-center space-y-3">
+                              <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-stone-700 mx-auto">
+                                <Bell size={18} strokeWidth={1} />
+                              </div>
+                              <p className="text-[12px] text-stone-500 font-serif italic">{t('All is quiet today.', 'དེ་རིང་ཅི་ཡང་མེད།')}</p>
+                            </div>
+                          ) : (
+                            upcomingEvents.map((event, i) => (
+                              <button
+                                key={i}
+                                onClick={() => {
+                                  setSelectedDate(event.date);
+                                  setCurrentDate(event.date);
+                                  setActiveTab('calendar');
+                                  setCalendarView('month');
+                                  setIsNotificationSheetOpen(false);
+                                }}
+                                className="w-full p-3 hover:bg-white/5 rounded-[10px] transition-all flex items-start gap-3 group text-left"
+                              >
+                                <div className={cn(
+                                  "w-8 h-8 rounded-[8px] flex-shrink-0 flex items-center justify-center",
+                                  event.type === 'festival' ? "bg-gold/15 text-gold" : "bg-turquoise/15 text-turquoise"
+                                )}>
+                                  {event.type === 'festival' ? <Star size={14} /> : <StickyNote size={14} />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <p className="text-[12.5px] font-bold text-white truncate group-hover:text-gold transition-colors">{t(event.title, event.titleTib)}</p>
+                                    <span className="text-[9px] font-black text-stone-500 uppercase flex-shrink-0">{n(format(event.date, 'MMM d'))}</span>
+                                  </div>
+                                  <p className="text-[10.5px] text-stone-500 truncate leading-tight mt-0.5">
+                                    {event.note ? event.note : t('Sacred observance day', 'རྩ་ཆེན་གྱི་དུས་བཟང་།') }
+                                  </p>
+                                </div>
+                              </button>
+                            ))
+                          )}
+                        </div>
+
+                        {upcomingEvents.length > 0 && (
+                          <div className="p-3 bg-white/5 border-t border-white/5 text-center">
+                            <p className="text-[9px] font-black text-stone-600 uppercase tracking-widest">{t('Celestial Guidance for 2026', '༢༠༢༦ ལོའི་ལམ་སྟོན།')}</p>
+                          </div>
+                        )}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+
               <button
                 onClick={() => setIsSearchSheetOpen(true)}
-                className="p-2.5 bg-white/5 rounded-2xl text-stone-400 hover:text-gold transition-colors"
+                className="p-2 text-stone-400 hover:text-gold transition-colors"
               >
                 <Search size={18} />
               </button>
               <button
-                onClick={() => setIsSettingsSheetOpen(true)}
-                className="p-2.5 bg-white/5 rounded-2xl text-stone-400 hover:text-gold transition-colors"
+                onClick={() => setIsReferenceSheetOpen(true)}
+                className="p-2 text-stone-400 hover:text-gold transition-colors"
               >
-                <Settings size={18} />
+                <Info size={18} />
               </button>
             </div>
           </div>
@@ -965,18 +1090,8 @@ export default function App() {
               className="max-w-lg mx-auto pb-32 pt-28"
             >
               {/* Modern Native Segmented Control */}
-              <div className="px-6 mb-8">
-                <div className="relative flex bg-stone-900/50 p-1 rounded-2xl backdrop-blur-md border border-white/5">
-                  <motion.div 
-                    layoutId="segmented-pill"
-                    className="absolute inset-1 bg-white/10 rounded-xl shadow-sm z-0"
-                    initial={false}
-                    animate={{ 
-                      x: homeTab === 'guidance' ? 0 : homeTab === 'astro' ? '100%' : '200%' 
-                    }}
-                    transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
-                    style={{ width: 'calc(33.33% - 8px)' }}
-                  />
+              <div className="px-4 mb-8">
+                <div className="relative flex bg-stone-900/50 p-1 rounded-[10px] backdrop-blur-md border border-white/5">
                   {[
                     { id: 'guidance', label: t(UI_LABELS.DAY.en, UI_LABELS.DAY.tib), icon: <Sun size={14} /> },
                     { id: 'astro', label: t(UI_LABELS.ASTRO.en, UI_LABELS.ASTRO.tib), icon: <Compass size={14} /> },
@@ -986,26 +1101,35 @@ export default function App() {
                       key={sub.id}
                       onClick={() => setHomeTab(sub.id as HomeTab)}
                       className={cn(
-                        "relative z-10 flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[11.5px] font-black uppercase tracking-widest transition-colors duration-300",
+                        "relative z-10 flex-1 flex items-center justify-center gap-2 py-3 rounded-[10px] text-[11.5px] font-black uppercase tracking-widest transition-colors duration-300",
                         homeTab === sub.id ? "text-white" : "text-stone-500"
                       )}
                     >
-                      {sub.icon}
-                      <span>{sub.label}</span>
+                      {homeTab === sub.id && (
+                        <motion.div
+                          layoutId="home-segmented-pill"
+                          className="absolute inset-0 bg-white/10 rounded-[10px] shadow-sm"
+                          transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
+                        />
+                      )}
+                      <span className="relative z-10 flex items-center gap-2">
+                        {sub.icon}
+                        <span>{sub.label}</span>
+                      </span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              <motion.div 
+              <motion.div
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.2}
                 onDragEnd={handleHomeSwipe}
-                className="px-6 space-y-8 touch-pan-y"
+                className="px-4 space-y-8 touch-pan-y"
               >
                 {homeTab === 'guidance' && (
-                  <TodayTab 
+                  <TodayTab
                     tibCurrent={tibCurrent}
                     userData={userData}
                     t={t}
@@ -1024,7 +1148,7 @@ export default function App() {
                 )}
 
                 {homeTab === 'astro' && (
-                  <AstroTab 
+                  <AstroTab
                     userData={userData}
                     yearlyHoroscope={yearlyHoroscope}
                     powerDays={powerDays}
@@ -1036,7 +1160,7 @@ export default function App() {
                 )}
 
                 {homeTab === 'days' && (
-                  <SacredTab 
+                  <SacredTab
                     userData={userData}
                     setUserData={setUserData}
                     sortedFestivals={sortedFestivals}
@@ -1063,37 +1187,27 @@ export default function App() {
               className="max-w-lg mx-auto pb-32 pt-28"
             >
               {/* Modern Calendar Header */}
-              <header className="px-6 flex flex-col gap-6 mb-10">
+              <header className="px-4 flex flex-col gap-6 mb-10">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <h2 className="text-[10px] font-black text-gold uppercase tracking-widest leading-none">
                       {t('Tib. Year', 'བོད་ལོ།')} {n(tibSelected?.year)} • {tibSelected?.yearName}
                     </h2>
-                    <h2 className="text-[32px] font-serif font-black tracking-tight text-white">
-                      {calendarView === 'month' 
-                        ? n(format(currentDate, 'MMMM yyyy')) 
-                        : calendarView === 'week' 
-                          ? t(UI_LABELS.WEEK_VIEW?.en || 'Week View', UI_LABELS.WEEK_VIEW?.tib || 'བདུན་ཕྲག་གི་བགྲོད་པ།')
-                          : t(UI_LABELS.ANNUAL_CYCLE?.en || 'Annual Cycle', UI_LABELS.ANNUAL_CYCLE?.tib || 'ལོ་འཁོར་མོ་འཁོར།')}
+                    <h2 className="text-[32px] font-serif font-black tracking-tight text-white leading-tight">
+                      {calendarView === 'month'
+                        ? n(format(currentDate, 'MMMM yyyy'))
+                        : calendarView === 'week'
+                          ? <>{t('Week', 'བདུན་ཕྲག')} {n(getWeekOfMonth(currentDate))} <span className="text-[18px] text-stone-400 font-bold ml-2">{n(format(currentDate, 'MMM yyyy'))}</span></>
+                          : <>{format(currentDate, 'yyyy')}</>}
                     </h2>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={handlePrevMonth} className="p-3 bg-white/5 rounded-2xl active:scale-90 transition-transform"><ChevronLeft size={20} /></button>
-                    <button onClick={handleNextMonth} className="p-3 bg-white/5 rounded-2xl active:scale-90 transition-transform"><ChevronRight size={20} /></button>
+                    <button onClick={handlePrevMonth} className="p-3 bg-white/5 rounded-[10px] active:scale-90 transition-transform"><ChevronLeft size={20} /></button>
+                    <button onClick={handleNextMonth} className="p-3 bg-white/5 rounded-[10px] active:scale-90 transition-transform"><ChevronRight size={20} /></button>
                   </div>
                 </div>
 
-                <div className="relative flex bg-stone-900/50 p-1 rounded-2xl backdrop-blur-md border border-white/5">
-                  <motion.div 
-                    layoutId="calendar-pill"
-                    className="absolute inset-1 bg-white/10 rounded-xl shadow-sm z-0"
-                    initial={false}
-                    animate={{ 
-                      x: calendarView === 'week' ? 0 : calendarView === 'month' ? '100%' : '200%' 
-                    }}
-                    transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
-                    style={{ width: 'calc(33.33% - 8px)' }}
-                  />
+                <div className="relative flex bg-stone-900/50 p-1 rounded-[10px] backdrop-blur-md border border-white/5">
                   {[
                     { id: 'week', label: t('Week', 'བདུན་ཕྲག') },
                     { id: 'month', label: t('Month', 'ཟླ་བ།') },
@@ -1103,17 +1217,24 @@ export default function App() {
                       key={v.id}
                       onClick={() => setCalendarView(v.id as 'week' | 'month' | 'year')}
                       className={cn(
-                        "relative z-10 flex-1 py-3 rounded-xl text-[11.5px] font-black uppercase tracking-widest transition-colors duration-300",
+                        "relative z-10 flex-1 py-3 rounded-[10px] text-[11.5px] font-black uppercase tracking-widest transition-colors duration-300",
                         calendarView === v.id ? "text-white" : "text-stone-500"
                       )}
                     >
-                      {v.label}
+                      {calendarView === v.id && (
+                        <motion.div
+                          layoutId="calendar-segmented-pill"
+                          className="absolute inset-0 bg-white/10 rounded-[10px] shadow-sm"
+                          transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
+                        />
+                      )}
+                      <span className="relative z-10">{v.label}</span>
                     </button>
                   ))}
                 </div>
               </header>
 
-              <motion.div 
+              <motion.div
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.2}
@@ -1121,8 +1242,8 @@ export default function App() {
                 className="flex-1 flex flex-col space-y-6 touch-pan-y"
               >
                 {calendarView === 'week' && (
-                  <div className="px-6 space-y-6">
-                    <WeekView 
+                  <div className="px-4 space-y-6">
+                    <WeekView
                       weekDays={weekDays}
                       selectedDate={selectedDate}
                       setSelectedDate={setSelectedDate}
@@ -1132,29 +1253,15 @@ export default function App() {
                       userData={userData}
                       t={t}
                       n={n}
+                      setIsNoteSheetOpen={setIsNoteSheetOpen}
+                      setUserData={setUserData}
                     />
-
-                    {/* Jump to Today FAB */}
-                    <AnimatePresence>
-                      {showJumpToday && (
-                        <motion.button
-                          initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.8, y: 20 }}
-                          onClick={scrollToToday}
-                          className="fixed bottom-32 right-6 p-4 bg-gold text-midnight rounded-2xl shadow-2xl z-50 flex items-center gap-3 active:scale-95 transition-transform"
-                        >
-                          <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                          <span className="text-[11.5px] font-black uppercase tracking-widest">{t('Today', 'དེ་རིང་།')}</span>
-                        </motion.button>
-                      )}
-                    </AnimatePresence>
                   </div>
                 )}
 
                 {calendarView === 'month' && (
-                  <div className="px-6 space-y-6 pb-24">
-                    <MonthView 
+                  <div className="px-4 space-y-6 pb-24">
+                    <MonthView
                       currentDate={currentDate}
                       selectedDate={selectedDate}
                       setSelectedDate={setSelectedDate}
@@ -1169,7 +1276,7 @@ export default function App() {
                       userData={userData}
                     />
 
-                    <DayDetailCard 
+                    <DayDetailCard
                       selectedDate={selectedDate}
                       tibSelected={tibSelected}
                       userData={userData}
@@ -1182,8 +1289,8 @@ export default function App() {
                 )}
 
                 {calendarView === 'year' && (
-                  <div className="px-6 space-y-6 pb-24">
-                    <YearView 
+                  <div className="px-4 space-y-6 pb-24">
+                    <YearView
                       tibCurrent={tibView}
                       t={t}
                       n={n}
@@ -1200,20 +1307,20 @@ export default function App() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="px-6 py-10 max-w-lg mx-auto pb-32 space-y-8 pt-28"
+              className="px-4 py-5 max-w-lg mx-auto pb-32 space-y-8 pt-28"
             >
               {/* Celestial Profile Header */}
               <header className="flex flex-col items-center justify-center gap-6 mb-10 pt-4 relative">
                 <EndlessKnot className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 text-white/5 pointer-events-none" />
-                
+
                 <button
                   onClick={() => setIsProfileSheetOpen(true)}
                   className="relative group active:scale-95 transition-transform z-10"
                 >
-                  <div className="w-28 h-28 rounded-[40px] glass flex items-center justify-center text-[48px] shadow-2xl border border-white/10 glow group-hover:border-gold/30 transition-colors">
+                  <div className="flex items-center justify-center text-[48px] text-stone-400 group-hover:text-gold transition-colors">
                     {userData.birthAnimal ? ANIMAL_ICONS[userData.birthAnimal] : '🧘'}
                   </div>
-                  <div className="absolute -right-2 -bottom-2 w-10 h-10 bg-gold rounded-2xl flex items-center justify-center text-midnight border-4 border-midnight shadow-xl glow">
+                  <div className="absolute -right-2 -bottom-2 w-10 h-10 flex items-center justify-center text-gold">
                     <Pencil size={16} strokeWidth={3} />
                   </div>
                 </button>
@@ -1240,7 +1347,7 @@ export default function App() {
               {/* Profile Info - Celestial Grid */}
               <section className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="glass p-6 rounded-[32px] border border-white/5 space-y-4">
+                  <div className="glass p-4 rounded-[10px] border border-white/5 space-y-4">
                     <div className="flex items-center gap-3">
                       <User size={16} className="text-stone-700" />
                       <p className="text-[9px] font-black text-stone-600 uppercase tracking-widest leading-none">{t(UI_LABELS.GENDER_ORIENTATION.en, UI_LABELS.GENDER_ORIENTATION.tib)}</p>
@@ -1250,7 +1357,7 @@ export default function App() {
                     </p>
                   </div>
 
-                  <div className="glass p-6 rounded-[32px] border border-white/5 space-y-4">
+                  <div className="glass p-4 rounded-[10px] border border-white/5 space-y-4">
                     <div className="flex items-center gap-3">
                       <Zap size={16} className="text-stone-700" />
                       <p className="text-[9px] font-black text-stone-600 uppercase tracking-widest leading-none">{t(UI_LABELS.PRIMARY_ELEMENT.en, UI_LABELS.PRIMARY_ELEMENT.tib)}</p>
@@ -1261,7 +1368,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="glass p-6 rounded-[32px] border border-white/5 space-y-4 relative overflow-hidden">
+                <div className="glass p-4 rounded-[10px] border border-white/5 space-y-4 relative overflow-hidden">
                   <div className="flex items-center gap-3">
                     <CalendarIcon size={16} className="text-stone-700" />
                     <p className="text-[9px] font-black text-stone-600 uppercase tracking-widest leading-none">{t(UI_LABELS.BIRTH_DATE_LABEL.en, UI_LABELS.BIRTH_DATE_LABEL.tib)}</p>
@@ -1276,7 +1383,7 @@ export default function App() {
                         : t(UI_LABELS.ESTABLISH_ALIGNMENT.en, UI_LABELS.ESTABLISH_ALIGNMENT.tib))}
                   </p>
                   {convertedGregorian && (
-                    <div className="bg-gold/5 p-3 rounded-2xl border border-gold/10">
+                    <div className="bg-gold/5 p-3 rounded-[10px] border border-gold/10">
                       <p className="text-[11px] text-gold font-bold">
                         {t(`${UI_LABELS.INTERNATIONAL_FORMAT_HINT.en} ${format(convertedGregorian, 'MMMM do, yyyy')}`,
                           `${UI_LABELS.INTERNATIONAL_FORMAT_HINT.tib} ${n(format(convertedGregorian, 'yyyy-MM-dd'))} རེད།`)}
@@ -1291,8 +1398,8 @@ export default function App() {
                 <section className="space-y-6">
                   {/* Dhun-Zur Alert */}
                   {yearlyHoroscope?.isDhunZur && (
-                    <div className="p-5 rounded-3xl bg-red-900/10 border border-red-900/20 flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-2xl bg-red-900/20 flex items-center justify-center text-red-500 shrink-0">
+                    <div className="p-3 rounded-[10px] bg-red-900/10 border border-red-900/20 flex items-start gap-4">
+                      <div className="w-10 h-10 flex items-center justify-center text-red-500 shrink-0">
                         <Info size={20} />
                       </div>
                       <div>
@@ -1305,7 +1412,7 @@ export default function App() {
                   )}
 
                   {/* The Four Vitalities (Scores) */}
-                  <div className="p-6 rounded-[32px] bg-white/5 border border-white/5 text-stone-200 space-y-5">
+                  <div className="p-4 rounded-[10px] bg-white/5 border border-white/5 text-stone-200 space-y-5">
                     <div className="flex items-center justify-between">
                       <h3 className="text-[13.5px] font-black uppercase tracking-widest text-stone-500">{t(UI_LABELS.YEARLY_ENERGY_SCORES.en, UI_LABELS.YEARLY_ENERGY_SCORES.tib)}</h3>
                       <span className="text-[11.5px] font-bold text-gold uppercase tracking-widest">{toTibetanNumerals(2026)} {t(UI_LABELS.FIRE_HORSE_YEAR.en, UI_LABELS.FIRE_HORSE_YEAR.tib)}</span>
@@ -1350,11 +1457,11 @@ export default function App() {
                   {/* Personal Power Days */}
                   <div className="space-y-4">
                     <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] px-1">{t(UI_LABELS.WEEKLY_POWER_DAYS.en, UI_LABELS.WEEKLY_POWER_DAYS.tib)}</h3>
-                    <div className="glass rounded-[32px] border border-white/5 overflow-hidden shadow-xl">
+                    <div className="glass rounded-[10px] border border-white/5 overflow-hidden shadow-xl">
                       <div className="divide-y divide-white/5">
-                        <div className="flex items-center justify-between p-6">
+                        <div className="flex items-center justify-between p-4">
                           <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-2xl bg-emerald-400/10 text-emerald-400 flex items-center justify-center glow shadow-emerald-500/20">
+                            <div className="w-10 h-10 flex items-center justify-center text-emerald-400">
                               <Sparkles size={18} />
                             </div>
                             <div>
@@ -1365,9 +1472,9 @@ export default function App() {
                           <span className="text-[9px] font-black text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full uppercase border border-emerald-400/20">{t(UI_LABELS.BEST.en, UI_LABELS.BEST.tib)}</span>
                         </div>
 
-                        <div className="flex items-center justify-between p-6">
+                        <div className="flex items-center justify-between p-4">
                           <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-2xl bg-blue-400/10 text-blue-400 flex items-center justify-center glow shadow-blue-500/20">
+                            <div className="w-10 h-10 flex items-center justify-center text-blue-400">
                               <Star size={18} />
                             </div>
                             <div>
@@ -1378,9 +1485,9 @@ export default function App() {
                           <span className="text-[9px] font-black text-blue-400 bg-blue-400/10 px-3 py-1 rounded-full uppercase border border-blue-400/20">{t(UI_LABELS.STRONG.en, UI_LABELS.STRONG.tib)}</span>
                         </div>
 
-                        <div className="flex items-center justify-between p-6">
+                        <div className="flex items-center justify-between p-4">
                           <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-2xl bg-red-400/10 text-red-400 flex items-center justify-center glow shadow-red-500/20">
+                            <div className="w-10 h-10 flex items-center justify-center text-red-400">
                               <X size={18} />
                             </div>
                             <div>
@@ -1396,7 +1503,18 @@ export default function App() {
                 </section>
               )}
 
-              <div className="pt-8 text-center opacity-40">
+              {/* Settings Button */}
+              <div className="pt-4 pb-2">
+                <button
+                  onClick={() => setIsSettingsSheetOpen(true)}
+                  className="w-full flex items-center justify-center gap-2 p-4 glass rounded-[10px] border border-white/5 text-stone-400 hover:text-white transition-colors"
+                >
+                  <Settings size={18} />
+                  <span className="text-[12px] font-black uppercase tracking-widest">{t(UI_LABELS.SETTINGS.en, UI_LABELS.SETTINGS.tib)}</span>
+                </button>
+              </div>
+
+              <div className="pt-4 text-center opacity-40">
                 <p className="text-[10.5px] text-stone-500 font-medium italic max-w-[180px] mx-auto leading-relaxed">
                   {t(UI_LABELS.HONOUR_PATH.en, UI_LABELS.HONOUR_PATH.tib)}
                 </p>
@@ -1422,13 +1540,13 @@ export default function App() {
               animate={{ y: 0 }}
               exit={{ y: '105%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 inset-x-0 glass rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe overflow-y-auto max-h-[90vh] shadow-[0_-20px_50px_rgba(0,0,0,0.5)] border-t border-white/10"
+              className="fixed bottom-0 inset-x-0 glass rounded-t-[10px] z-[101] p-4 space-y-8 max-w-lg mx-auto pb-safe overflow-y-auto max-h-[90vh] shadow-[0_-20px_50px_rgba(0,0,0,0.5)] border-t border-white/10"
             >
               <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto" />
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 rounded-2xl bg-gold flex items-center justify-center text-midnight glow">
+                  <div className="w-14 h-14 flex items-center justify-center text-gold">
                     <User size={24} />
                   </div>
                   <div>
@@ -1443,7 +1561,7 @@ export default function App() {
 
               <div className="space-y-6">
                 <section className="space-y-4">
-                  <div className="bg-white/5 rounded-[32px] p-6 space-y-6 border border-white/5">
+                  <div className="bg-white/5 rounded-[10px] p-4 space-y-6 border border-white/5">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest px-1">{t(UI_LABELS.DHARMA_NAME.en, UI_LABELS.DHARMA_NAME.tib)}</label>
                       <input
@@ -1451,7 +1569,7 @@ export default function App() {
                         placeholder={t('Enter name', 'མིང་བྲིས།')}
                         value={userData.name || ''}
                         onChange={(e) => setUserData(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full bg-white/5 rounded-2xl p-4 text-[15px] font-medium outline-none focus:ring-2 focus:ring-gold/20 border border-white/10 text-white shadow-inner"
+                        className="w-full bg-white/5 rounded-[10px] p-4 text-[15px] font-medium outline-none focus:ring-2 focus:ring-gold/20 border border-white/10 text-white shadow-inner"
                       />
                     </div>
 
@@ -1464,7 +1582,7 @@ export default function App() {
                             type="button"
                             onClick={() => setUserData(prev => ({ ...prev, gender: g as any }))}
                             className={cn(
-                              "p-4 rounded-2xl border text-[13.5px] font-bold transition-all flex items-center justify-center gap-2",
+                              "p-4 rounded-[10px] border text-[13.5px] font-bold transition-all flex items-center justify-center gap-2",
                               userData.gender === g
                                 ? "bg-white text-midnight border-white shadow-lg scale-[1.02]"
                                 : "bg-white/5 text-stone-500 border-white/10 shadow-sm"
@@ -1513,7 +1631,7 @@ export default function App() {
                                 placeholder="e.g., 1987"
                                 value={userData.tibetanBirthYear || ''}
                                 onChange={(e) => handleTibetanYearChange(parseInt(e.target.value))}
-                                className="w-full bg-midnight rounded-2xl p-4 text-[12.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm"
+                                className="w-full bg-midnight rounded-[10px] p-4 text-[12.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm"
                               />
                             </div>
                             <div className="space-y-1.5">
@@ -1521,7 +1639,7 @@ export default function App() {
                               <select
                                 value={userData.tibetanBirthMonth || 1}
                                 onChange={(e) => setUserData(prev => ({ ...prev, tibetanBirthMonth: parseInt(e.target.value) }))}
-                                className="w-full bg-midnight rounded-2xl p-4 text-[12.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm appearance-none"
+                                className="w-full bg-midnight rounded-[10px] p-4 text-[12.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm appearance-none"
                               >
                                 {Array.from({ length: 12 }, (_, i) => (
                                   <option key={i + 1} value={i + 1}>{toTibetanNumerals(i + 1)}</option>
@@ -1533,7 +1651,7 @@ export default function App() {
                               <select
                                 value={userData.tibetanBirthDay || 1}
                                 onChange={(e) => setUserData(prev => ({ ...prev, tibetanBirthDay: parseInt(e.target.value) }))}
-                                className="w-full bg-midnight rounded-2xl p-4 text-[12.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm appearance-none"
+                                className="w-full bg-midnight rounded-[10px] p-4 text-[12.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm appearance-none"
                               >
                                 {Array.from({ length: 30 }, (_, i) => (
                                   <option key={i + 1} value={i + 1}>{toTibetanNumerals(i + 1)}</option>
@@ -1546,7 +1664,7 @@ export default function App() {
                             type="date"
                             value={userData.birthDate || ''}
                             onChange={(e) => handleBirthDateChange(e.target.value)}
-                            className="w-full bg-midnight rounded-2xl p-4 text-[13.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm"
+                            className="w-full bg-midnight rounded-[10px] p-4 text-[13.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm"
                           />
                         )}
                       </div>
@@ -1564,7 +1682,7 @@ export default function App() {
                             onChange={(e) => {
                               setUserData(prev => ({ ...prev, birthAnimal: e.target.value }));
                             }}
-                            className="w-full bg-midnight rounded-2xl p-4 text-[13.5px] font-bold appearance-none outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm px-4"
+                            className="w-full bg-midnight rounded-[10px] p-4 text-[13.5px] font-bold appearance-none outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm px-4"
                           >
                             <option value="">{t(UI_LABELS.ANIMAL_SIGN.en, UI_LABELS.ANIMAL_SIGN.tib)}</option>
                             {ANIMALS.map(a => <option key={a} value={a}>{ANIMAL_ICONS[a]} {t(a, TIBETAN_ANIMALS[a])}</option>)}
@@ -1583,7 +1701,7 @@ export default function App() {
                             onChange={(e) => {
                               setUserData(prev => ({ ...prev, birthElement: e.target.value }));
                             }}
-                            className="w-full bg-midnight rounded-2xl p-4 text-[13.5px] font-bold appearance-none outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm px-4"
+                            className="w-full bg-midnight rounded-[10px] p-4 text-[13.5px] font-bold appearance-none outline-none focus:ring-2 focus:ring-gold/20 border-white/10 text-white shadow-sm px-4"
                           >
                             <option value="">{t(UI_LABELS.PRIMARY_ELEMENT.en, UI_LABELS.PRIMARY_ELEMENT.tib)}</option>
                             {ELEMENTS.map(e => <option key={e} value={e}>{t(e, TIBETAN_ELEMENTS[e])}</option>)}
@@ -1598,7 +1716,7 @@ export default function App() {
 
                 <button
                   onClick={() => setIsProfileSheetOpen(false)}
-                  className="w-full bg-gold text-midnight p-6 rounded-[32px] font-black uppercase tracking-[0.2em] text-[13.5px] active:scale-[0.98] transition-all"
+                  className="w-full bg-gold text-midnight p-4 rounded-[10px] font-black uppercase tracking-[0.2em] text-[13.5px] active:scale-[0.98] transition-all"
                 >
                   {t(UI_LABELS.CONFIRM_SYNC.en, UI_LABELS.CONFIRM_SYNC.tib)}
                 </button>
@@ -1613,12 +1731,12 @@ export default function App() {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-            className="fixed inset-0 glass z-[101] flex flex-col pt-safe px-6 pb-safe"
+            className="fixed inset-0 glass z-[101] flex flex-col pt-safe px-4 pb-safe"
           >
             {/* Header */}
-            <div className="flex items-center justify-between py-8 px-1 flex-shrink-0">
+            <div className="flex items-center justify-between py-4 px-1 flex-shrink-0">
               <div className="flex items-center gap-5">
-                <div className="w-12 h-12 rounded-2xl bg-gold flex items-center justify-center text-midnight glow">
+                <div className="w-12 h-12 flex items-center justify-center text-gold">
                   <Settings size={22} />
                 </div>
                 <div>
@@ -1628,22 +1746,22 @@ export default function App() {
               </div>
               <button
                 onClick={() => setIsSettingsSheetOpen(false)}
-                className="w-12 h-12 flex items-center justify-center bg-white/5 rounded-full text-stone-500 hover:bg-white/10 hover:text-white transition-colors"
+                className="w-12 h-12 flex items-center justify-center text-stone-500 hover:text-white transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto no-scrollbar space-y-6 pb-12">
+            <div className="flex-1 overflow-y-auto no-scrollbar space-y-6 pb-6">
               <div className="space-y-6">
 
-                <div id={UI_IDS.SETTINGS.LANGUAGE_SELECTOR} className="p-6 glass rounded-[32px] border border-white/5 space-y-4 shadow-xl">
+                <div id={UI_IDS.SETTINGS.LANGUAGE_SELECTOR} className="p-4 glass rounded-[10px] border border-white/5 space-y-4 shadow-xl">
                   <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] px-1">{t(UI_LABELS.SELECT_LANGUAGE.en, UI_LABELS.SELECT_LANGUAGE.tib)}</h3>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => setUserData(prev => ({ ...prev, language: 'English' }))}
                       className={cn(
-                        "flex items-center justify-between p-4 rounded-2xl border transition-all",
+                        "flex items-center justify-between p-4 rounded-[10px] border transition-all",
                         userData.language !== 'Tibetan' ? "bg-gold text-midnight border-gold glow" : "bg-white/5 text-stone-400 border-white/5"
                       )}
                     >
@@ -1653,7 +1771,7 @@ export default function App() {
                     <button
                       onClick={() => setUserData(prev => ({ ...prev, language: 'Tibetan' }))}
                       className={cn(
-                        "flex items-center justify-between p-4 rounded-2xl border transition-all",
+                        "flex items-center justify-between p-4 rounded-[10px] border transition-all",
                         userData.language === 'Tibetan' ? "bg-gold text-midnight border-gold glow" : "bg-white/5 text-stone-400 border-white/5"
                       )}
                     >
@@ -1663,28 +1781,28 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="p-6 glass rounded-[32px] border border-white/5 space-y-4 shadow-xl">
+                <div className="p-4 glass rounded-[10px] border border-white/5 space-y-4 shadow-xl">
                   <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] px-1">{t(UI_LABELS.TRADITIONAL_METHOD.en, UI_LABELS.TRADITIONAL_METHOD.tib)}</h3>
-                  <div className="flex items-center justify-between p-4 bg-gold/10 rounded-2xl border border-gold/20 glow">
+                  <div className="flex items-center justify-between p-4 bg-gold/10 rounded-[10px] border border-gold/20 glow">
                     <span className="text-[14px] font-bold text-white">{t(UI_LABELS.PHUGPA_ANCHOR_SYSTEM.en, UI_LABELS.PHUGPA_ANCHOR_SYSTEM.tib)}</span>
                     <Check size={14} className="text-gold" />
                   </div>
                   <p className="text-[10px] text-stone-500 font-medium italic px-1 leading-relaxed">{t(UI_LABELS.MODERN_CALCULATIONS.en, UI_LABELS.MODERN_CALCULATIONS.tib)}</p>
                 </div>
 
-                <div className="p-6 glass rounded-[32px] border border-white/5 space-y-4 shadow-xl">
+                <div className="p-4 glass rounded-[10px] border border-white/5 space-y-4 shadow-xl">
                   <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] px-1">{t(UI_LABELS.SYNC_ALIGNMENT.en, UI_LABELS.SYNC_ALIGNMENT.tib)}</h3>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={handleExportData}
-                      className="flex flex-col items-center gap-2 p-5 bg-white/5 rounded-2xl border border-white/5 hover:border-gold/30 hover:bg-white/10 group transition-all glow"
+                      className="flex flex-col items-center gap-2 p-3 bg-white/5 rounded-[10px] border border-white/5 hover:border-gold/30 hover:bg-white/10 group transition-all glow"
                     >
-                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-stone-400 group-hover:text-gold transition-colors">
+                      <div className="w-10 h-10 flex items-center justify-center text-stone-400 group-hover:text-gold transition-colors">
                         <Compass size={18} />
                       </div>
                       <span className="text-[11px] font-black text-white uppercase tracking-tight">{t(UI_LABELS.EXPORT_PROFILE.en, UI_LABELS.EXPORT_PROFILE.tib)}</span>
                     </button>
-                    <label className="flex flex-col items-center gap-2 p-5 bg-white/5 rounded-2xl border border-white/5 hover:border-gold/30 hover:bg-white/10 group transition-all cursor-pointer glow">
+                    <label className="flex flex-col items-center gap-2 p-3 bg-white/5 rounded-[10px] border border-white/5 hover:border-gold/30 hover:bg-white/10 group transition-all cursor-pointer glow">
                       <input
                         type="file"
                         accept=".json"
@@ -1694,7 +1812,7 @@ export default function App() {
                         }}
                         className="hidden"
                       />
-                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-stone-400 group-hover:text-gold transition-colors">
+                      <div className="w-10 h-10 flex items-center justify-center text-stone-400 group-hover:text-gold transition-colors">
                         <Loader2 size={18} />
                       </div>
                       <span className="text-[11px] font-black text-white uppercase tracking-tight">{t(UI_LABELS.RESTORE_DATA.en, UI_LABELS.RESTORE_DATA.tib)}</span>
@@ -1703,11 +1821,11 @@ export default function App() {
                   <p className="text-[10px] text-stone-500 italic text-center opacity-60">{t(UI_LABELS.BACKUP_HINT.en, UI_LABELS.BACKUP_HINT.tib)}</p>
                 </div>
 
-                <div className="p-6 glass rounded-[32px] border border-white/5 space-y-4 shadow-xl">
+                <div className="p-4 glass rounded-[10px] border border-white/5 space-y-4 shadow-xl">
                   <h3 className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] px-1">{t(UI_LABELS.DANGER_ZONE.en, UI_LABELS.DANGER_ZONE.tib)}</h3>
                   <button
                     onClick={() => setIsPrivacySheetOpen(true)}
-                    className="w-full flex items-center justify-between p-4 bg-red-400/5 rounded-2xl text-red-400 border border-red-400/10 hover:bg-red-400/10 transition-colors"
+                    className="w-full flex items-center justify-between p-4 bg-red-400/5 rounded-[10px] text-red-400 border border-red-400/10 hover:bg-red-400/10 transition-colors"
                   >
                     <span className="text-[12.5px] font-bold">{t(UI_LABELS.PRIVACY_POLICY.en, UI_LABELS.PRIVACY_POLICY.tib)}</span>
                     <Info size={14} />
@@ -1720,7 +1838,7 @@ export default function App() {
                         window.location.reload();
                       }
                     }}
-                    className="w-full flex items-center justify-between p-3 bg-white/5 rounded-2xl text-red-500 border border-red-900/20 hover:bg-red-900/20 transition-colors"
+                    className="w-full flex items-center justify-between p-3 bg-white/5 rounded-[10px] text-red-500 border border-red-900/20 hover:bg-red-900/20 transition-colors"
                   >
                     <span className="text-[12.5px] font-bold">{t(UI_LABELS.CLEAR_CACHE.en, UI_LABELS.CLEAR_CACHE.tib)}</span>
                     <Trash2 size={14} />
@@ -1749,13 +1867,13 @@ export default function App() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 inset-x-0 bg-midnight rounded-t-[40px] z-[201] p-8 space-y-8 max-w-lg mx-auto pb-safe flex flex-col h-[70vh]"
+              className="fixed bottom-0 inset-x-0 bg-midnight rounded-t-[10px] z-[201] p-4 space-y-8 max-w-lg mx-auto pb-safe flex flex-col h-[70vh]"
             >
               <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto flex-shrink-0" />
 
               <div className="flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-midnight">
+                  <div className="w-12 h-12 flex items-center justify-center text-white">
                     <Info size={24} />
                   </div>
                   <div>
@@ -1768,7 +1886,7 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto no-scrollbar space-y-6 text-stone-400 text-[15.5px] leading-relaxed pb-8">
+              <div className="flex-1 overflow-y-auto no-scrollbar space-y-6 text-stone-400 text-[15.5px] leading-relaxed pb-4">
                 <section className="space-y-3">
                   <h4 className="text-[11.5px] font-black text-white uppercase tracking-widest">{t(UI_LABELS.LOCAL_SANCTUARY.en, UI_LABELS.LOCAL_SANCTUARY.tib)}</h4>
                   <p>{t(UI_LABELS.LOCAL_SANCTUARY_DESC.en, UI_LABELS.LOCAL_SANCTUARY_DESC.tib)}</p>
@@ -1789,7 +1907,7 @@ export default function App() {
                   <p>{t(UI_LABELS.CONTACT_DESC.en, UI_LABELS.CONTACT_DESC.tib)}</p>
                 </section>
 
-                <div className="pt-6 border-t border-white/10">
+                <div className="pt-4 border-t border-white/10">
                   <p className="text-[11.5px] text-stone-600 italic">{t(UI_LABELS.EFFECTIVE_ALIGNMENT_DATE.en, UI_LABELS.EFFECTIVE_ALIGNMENT_DATE.tib)}</p>
                 </div>
               </div>
@@ -1811,13 +1929,13 @@ export default function App() {
               animate={{ y: 0 }}
               exit={{ y: '105%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 inset-x-0 glass rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe flex flex-col h-[85vh] shadow-[0_-20px_50px_rgba(0,0,0,0.5)] border-t border-white/10"
+              className="fixed bottom-0 inset-x-0 glass rounded-t-[10px] z-[101] p-4 space-y-8 max-w-lg mx-auto pb-safe flex flex-col h-[85vh] shadow-[0_-20px_50px_rgba(0,0,0,0.5)] border-t border-white/10"
             >
               <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto flex-shrink-0" />
 
               <div className="flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 rounded-2xl bg-gold flex items-center justify-center text-midnight glow">
+                  <div className="w-14 h-14 flex items-center justify-center text-gold">
                     <Search size={24} />
                   </div>
                   <div>
@@ -1838,7 +1956,7 @@ export default function App() {
                     type="date"
                     value={searchRange.start}
                     onChange={(e) => setSearchRange(prev => ({ ...prev, start: e.target.value }))}
-                    className="w-full p-4 bg-white/5 rounded-2xl text-[14px] font-medium border border-white/5 focus:ring-2 focus:ring-gold/20 outline-none transition-all text-white shadow-inner"
+                    className="w-full p-4 bg-white/5 rounded-[10px] text-[14px] font-medium border border-white/5 focus:ring-2 focus:ring-gold/20 outline-none transition-all text-white shadow-inner"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1847,7 +1965,7 @@ export default function App() {
                     type="date"
                     value={searchRange.end}
                     onChange={(e) => setSearchRange(prev => ({ ...prev, end: e.target.value }))}
-                    className="w-full p-4 bg-white/5 rounded-2xl text-[14px] font-medium border border-white/5 focus:ring-2 focus:ring-gold/20 outline-none transition-all text-white shadow-inner"
+                    className="w-full p-4 bg-white/5 rounded-[10px] text-[14px] font-medium border border-white/5 focus:ring-2 focus:ring-gold/20 outline-none transition-all text-white shadow-inner"
                   />
                 </div>
               </div>
@@ -1862,7 +1980,7 @@ export default function App() {
 
                 {searchResults.length === 0 ? (
                   <div className="py-20 text-center space-y-6">
-                    <div className="w-20 h-20 bg-white/5 rounded-[32px] flex items-center justify-center mx-auto text-stone-800 border border-white/5">
+                    <div className="w-20 h-20 flex items-center justify-center mx-auto text-stone-500">
                       <Sparkles size={32} />
                     </div>
                     <p className="text-[17px] font-medium text-stone-500 font-serif italic">{t(UI_LABELS.NO_ALIGNMENTS.en, UI_LABELS.NO_ALIGNMENT.tib)}</p>
@@ -1872,7 +1990,7 @@ export default function App() {
                     {searchResults.map((result, i) => (
                       <motion.button
                         key={i}
-                        className="bg-white/5 p-5 rounded-[24px] group hover:bg-white/10 transition-all duration-300"
+                        className="bg-white/5 p-3 rounded-[10px] group hover:bg-white/10 transition-all duration-300"
                         onClick={() => {
                           setSelectedDate(result.date);
                           setCurrentDate(result.date);
@@ -1881,7 +1999,7 @@ export default function App() {
                       >
                         <div className="flex items-start gap-4">
                           <div className={cn(
-                            "w-12 h-12 rounded-2xl flex flex-col items-center justify-center flex-shrink-0",
+                            "w-12 h-12 rounded-[10px] flex flex-col items-center justify-center flex-shrink-0",
                             result.isCustom ? "bg-gold/10 text-gold" : "bg-white text-midnight"
                           )}>
                             <span className="text-[11.5px] font-black uppercase leading-none">{n(format(result.date, 'MMM'))}</span>
@@ -1923,13 +2041,13 @@ export default function App() {
               animate={{ y: 0 }}
               exit={{ y: '105%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 inset-x-0 glass rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe shadow-[0_-20px_50px_rgba(0,0,0,0.5)] border-t border-white/10"
+              className="fixed bottom-0 inset-x-0 glass rounded-t-[10px] z-[101] p-4 space-y-8 max-w-lg mx-auto pb-safe shadow-[0_-20px_50px_rgba(0,0,0,0.5)] border-t border-white/10"
             >
               <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto" />
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 rounded-2xl bg-gold flex items-center justify-center text-midnight glow">
+                  <div className="w-14 h-14 flex items-center justify-center text-gold">
                     <CalendarIcon size={24} />
                   </div>
                   <div>
@@ -1950,7 +2068,7 @@ export default function App() {
                     placeholder="e.g., Birthday, Special Prayer"
                     value={newFestival.name}
                     onChange={(e) => setNewFestival(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full bg-white/5 rounded-2xl p-4 text-[15px] font-medium border border-white/5 focus:ring-2 focus:ring-gold/20 outline-none transition-all text-white shadow-inner"
+                    className="w-full bg-white/5 rounded-[10px] p-4 text-[15px] font-medium border border-white/5 focus:ring-2 focus:ring-gold/20 outline-none transition-all text-white shadow-inner"
                   />
                 </div>
 
@@ -1960,7 +2078,7 @@ export default function App() {
                     type="date"
                     value={newFestival.date}
                     onChange={(e) => setNewFestival(prev => ({ ...prev, date: e.target.value }))}
-                    className="w-full bg-white/5 rounded-2xl p-4 text-[15.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 text-white"
+                    className="w-full bg-white/5 rounded-[10px] p-4 text-[15.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 text-white"
                   />
                 </div>
 
@@ -1971,14 +2089,14 @@ export default function App() {
                     value={newFestival.description}
                     onChange={(e) => setNewFestival(prev => ({ ...prev, description: e.target.value }))}
                     rows={3}
-                    className="w-full bg-white/5 rounded-2xl p-4 text-[15.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 resize-none text-white"
+                    className="w-full bg-white/5 rounded-[10px] p-4 text-[15.5px] font-bold outline-none focus:ring-2 focus:ring-gold/20 resize-none text-white"
                   />
                 </div>
 
                 <button
                   onClick={addCustomFestival}
                   disabled={!newFestival.name || !newFestival.date}
-                  className="w-full bg-white text-midnight p-5 rounded-3xl font-black uppercase tracking-[0.2em] text-[13.5px] disabled:opacity-50 active:scale-[0.98] transition-all"
+                  className="w-full bg-white text-midnight p-3 rounded-[10px] font-black uppercase tracking-[0.2em] text-[13.5px] disabled:opacity-50 active:scale-[0.98] transition-all"
                 >
                   Save to Calendar
                 </button>
@@ -2001,13 +2119,13 @@ export default function App() {
               animate={{ y: 0 }}
               exit={{ y: '105%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 inset-x-0 bg-midnight rounded-t-[40px] z-[101] p-8 space-y-8 max-w-lg mx-auto pb-safe max-h-[90vh] overflow-y-auto"
+              className="fixed bottom-0 inset-x-0 bg-midnight rounded-t-[10px] z-[101] p-4 space-y-8 max-w-lg mx-auto pb-safe max-h-[90vh] overflow-y-auto"
             >
               <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto" />
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gold flex items-center justify-center text-midnight">
+                  <div className="w-12 h-12 flex items-center justify-center text-gold">
                     <StickyNote size={24} />
                   </div>
                   <div>
@@ -2024,12 +2142,12 @@ export default function App() {
               <button
                 onClick={toggleReminder}
                 className={cn(
-                  "w-full p-6 rounded-3xl border flex items-center justify-between transition-all duration-300",
+                  "w-full p-4 rounded-[10px] border flex items-center justify-between transition-all duration-300",
                   currentReminder ? "bg-gold/10 border-gold shadow-sm" : "bg-white/5 border-white/5"
                 )}
               >
                 <div className="flex items-center gap-4">
-                  <div className={cn("w-10 h-10 rounded-full flex items-center justify-center transition-colors", currentReminder ? "bg-gold text-midnight" : "bg-white/10 text-stone-500")}>
+                  <div className={cn("w-10 h-10 flex items-center justify-center transition-colors", currentReminder ? "text-gold" : "text-stone-500")}>
                     <Bell size={18} />
                   </div>
                   <div className="text-left">
@@ -2047,7 +2165,7 @@ export default function App() {
                   value={currentNote}
                   onChange={(e) => handleSaveNote(e.target.value)}
                   placeholder="Enter your notes here..."
-                  className="w-full h-40 bg-white/5 rounded-3xl p-6 text-[15.5px] font-medium focus:ring-2 focus:ring-gold/20 border-none outline-none resize-none placeholder:text-stone-700 text-white"
+                  className="w-full h-40 bg-white/5 rounded-[10px] p-4 text-[15.5px] font-medium focus:ring-2 focus:ring-gold/20 border-none outline-none resize-none placeholder:text-stone-700 text-white"
                 />
               </div>
 
@@ -2068,13 +2186,13 @@ export default function App() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-6 gap-2 bg-white/5 p-4 rounded-3xl">
+                <div className="grid grid-cols-6 gap-2 bg-white/5 p-4 rounded-[10px]">
                   {STICKERS.map(s => (
                     <button
                       key={s}
                       onClick={() => handleSetSticker(s, currentSticker.label)}
                       className={cn(
-                        "aspect-square rounded-2xl flex items-center justify-center text-[21.5px] transition-all duration-300",
+                        "aspect-square rounded-[10px] flex items-center justify-center text-[21.5px] transition-all duration-300",
                         currentSticker.emoji === s
                           ? "bg-white/10 scale-110 shadow-md ring-2 ring-gold/20"
                           : "bg-white/5 hover:bg-white/10 text-stone-600 hover:text-white"
@@ -2092,7 +2210,7 @@ export default function App() {
                     placeholder="Short label (e.g., RETREAT)"
                     value={currentSticker.label || ''}
                     onChange={(e) => handleSetSticker(currentSticker.emoji, e.target.value.toUpperCase())}
-                    className="w-full bg-white/5 border-2 border-transparent focus:border-gold/20 rounded-2xl p-4 text-[11.5px] font-black tracking-widest outline-none transition-all placeholder:text-stone-700 uppercase text-white"
+                    className="w-full bg-white/5 border-2 border-transparent focus:border-gold/20 rounded-[10px] p-4 text-[11.5px] font-black tracking-widest outline-none transition-all placeholder:text-stone-700 uppercase text-white"
                   />
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[9.5px] font-black text-stone-500 uppercase bg-white/5 px-2 py-1 rounded-md shadow-sm">
                     {(currentSticker.label || '').length}/12
@@ -2103,13 +2221,13 @@ export default function App() {
               <div className="flex gap-4 pt-4 pb-4">
                 <button
                   onClick={handleDeleteNote}
-                  className="p-4 bg-red-900/10 text-red-500 rounded-3xl hover:bg-red-900/20 transition-colors"
+                  className="p-4 bg-red-900/10 text-red-500 rounded-[10px] hover:bg-red-900/20 transition-colors"
                 >
                   <Trash2 size={24} />
                 </button>
                 <button
                   onClick={() => setIsNoteSheetOpen(false)}
-                  className="flex-1 p-6 bg-stone-900 text-white rounded-3xl font-bold uppercase text-[13.5px] tracking-widest active:scale-95 transition-transform"
+                  className="flex-1 p-4 bg-stone-900 text-white rounded-[10px] font-bold uppercase text-[13.5px] tracking-widest active:scale-95 transition-transform"
                 >
                   Finish Editing
                 </button>
@@ -2120,28 +2238,36 @@ export default function App() {
       </AnimatePresence>
 
       {/* Modern Floating Bottom Navigation */}
-      <div className="fixed bottom-0 inset-x-0 h-28 pointer-events-none z-50 flex items-center justify-center px-6">
-        <nav className="w-full max-w-md h-16 glass rounded-[32px] border border-white/40 shadow-native flex items-center justify-around px-2 pointer-events-auto">
-          <NavButton 
-            active={activeTab === 'home'} 
-            onClick={() => setActiveTab('home')} 
-            icon={<Home size={22} />} 
-            label={t(UI_LABELS.HOME.en, UI_LABELS.HOME.tib)} 
+      <div className="fixed bottom-0 inset-x-0 h-28 pointer-events-none z-50 flex items-center justify-center px-4">
+        <nav className="w-full max-w-md h-16 glass rounded-[10px] border border-white/40 shadow-native flex items-center justify-around px-2 pointer-events-auto">
+          <NavButton
+            active={activeTab === 'home'}
+            onClick={() => setActiveTab('home')}
+            icon={<Home size={22} />}
+            label={t(UI_LABELS.HOME.en, UI_LABELS.HOME.tib)}
           />
-          <NavButton 
-            active={activeTab === 'calendar'} 
-            onClick={() => setActiveTab('calendar')} 
-            icon={<CalendarIcon size={22} />} 
-            label={t(UI_LABELS.PLAN.en, UI_LABELS.PLAN.tib)} 
+          <NavButton
+            active={activeTab === 'calendar'}
+            onClick={() => setActiveTab('calendar')}
+            icon={<CalendarIcon size={22} />}
+            label={t(UI_LABELS.PLAN.en, UI_LABELS.PLAN.tib)}
           />
-          <NavButton 
-            active={activeTab === 'profile'} 
-            onClick={() => setActiveTab('profile')} 
-            icon={<User size={22} />} 
-            label={t(UI_LABELS.PROFILE.en, UI_LABELS.PROFILE.tib)} 
+          <NavButton
+            active={activeTab === 'profile'}
+            onClick={() => setActiveTab('profile')}
+            icon={<User size={22} />}
+            label={t(UI_LABELS.PROFILE.en, UI_LABELS.PROFILE.tib)}
           />
         </nav>
       </div>
+      <AnimatePresence>
+        {isReferenceSheetOpen && (
+          <ReferenceSheet
+            onClose={() => setIsReferenceSheetOpen(false)}
+            language={userData.language as 'English' | 'Tibetan'}
+          />
+        )}
+      </AnimatePresence>
 
       <style>{`
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }

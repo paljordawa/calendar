@@ -23,7 +23,7 @@ export function SacredCountdown({ upcoming, t }: SacredCountdownProps) {
         {upcoming.map((obs, i) => (
           <div
             key={i}
-            className="flex items-center gap-4 glass rounded-2xl px-4 py-3 border border-white/5 hover:border-gold/20 transition-colors group"
+            className="flex items-center gap-4 glass rounded-[10px] px-4 py-3 border border-white/5 hover:border-gold/20 transition-colors group"
           >
             <span className="text-[20px] drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] group-hover:scale-110 transition-transform">{obs.icon}</span>
             <div className="min-w-0">

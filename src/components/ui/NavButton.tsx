@@ -22,7 +22,7 @@ export function NavButton({ active, onClick, icon, label }: NavButtonProps) {
       {active && (
         <motion.div 
           layoutId="nav-pill"
-          className="absolute inset-0 bg-white/10 rounded-2xl z-0 glow"
+          className="absolute inset-0 bg-white/10 rounded-[10px] z-0 glow"
           transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
         />
       )}

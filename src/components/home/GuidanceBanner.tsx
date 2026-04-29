@@ -37,10 +37,10 @@ export function GuidanceBanner({ guidance, t }: GuidanceBannerProps) {
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className={cn('rounded-[28px] border p-5 flex items-start gap-4', bg)}
+      className={cn('rounded-[10px] border p-3 flex items-start gap-4', bg)}
     >
       {/* Icon */}
-      <div className={cn('w-11 h-11 rounded-2xl flex items-center justify-center text-[22px] flex-shrink-0', iconBg)}>
+      <div className={cn('w-11 h-11 rounded-[10px] flex items-center justify-center text-[22px] flex-shrink-0', iconBg)}>
         {guidance.icon}
       </div>
 

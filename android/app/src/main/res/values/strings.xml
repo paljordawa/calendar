@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">TibetAstro</string>
+    <string name="title_activity_main">TibetAstro</string>
+    <string name="package_name">com.paljo.tibetastro</string>
+    <string name="custom_url_scheme">com.paljo.tibetastro</string>
+</resources>

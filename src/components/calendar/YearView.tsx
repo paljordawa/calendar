@@ -32,17 +32,17 @@ export function YearView({ tibCurrent, t, n }: YearViewProps) {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-8 pb-6"
+      className="space-y-8 pb-4"
     >
       {/* Annual Essence Hero */}
-      <div className="glass rounded-[40px] p-10 relative overflow-hidden border border-white/10 shadow-2xl">
+      <div className="glass rounded-[10px] p-5 relative overflow-hidden border border-white/10 shadow-2xl">
         {/* Ambient glows */}
         <div className="absolute top-0 right-0 w-72 h-72 bg-gold/10 rounded-full blur-[100px] -mr-36 -mt-36 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-56 h-56 bg-gold/5 rounded-full blur-[80px] -ml-28 -mb-28 pointer-events-none" />
 
         <div className="relative space-y-6">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-gold/15 flex items-center justify-center border border-gold/20">
+            <div className="w-9 h-9 rounded-[10px] bg-gold/15 flex items-center justify-center border border-gold/20">
               <Star size={14} className="text-gold" />
             </div>
             <h3 className="text-[10px] font-black text-gold/70 uppercase tracking-[0.3em]">
@@ -85,14 +85,14 @@ export function YearView({ tibCurrent, t, n }: YearViewProps) {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: monthIdx * 0.03 }}
-                className={`relative flex items-start gap-4 rounded-[24px] p-5 border transition-all duration-300 group ${
+                className={`relative flex items-start gap-4 rounded-[10px] p-3 border transition-all duration-300 group ${
                   isSpecial
                     ? 'bg-gold/5 border-gold/20 shadow-sm shadow-gold/5'
                     : 'bg-white/5 border-white/5 hover:bg-white/8 hover:border-white/10'
                 }`}
               >
                 {/* Month number badge */}
-                <div className={`flex-shrink-0 w-12 h-12 rounded-2xl flex flex-col items-center justify-center font-black transition-all duration-300 ${
+                <div className={`flex-shrink-0 w-12 h-12 rounded-[10px] flex flex-col items-center justify-center font-black transition-all duration-300 ${
                   isSpecial
                     ? 'bg-gold text-midnight shadow-lg shadow-gold/20 glow'
                     : 'bg-white/8 text-stone-400 group-hover:bg-white/15 group-hover:text-white'

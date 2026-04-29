@@ -62,11 +62,11 @@ export const TodayTab: React.FC<TodayTabProps> = ({
       {!userData.birthDate && !userData.tibetanBirthYear && (
         <motion.button
           onClick={() => setActiveTab('profile')}
-          className="p-6 rounded-[32px] glass text-white relative overflow-hidden group active:scale-[0.98] transition-all text-left block w-full shadow-2xl shadow-black/20"
+          className="p-4 rounded-[10px] glass text-white relative overflow-hidden group active:scale-[0.98] transition-all text-left block w-full shadow-2xl shadow-black/20"
         >
           <div className="absolute top-0 right-0 w-32 h-32 bg-gold/5 blur-3xl rounded-full -mr-16 -mt-16" />
           <div className="relative flex items-center gap-5">
-            <div className="w-12 h-12 rounded-2xl bg-gold flex items-center justify-center text-midnight shrink-0 shadow-lg shadow-gold/20 glow">
+            <div className="w-12 h-12 flex items-center justify-center text-gold shrink-0">
               <Sparkles size={24} />
             </div>
             <div>
@@ -94,8 +94,8 @@ export const TodayTab: React.FC<TodayTabProps> = ({
 
       {/* Merit Multiplier Alert */}
       {merit && (
-        <div className="bg-gold text-midnight p-4 rounded-3xl flex items-center gap-4 shadow-lg shadow-gold/20 glow">
-          <div className="w-10 h-10 rounded-2xl bg-midnight/10 flex items-center justify-center">
+        <div className="bg-gold text-midnight p-4 rounded-[10px] flex items-center gap-4 shadow-lg shadow-gold/20 glow">
+          <div className="w-10 h-10 flex items-center justify-center">
             <Zap size={20} className="fill-current" />
           </div>
           <div>
@@ -110,9 +110,9 @@ export const TodayTab: React.FC<TodayTabProps> = ({
 
       {/* Special Observance Notice */}
       {(tibCurrent.day === 8 || tibCurrent.day === 10 || tibCurrent.day === 15 || tibCurrent.day === 25 || tibCurrent.day === 30) && (
-        <div className="p-5 rounded-[32px] bg-white/5 border border-white/10 flex items-center justify-between group">
+        <div className="p-3 rounded-[10px] bg-white/5 border border-white/10 flex items-center justify-between group">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-2xl bg-gold/10 flex items-center justify-center text-gold">
+            <div className="w-10 h-10 flex items-center justify-center text-gold">
               <Bell size={20} />
             </div>
             <div>
@@ -127,7 +127,7 @@ export const TodayTab: React.FC<TodayTabProps> = ({
               setSelectedDate(new Date());
               setActiveTab('calendar');
             }}
-            className="p-3 rounded-xl bg-white/10 text-white hover:bg-gold hover:text-midnight transition-colors"
+            className="p-3 rounded-[10px] bg-white/10 text-white hover:bg-gold hover:text-midnight transition-colors"
           >
             <CalendarIcon size={16} />
           </button>
@@ -162,10 +162,10 @@ export const TodayTab: React.FC<TodayTabProps> = ({
                       setSelectedDate(parseISO(dateStr));
                       setActiveTab('calendar');
                     }}
-                    className="w-full glass p-5 rounded-[32px] border border-white/5 flex items-center gap-5 text-left active:scale-[0.98] transition-all group shadow-lg"
+                    className="w-full glass p-3 rounded-[10px] border border-white/5 flex items-center gap-5 text-left active:scale-[0.98] transition-all group shadow-lg"
                   >
                     {/* Date badge */}
-                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex flex-col items-center justify-center text-stone-500 font-bold group-hover:bg-gold/10 group-hover:text-gold transition-colors flex-shrink-0">
+                    <div className="w-12 h-12 rounded-[10px] bg-white/5 flex flex-col items-center justify-center text-stone-500 font-bold group-hover:bg-gold/10 group-hover:text-gold transition-colors flex-shrink-0">
                       <span className="text-[10px] uppercase tracking-tighter leading-none">{format(parseISO(dateStr), 'MMM')}</span>
                       <span className="text-[19px] font-black leading-tight mt-0.5">{format(parseISO(dateStr), 'd')}</span>
                     </div>

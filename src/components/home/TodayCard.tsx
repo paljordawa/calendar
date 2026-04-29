@@ -45,7 +45,7 @@ Rabjung: ${tibCurrent.rabjung}`;
   };
 
   return (
-    <div className="relative rounded-[40px] glass-card p-8 text-white overflow-hidden shadow-2xl border border-white/5 group">
+    <div className="relative rounded-[10px] glass-card p-4 text-white overflow-hidden shadow-2xl border border-white/5 group">
       {/* Dynamic Background Glows */}
       <div className="absolute -top-24 -left-24 w-64 h-64 bg-gold/5 blur-[100px] rounded-full pointer-events-none group-hover:bg-gold/10 transition-colors duration-1000" />
       <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-lapis/5 blur-[100px] rounded-full pointer-events-none group-hover:bg-lapis/10 transition-colors duration-1000" />
@@ -68,7 +68,7 @@ Rabjung: ${tibCurrent.rabjung}`;
           <div className="flex flex-col items-end gap-3">
             <button
               onClick={handleShare}
-              className="p-3 rounded-2xl bg-white/5 text-stone-400 hover:text-gold hover:bg-white/10 transition-all active:scale-90"
+              className="p-3 rounded-[10px] bg-white/5 text-stone-400 hover:text-gold hover:bg-white/10 transition-all active:scale-90"
             >
               <Share size={18} />
             </button>
@@ -80,7 +80,7 @@ Rabjung: ${tibCurrent.rabjung}`;
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-8 pt-8 border-t border-white/5">
+        <div className="grid grid-cols-2 gap-8 pt-4 border-t border-white/5">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <p className="text-[9px] uppercase font-black text-stone-500 tracking-[0.2em]">
@@ -143,7 +143,7 @@ Rabjung: ${tibCurrent.rabjung}`;
 
       {/* Daily Symbolic (Simplified Text Bar) */}
       {tibCurrent.lunarSymbol && MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol] && (
-        <div className="flex items-center gap-4 p-5 bg-white/5 rounded-[32px] border border-white/5 mt-8 group-hover:bg-white/10 transition-colors">
+        <div className="flex items-center gap-4 p-3 bg-white/5 rounded-[10px] border border-white/5 mt-8 group-hover:bg-white/10 transition-colors">
           <span className="text-[32px] shrink-0 filter drop-shadow-[0_0_10px_rgba(255,255,255,0.1)]">{MENTSKHANG_SYMBOLS[tibCurrent.lunarSymbol].icon}</span>
           <div className="flex-1 min-w-0">
             <p className="text-[12px] leading-relaxed text-stone-400 font-medium">

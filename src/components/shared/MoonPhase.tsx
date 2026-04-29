@@ -34,9 +34,9 @@ export function MoonPhase({ day, size = 10, isDark = false }: MoonPhaseProps) {
       <circle cx={cx} cy={cy} r={r} fill={isDark ? '#fffbeb' : '#ffffff'} stroke={stroke} strokeWidth={strokeW + 0.7} />
     );
   } else if (day === 30 || day === 1) {
-    // New Moon — bold dark circle
+    // New Moon — complete black circle with white border
     svgContent = (
-      <circle cx={cx} cy={cy} r={r} fill={fg} stroke={stroke} strokeWidth={strokeW} />
+      <circle cx={cx} cy={cy} r={r} fill="#000000" stroke="#ffffff" strokeWidth={strokeW + 0.5} />
     );
   } else if (day === 8) {
     // First Quarter — right half lit

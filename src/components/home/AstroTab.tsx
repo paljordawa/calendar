@@ -20,9 +20,9 @@ export function AstroTab({ userData, yearlyHoroscope, powerDays, t, toTibetanNum
         key="astro-onboarding"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="p-8 rounded-[40px] bg-stone-100/50 border border-stone-200/50 text-center space-y-4"
+        className="p-4 rounded-[10px] bg-stone-100/50 border border-stone-200/50 text-center space-y-4"
       >
-        <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center text-stone-300 mx-auto shadow-sm">
+        <div className="w-16 h-16 flex items-center justify-center text-stone-300 mx-auto">
           <Compass size={32} />
         </div>
         <div>
@@ -33,7 +33,7 @@ export function AstroTab({ userData, yearlyHoroscope, powerDays, t, toTibetanNum
         </div>
         <button 
           onClick={() => setActiveTab('profile')}
-          className="px-6 py-2.5 bg-stone-900 text-white rounded-full text-[11.5px] font-black uppercase tracking-widest active:scale-95 transition-transform"
+          className="px-4 py-2.5 bg-stone-900 text-white rounded-full text-[11.5px] font-black uppercase tracking-widest active:scale-95 transition-transform"
         >
           {t(UI_LABELS.SET_BIRTH_DATE.en, UI_LABELS.SET_BIRTH_DATE.tib)}
         </button>
@@ -74,7 +74,7 @@ export function AstroTab({ userData, yearlyHoroscope, powerDays, t, toTibetanNum
             };
 
             return (
-              <div key={key} className="p-6 rounded-[32px] glass text-white space-y-4 shadow-xl border border-white/5 group hover:border-white/10 transition-colors">
+              <div key={key} className="p-4 rounded-[10px] glass text-white space-y-4 shadow-xl border border-white/5 group hover:border-white/10 transition-colors">
                 <p className="text-[9px] font-black text-stone-500 uppercase tracking-widest leading-none">{t(labels[key].en, labels[key].tib)}</p>
                 <div className="space-y-2">
                   <p className="text-[18px] font-serif font-black">{s.label}</p>
@@ -96,15 +96,15 @@ export function AstroTab({ userData, yearlyHoroscope, powerDays, t, toTibetanNum
       {/* Power Days List */}
       <section className="space-y-4">
         <h3 className="text-[11px] font-black text-stone-500 uppercase tracking-[0.2em] px-2">{t(UI_LABELS.WEEKLY_POWER_DAYS.en, UI_LABELS.WEEKLY_POWER_DAYS.tib)}</h3>
-        <div className="glass rounded-[32px] border border-white/5 overflow-hidden shadow-2xl">
+        <div className="glass rounded-[10px] border border-white/5 overflow-hidden shadow-2xl">
           {[
             { icon: <Sparkles size={16} />, label: t(UI_LABELS.SOUL_DAY.en, UI_LABELS.SOUL_DAY.tib), value: t(powerDays?.la || '', powerDays?.laTib || ''), badge: t(UI_LABELS.BEST.en, UI_LABELS.BEST.tib), color: 'text-emerald-400 bg-emerald-400/10' },
             { icon: <Star size={16} />, label: t(UI_LABELS.VITALITY_DAY.en, UI_LABELS.VITALITY_DAY.tib), value: t(powerDays?.sok || '', powerDays?.sokTib || ''), badge: t(UI_LABELS.STRONG.en, UI_LABELS.STRONG.tib), color: 'text-blue-400 bg-blue-400/10' },
             { icon: <X size={16} />, label: t(UI_LABELS.CONFLICT_DAY.en, UI_LABELS.CONFLICT_DAY.tib), value: t(powerDays?.enemy || '', powerDays?.enemyTib || ''), badge: t(UI_LABELS.AVOID.en, UI_LABELS.AVOID.tib), color: 'text-red-400 bg-red-400/10' }
           ].map((day, i) => (
-            <div key={i} className={cn("flex items-center justify-between p-6", i !== 0 && "border-t border-white/5")}>
+            <div key={i} className={cn("flex items-center justify-between p-4", i !== 0 && "border-t border-white/5")}>
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-stone-400 border border-white/5">
+                <div className="w-12 h-12 flex items-center justify-center text-stone-400">
                   {day.icon}
                 </div>
                 <div>

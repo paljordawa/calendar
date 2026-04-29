@@ -44,7 +44,7 @@ export function DayDetailCard({
   const selectedSticker = userData.stickers?.[selectedDateKey];
 
   return (
-    <div className="mt-8 border-t border-white/5 pt-8 space-y-6">
+    <div className="mt-8 border-t border-white/5 pt-4 space-y-6">
       {/* My Notes section — matches Home layout */}
       <div className="space-y-4">
         {/* Title row */}
@@ -57,7 +57,7 @@ export function DayDetailCard({
           </div>
           <button
             onClick={() => setIsNoteSheetOpen(true)}
-            className="p-2 rounded-xl text-stone-400 hover:text-white hover:bg-white/5 transition-all active:scale-90"
+            className="p-2 rounded-[10px] text-stone-400 hover:text-white hover:bg-white/5 transition-all active:scale-90"
           >
             <Pencil size={14} />
           </button>
@@ -69,9 +69,9 @@ export function DayDetailCard({
           className="w-full text-left active:scale-[0.98] transition-all group"
         >
           {selectedNote ? (
-            <div className="glass p-5 rounded-[32px] border border-white/5 flex items-start gap-4 group-hover:border-white/10 transition-all">
+            <div className="glass p-3 rounded-[10px] border border-white/5 flex items-start gap-4 group-hover:border-white/10 transition-all">
               {/* Date badge */}
-              <div className="w-12 h-12 rounded-2xl bg-white/5 flex flex-col items-center justify-center text-stone-500 font-bold flex-shrink-0 group-hover:bg-gold/10 group-hover:text-gold transition-colors">
+              <div className="w-12 h-12 rounded-[10px] bg-white/5 flex flex-col items-center justify-center text-stone-500 font-bold flex-shrink-0 group-hover:bg-gold/10 group-hover:text-gold transition-colors">
                 <span className="text-[9px] uppercase tracking-tighter leading-none">{format(selectedDate, 'MMM')}</span>
                 <span className="text-[18px] leading-tight mt-0.5">{format(selectedDate, 'd')}</span>
               </div>
@@ -98,7 +98,7 @@ export function DayDetailCard({
             </div>
           ) : (
             <div className="flex items-center gap-3 px-2 py-2 group">
-              <div className="w-10 h-10 rounded-2xl border border-dashed border-stone-800 flex items-center justify-center text-stone-800 group-hover:border-gold/30 group-hover:text-gold/50 transition-colors">
+              <div className="w-10 h-10 flex items-center justify-center text-stone-800 group-hover:text-gold/50 transition-colors">
                 <StickyNote size={16} />
               </div>
               <span className="text-[13px] text-stone-700 font-medium group-hover:text-stone-500">
@@ -123,9 +123,9 @@ export function DayDetailCard({
 
             {/* Personal Harmony Item */}
             {userData?.birthAnimal && (
-              <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5 group">
+              <div className="flex items-center justify-between p-3 bg-white/5 rounded-[10px] border border-white/5 group">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gold/15 border border-gold/20 flex items-center justify-center text-gold group-hover:scale-105 transition-transform">
+                  <div className="w-10 h-10 flex items-center justify-center text-gold group-hover:scale-105 transition-transform">
                     <Sparkles size={18} />
                   </div>
                   <div>
@@ -147,8 +147,8 @@ export function DayDetailCard({
 
             {/* Mentskhang Symbol Indicator */}
             {tibSelected.lunarSymbol && (
-              <div className="flex items-start gap-4 p-5 bg-white/5 rounded-3xl border border-white/5 group">
-                <div className="w-12 h-12 rounded-2xl bg-gold/10 border border-gold/10 flex items-center justify-center text-[25.5px] group-hover:scale-105 transition-transform shrink-0">
+              <div className="flex items-start gap-4 p-3 bg-white/5 rounded-[10px] border border-white/5 group">
+                <div className="w-12 h-12 flex items-center justify-center text-[25.5px] group-hover:scale-105 transition-transform shrink-0 text-gold">
                   {MENTSKHANG_SYMBOLS[tibSelected.lunarSymbol]?.icon || '❓'}
                 </div>
                 <div className="min-w-0">
@@ -186,7 +186,7 @@ export function DayDetailCard({
 
             {/* Generic Placeholder if empty */}
             {tibSelected.day !== 15 && tibSelected.day !== 30 && !tibSelected.isDoubleDay && !tibSelected.isSkippedDay && FESTIVALS.filter(f => f.month === tibSelected.month && f.day === tibSelected.day).length === 0 && !userData?.birthAnimal && (
-              <div className="py-4 text-[11.5px] text-stone-300 font-medium italic text-center border-2 border-dashed border-stone-50 rounded-3xl">{t(UI_LABELS.NO_CELESTIAL_MARKERS?.en || 'No markers', UI_LABELS.NO_CELESTIAL_MARKERS?.tib || 'མཐོང་ཆོས་མེད།')}</div>
+              <div className="py-4 text-[11.5px] text-stone-300 font-medium italic text-center border-2 border-dashed border-stone-50 rounded-[10px]">{t(UI_LABELS.NO_CELESTIAL_MARKERS?.en || 'No markers', UI_LABELS.NO_CELESTIAL_MARKERS?.tib || 'མཐོང་ཆོས་མེད།')}</div>
             )}
           </div>
         </div>
@@ -200,7 +200,7 @@ export function DayDetailCard({
           className="space-y-3"
         >
           {customFestivalToday && (
-            <div className="bg-amber-50 p-4 rounded-2xl space-y-2">
+            <div className="bg-amber-50 p-4 rounded-[10px] space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10.5px] font-black text-saffron uppercase tracking-widest">{t(UI_LABELS.CUSTOM_EVENT?.en || 'Custom Event', UI_LABELS.CUSTOM_EVENT?.tib || 'སྒེར་གྱི་དུས་དྲན།')}</span>
                 <CalendarIcon size={12} className="text-saffron" />
@@ -212,7 +212,7 @@ export function DayDetailCard({
             </div>
           )}
           {currentReminder && (
-            <div className="flex items-center gap-3 bg-amber-50/50 p-3 rounded-2xl">
+            <div className="flex items-center gap-3 bg-amber-50/50 p-3 rounded-[10px]">
               <Clock size={16} className="text-saffron" />
               <span className="text-[11.5px] font-bold text-amber-900 uppercase tracking-widest">{t(UI_LABELS.REMIND_ME_TODAY?.en || 'Remind Me', UI_LABELS.REMIND_ME_TODAY?.tib || 'དྲན་སྐུལ་བྱེད།')}</span>
             </div>
@@ -221,7 +221,7 @@ export function DayDetailCard({
       )}
 
       {/* Grid Specifications (Mewa, Parkha, etc.) */}
-      <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-6">
+      <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4">
         <div className="space-y-1">
           <p className="text-[10.5px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.TRIGRAM_PARKHA?.en || 'Trigram', UI_LABELS.TRIGRAM_PARKHA?.tib || 'སྤར་ཁ།')}</p>
           <p className="text-[13.5px] font-bold text-stone-200">{PARKHA_ICONS[tibSelected.parkha] || '❓'} {tibSelected.parkha}</p>
@@ -232,7 +232,7 @@ export function DayDetailCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-6">
+      <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4">
         <div className="space-y-1">
           <p className="text-[10.5px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.YEAR_SIGNATURE?.en || 'Year', UI_LABELS.YEAR_SIGNATURE?.tib || 'ལོ་རྟགས།')}</p>
           <p className="text-[13.5px] font-bold text-gold/80 italic">{tibSelected.yearName}</p>
@@ -243,7 +243,7 @@ export function DayDetailCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-6">
+      <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4">
         <div className="space-y-1">
           <p className="text-[10.5px] font-black text-stone-400 uppercase tracking-widest">{t(UI_LABELS.DAY_CONJUNCTION?.en || 'Conjunction', UI_LABELS.DAY_CONJUNCTION?.tib || 'སྦྱོར་བ།')}</p>
           <div className="flex items-center gap-2">

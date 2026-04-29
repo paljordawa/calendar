@@ -43,7 +43,7 @@ export function WeekAheadStrip({ currentDate, selectedDate, onSelectDate, t }: W
             key={date.toISOString()}
             onClick={() => onSelectDate(date)}
             className={cn(
-              'flex-1 flex flex-col items-center py-2.5 rounded-2xl transition-all active:scale-95',
+              'flex-1 flex flex-col items-center py-2.5 rounded-[10px] transition-all active:scale-95',
               isSelected
                 ? 'bg-stone-900 text-white'
                 : isToday

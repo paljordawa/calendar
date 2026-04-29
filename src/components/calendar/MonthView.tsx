@@ -42,8 +42,8 @@ export function MonthView({
     <div className="overflow-hidden">
       <div className="flex items-center justify-between mb-6 px-1">
         <div className="flex gap-3">
-          <button onClick={handlePrevMonth} className="p-2.5 bg-white/5 border border-white/5 rounded-xl active:scale-95 transition-transform hover:bg-white/10 text-stone-400 hover:text-white"><ChevronLeft size={18} /></button>
-          <button onClick={handleNextMonth} className="p-2.5 bg-white/5 border border-white/5 rounded-xl active:scale-95 transition-transform hover:bg-white/10 text-stone-400 hover:text-white"><ChevronRight size={18} /></button>
+          <button onClick={handlePrevMonth} className="p-2.5 active:scale-95 transition-transform text-stone-400 hover:text-white"><ChevronLeft size={18} /></button>
+          <button onClick={handleNextMonth} className="p-2.5 active:scale-95 transition-transform text-stone-400 hover:text-white"><ChevronRight size={18} /></button>
         </div>
         <div className="px-4 py-1.5 rounded-full glass border border-white/5">
           <span className="text-[11px] font-black text-stone-400 uppercase tracking-[0.2em]">{t('Lunar Month', 'བོད་ཟླ།')} {n(tibSelected.month)}</span>
@@ -65,7 +65,7 @@ export function MonthView({
             {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <div key={`${d}-${i}`} className="py-2 text-center">{d}</div>)}
           </div>
 
-          <div className="grid grid-cols-7 gap-1 rounded-[32px] overflow-hidden p-1 bg-white/[0.02] border border-white/5">
+          <div className="grid grid-cols-7 gap-1 rounded-[10px] overflow-hidden p-1 bg-white/[0.02] border border-white/5">
             {Array.from({ length: startOfMonth(currentDate).getDay() }).map((_, i) => (
               <div key={`pad-${i}`} className="bg-transparent aspect-square" />
             ))}
@@ -88,7 +88,7 @@ export function MonthView({
                   key={date.toISOString()}
                   onClick={() => setSelectedDate(date)}
                   className={cn(
-                    "relative aspect-square rounded-2xl flex flex-col items-center justify-center gap-0 transition-all duration-300 overflow-hidden",
+                    "relative aspect-square rounded-[10px] flex flex-col items-center justify-center gap-0 transition-all duration-300 overflow-hidden",
                     isSelected ? "bg-white/10 text-white z-10 shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/20 scale-[1.05]" : "bg-white/[0.03] text-stone-400 hover:bg-white/[0.08] border border-white/[0.05]"
                   )}
                 >
@@ -101,7 +101,7 @@ export function MonthView({
                   </div>
                   {/* Gregorian date — primary */}
                   <span className={cn(
-                    "text-[14px] font-serif font-black leading-none transition-colors",
+                    "text-[18px] font-serif font-black leading-none transition-colors",
                     isToday && !isSelected ? "text-gold" : isSelected ? "text-white" : "text-stone-300"
                   )}>
                     {format(date, 'd')}
