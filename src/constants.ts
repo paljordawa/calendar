@@ -80,7 +80,7 @@ export const UI_LABELS = {
   HAND_DAY: { en: "Hand", tib: "ལག་པ།" },
   YEN_KONG: { en: "Yen Kong", tib: "ཡན་ཀོང་།" },
   WELCOME: { en: "Welcome", tib: "དགའ་བསུ་ཞུ།" },
-  SINO_TIBETAN_GUIDANCE: { en: "Sino-Tibetan Astro Guidance", tib: "བོད་ཀྱི་སྐར་རྩིས་རིག་པའི་ལམ་སྟོན།" },
+  SINO_TIBETAN_GUIDANCE: { en: "Tibetan Astro Guidance", tib: "བོད་ཀྱི་སྐར་རྩིས་རིག་པའི་ལམ་སྟོན།" },
   SELECT_LANGUAGE: { en: "Select Language", tib: "སྐད་ཡིག་འདེམས་པ།" },
   PRACTITIONER_DETAILS: { en: "Practitioner Details", tib: "ཉམས་ལེན་པའི་གནས་ཚུལ།" },
   FOUNDATIONAL_HINT: { en: "Foundational for personalized timing", tib: "རང་རེའི་གནས་བབས་གཏན་འབེབས་བྱེད་པར་གལ་ཆེ།" },

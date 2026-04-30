@@ -565,8 +565,12 @@ export default function App() {
               className="flex-1 flex flex-col items-center justify-center p-6 space-y-16 relative z-10"
             >
               <div className="text-center space-y-6">
-                <div className="flex items-center justify-center text-stone-100 text-6xl font-serif mx-auto">
-                  <span className="text-gold">࿇</span>
+                <div className="flex items-center justify-center mx-auto">
+                  <img 
+                    src="/TibetAstro-moonNsun-only.svg" 
+                    alt="TibetAstro Logo" 
+                    className="w-32 h-32 opacity-90 drop-shadow-[0_0_20px_rgba(217,119,6,0.3)]" 
+                  />
                 </div>
                 <div>
                   <h1 className="text-[32px] font-serif font-black text-white leading-tight">{t(UI_LABELS.WELCOME.en, UI_LABELS.WELCOME.tib)}</h1>
@@ -595,7 +599,6 @@ export default function App() {
                       className="group flex flex-col items-center justify-center"
                     >
                       <span className="font-serif text-[24px] font-bold text-white group-hover:text-gold transition-colors block leading-tight">བོད་ཡིག</span>
-                      <span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mt-1">{t('Tibetan', 'བོད་ཡིག')}</span>
                     </button>
                   </div>
                 </div>
