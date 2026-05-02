@@ -92,7 +92,7 @@ export class NotificationService {
       await LocalNotifications.schedule({
         notifications: [{
           id,
-          title: 'TibetAstro Reminder',
+          title: 'Tibetan Lunar Calendar Reminder',
           body: note || 'You set a reminder for today.',
           schedule: { at: reminderDate },
           actionTypeId: 'OPEN_CALENDAR'

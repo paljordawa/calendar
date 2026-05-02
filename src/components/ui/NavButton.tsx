@@ -19,13 +19,6 @@ export function NavButton({ active, onClick, icon, label }: NavButtonProps) {
         active ? "text-gold" : "text-stone-500 hover:text-stone-300"
       )}
     >
-      {active && (
-        <motion.div 
-          layoutId="nav-pill"
-          className="absolute inset-0 bg-white/10 rounded-[10px] z-0 glow"
-          transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-        />
-      )}
       <div className={cn("relative z-10 transition-all duration-300", active && "scale-110 drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]")}>{icon}</div>
       <span className="relative z-10 text-[8px] font-black uppercase tracking-[0.1em]">{label}</span>
     </motion.button>

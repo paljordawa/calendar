@@ -11,7 +11,7 @@ interface MoonPhaseProps {
  * Full Moon (15) and New Moon (1, 30) render at full opacity — sacred days.
  * All other phases render at reduced opacity (subtle background indicator).
  */
-export function MoonPhase({ day, size = 10, isDark = false }: MoonPhaseProps) {
+export function MoonPhase({ day, size = 10, isDark = false, isFullMoon, isNewMoon }: MoonPhaseProps & { isFullMoon?: boolean, isNewMoon?: boolean }) {
   const fg = isDark ? '#ffffff' : '#1c1917';
   const bg = isDark ? '#33333366' : '#d6d3d1';
   const stroke = isDark ? '#ffffffcc' : '#1c1917';
@@ -20,20 +20,23 @@ export function MoonPhase({ day, size = 10, isDark = false }: MoonPhaseProps) {
   const cx = 12;
   const cy = 12;
 
-  // Only render on sacred days — Full Moon (15) and New Moon (30)
-  const isSacred = day === 15 || day === 30;
+  // Prioritize database flags for sacred days
+  const isSacred = isFullMoon || isNewMoon || day === 15 || day === 30;
   if (!isSacred) return null;
+
+  // Effective day for rendering
+  const renderDay = isFullMoon ? 15 : (isNewMoon ? 30 : day);
 
   const wrapperStyle: React.CSSProperties = { display: 'inline-flex' };
 
   let svgContent: React.ReactNode;
 
-  if (day === 15) {
+  if (renderDay === 15) {
     // Full Moon — bold white circle
     svgContent = (
       <circle cx={cx} cy={cy} r={r} fill={isDark ? '#fffbeb' : '#ffffff'} stroke={stroke} strokeWidth={strokeW + 0.7} />
     );
-  } else if (day === 30 || day === 1) {
+  } else if (renderDay === 30 || renderDay === 1) {
     // New Moon — complete black circle with white border
     svgContent = (
       <circle cx={cx} cy={cy} r={r} fill="#000000" stroke="#ffffff" strokeWidth={strokeW + 0.5} />

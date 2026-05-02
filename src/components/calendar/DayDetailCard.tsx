@@ -118,8 +118,8 @@ export function DayDetailCard({
           <h4 className="text-[11.5px] font-black text-stone-300 uppercase tracking-[0.2em] px-1">{t(UI_LABELS.DAY_SPECIFICATIONS?.en || 'Day Specifications', UI_LABELS.DAY_SPECIFICATIONS?.tib || 'ཉིན་རེའི་གནས་བབས།')}</h4>
           <div className="space-y-2.5">
             {/* Moon Phases */}
-            {tibSelected.day === 15 && <StatusItem icon={<MoonPhase day={15} size={22} />} label={t(UI_LABELS.FULL_MOON?.en || 'Full Moon', UI_LABELS.FULL_MOON?.tib || 'ཉ་གང་།')} detail={t(UI_LABELS.LUNAR_DAY_15?.en || '15th Lunar Day', UI_LABELS.LUNAR_DAY_15?.tib || 'བོད་ཚེས་ ༡༥')} color="text-stone-900" />}
-            {tibSelected.day === 30 && <StatusItem icon={<MoonPhase day={30} size={22} />} label={t(UI_LABELS.NEW_MOON?.en || 'New Moon', UI_LABELS.NEW_MOON?.tib || 'གནམ་གང་།')} detail={t(UI_LABELS.LUNAR_DAY_30?.en || '30th Lunar Day', UI_LABELS.LUNAR_DAY_30?.tib || 'བོད་ཚེས་ ༣༠')} color="text-stone-900" />}
+            {tibSelected.isFullMoon && <StatusItem icon={<MoonPhase day={15} size={22} isFullMoon={true} isDark={true} />} label={t(UI_LABELS.FULL_MOON?.en || 'Full Moon', UI_LABELS.FULL_MOON?.tib || 'ཉ་གང་།')} detail={t(UI_LABELS.LUNAR_DAY_15?.en || 'Full Moon Observance', UI_LABELS.LUNAR_DAY_15?.tib || 'བོད་ཚེས་ ༡༥ དུས་བཟང་།')} color="text-stone-900" />}
+            {tibSelected.isNewMoon && <StatusItem icon={<MoonPhase day={30} size={22} isNewMoon={true} isDark={true} />} label={t(UI_LABELS.NEW_MOON?.en || 'New Moon', UI_LABELS.NEW_MOON?.tib || 'གནམ་གང་།')} detail={t(UI_LABELS.LUNAR_DAY_30?.en || 'New Moon Observance', UI_LABELS.LUNAR_DAY_30?.tib || 'བོད་ཚེས་ ༣༠ དུས་བཟང་།')} color="text-stone-900" />}
 
             {/* Personal Harmony Item */}
             {userData?.birthAnimal && (

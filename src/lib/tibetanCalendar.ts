@@ -227,7 +227,9 @@ export function getTibetanDate(date: Date): TibetanDate {
       combination: dbData.elements,
       lunarSymbol: dbData.symbol,
       isHandDay: dbData.isHand,
-      isYenKongDay: dbData.isYenKong
+      isYenKongDay: dbData.isYenKong,
+      isFullMoon: dbData.observances.some(obs => obs.toLowerCase().includes("full moon")),
+      isNewMoon: dbData.observances.some(obs => obs.toLowerCase().includes("new moon"))
     };
   }
 

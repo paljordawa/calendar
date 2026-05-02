@@ -36,18 +36,21 @@ export function MonthView({
   n,
   userData
 }: MonthViewProps) {
-  const tibSelected = getTibetanDate(selectedDate);
+  const firstDay = monthDays[0];
+  const lastDay = monthDays[monthDays.length - 1];
+  const tibFirst = firstDay ? getTibetanDate(firstDay) : null;
+  const tibLast = lastDay ? getTibetanDate(lastDay) : null;
+  
+  const monthDisplay = (tibFirst && tibLast && tibFirst.month !== tibLast.month)
+    ? `${n(tibFirst.month)} - ${n(tibLast.month)}`
+    : n(tibFirst?.month);
 
   return (
     <div className="overflow-hidden">
-      <div className="flex items-center justify-between mb-6 px-1">
-        <div className="flex gap-3">
-          <button onClick={handlePrevMonth} className="p-2.5 active:scale-95 transition-transform text-stone-400 hover:text-white"><ChevronLeft size={18} /></button>
-          <button onClick={handleNextMonth} className="p-2.5 active:scale-95 transition-transform text-stone-400 hover:text-white"><ChevronRight size={18} /></button>
-        </div>
-        <div className="px-4 py-1.5 rounded-full glass border border-white/5">
-          <span className="text-[11px] font-black text-stone-400 uppercase tracking-[0.2em]">{t('Lunar Month', 'བོད་ཟླ།')} {n(tibSelected.month)}</span>
-        </div>
+      <div className="flex items-center justify-center mb-1 px-2">
+        <span className="text-[9px] font-normal text-stone-600 uppercase tracking-[0.3em]">
+          {t('Lunar Month', 'བོད་ཟླ།')} {monthDisplay}
+        </span>
       </div>
 
 
@@ -96,8 +99,8 @@ export function MonthView({
                     <div className="absolute top-0 left-0 bottom-0 w-1 bg-red-500/20" />
                   )}
                   {/* Moon phase — top-left corner */}
-                  <div className="absolute top-1.5 left-1.5">
-                    <MoonPhase day={tib.day} size={9} isDark={true} />
+                  <div className="absolute top-1 left-1">
+                    <MoonPhase day={tib.day} size={9} isDark={true} isFullMoon={tib.isFullMoon} isNewMoon={tib.isNewMoon} />
                   </div>
                   {/* Gregorian date — primary */}
                   <span className={cn(
@@ -106,23 +109,24 @@ export function MonthView({
                   )}>
                     {format(date, 'd')}
                   </span>
-                  {/* Tibetan lunar day — MonlamUniOuChan2 font */}
-                  <span className={cn(
-                    "font-tibetan text-[10px] leading-none mt-1",
-                    isSelected ? "text-stone-400" : "text-stone-600"
-                  )}>
-                    {toTibetanNumerals(tib.day)}
-                  </span>
                   
-                  {/* Indicators */}
-                  <div className="absolute top-1.5 right-1.5 flex flex-col items-end gap-1">
-                    {isToday && !isSelected && <div className="w-1 h-1 rounded-full bg-gold shadow-[0_0_5px_rgba(234,179,8,0.5)]" />}
-                    {isLungtaDay(tib.day, tib.combination || '') && (
-                      <span className={cn("text-[7px] filter grayscale opacity-60", isSelected && "grayscale-0 opacity-100")}>🐴</span>
-                    )}
-                    {getMeritMultiplier(tib.day, tib.month) && (
-                      <div className={cn("w-1 h-1 rounded-full", isSelected ? "bg-gold" : "bg-gold/40")} />
-                    )}
+                  {/* Indicators & Tibetan Date */}
+                  <div className="absolute top-1 right-1 flex flex-col items-end gap-0.5">
+                    <span className={cn(
+                      "font-tibetan text-[11px] font-normal leading-none drop-shadow-sm",
+                      isSelected ? "text-white" : "text-gold"
+                    )}>
+                      {toTibetanNumerals(tib.day)}
+                    </span>
+                    <div className="flex flex-col items-end gap-0.5">
+                      {isToday && !isSelected && <div className="w-1 h-1 rounded-full bg-gold shadow-[0_0_5px_rgba(234,179,8,0.5)]" />}
+                      {isLungtaDay(tib.day, tib.combination || '') && (
+                        <span className={cn("text-[7px] filter grayscale opacity-80", isSelected && "grayscale-0 opacity-100")}>🐴</span>
+                      )}
+                      {getMeritMultiplier(tib.day, tib.month) && (
+                        <div className={cn("w-1 h-1 rounded-full", isSelected ? "bg-gold" : "bg-gold/60")} />
+                      )}
+                    </div>
                   </div>
 
                   {/* Bottom artifacts */}
@@ -131,7 +135,7 @@ export function MonthView({
                     {tib.lunarSymbol && MENTSKHANG_SYMBOLS[tib.lunarSymbol] && (
                       <span className={cn(
                         "text-[9px] leading-none transition-opacity",
-                        isSelected ? "opacity-100" : "opacity-40"
+                        isSelected ? "opacity-100" : "opacity-90"
                       )}>
                         {MENTSKHANG_SYMBOLS[tib.lunarSymbol].icon}
                       </span>

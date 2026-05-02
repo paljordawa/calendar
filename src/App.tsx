@@ -269,18 +269,33 @@ export default function App() {
       });
       if (dateStr) {
         const d = parseISO(dateStr);
-        if (d >= today) events.push({ type: 'festival', date: d, title: f.name, titleTib: f.nameTib });
+        if (d >= today) {
+          const dayData = DATABASE_2026[dateStr];
+          let symbol: any = dayData?.indicator ? MENTSKHANG_SYMBOLS[dayData.indicator]?.icon : '✨';
+          if (f.name.includes('Saga Dawa')) symbol = '🌙';
+          if (f.name.toLowerCase().includes('birthday')) symbol = '🎂';
+          
+          events.push({ type: 'festival', date: d, title: f.name, titleTib: f.nameTib, symbol });
+        }
       }
     });
 
     Object.keys(userData.reminders || {}).forEach(dateStr => {
       if (userData.reminders[dateStr]) {
         const d = parseISO(dateStr);
-        if (d >= today) events.push({ type: 'reminder', date: d, title: 'Personal Reminder', titleTib: 'སྒེར་གྱི་དྲན་སྐུལ།', note: userData.notes[dateStr] });
+        if (d >= today) {
+          const sticker = userData.stickers?.[dateStr]?.emoji;
+          const dayData = DATABASE_2026[dateStr];
+          let symbol: any = sticker || (dayData?.indicator ? MENTSKHANG_SYMBOLS[dayData.indicator]?.icon : '📝');
+          
+          if (userData.notes[dateStr]?.toLowerCase().includes('birthday')) symbol = '🎂';
+          
+          events.push({ type: 'reminder', date: d, title: 'Personal Reminder', titleTib: 'སྒེར་གྱི་དྲན་སྐུལ།', note: userData.notes[dateStr], symbol });
+        }
       }
     });
 
-    return events.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, 10);
+    return events.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, 5);
   }, [userData]);
 
   const t = useCallback((en: any, tib: any) => {
@@ -568,7 +583,7 @@ export default function App() {
                 <div className="flex items-center justify-center mx-auto">
                   <img 
                     src="/TibetAstro-moonNsun-only.svg" 
-                    alt="TibetAstro Logo" 
+                    alt="Tibetan Lunar Calendar Logo" 
                     className="w-32 h-32 opacity-90 drop-shadow-[0_0_20px_rgba(217,119,6,0.3)]" 
                   />
                 </div>
@@ -998,18 +1013,18 @@ export default function App() {
                         onClick={() => setIsNotificationSheetOpen(false)} 
                       />
                       <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.95, transformOrigin: 'top right' }}
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        className="absolute right-0 mt-3 w-80 max-h-[480px] bg-midnight/95 backdrop-blur-xl border border-white/10 rounded-[14px] shadow-2xl z-50 overflow-hidden flex flex-col"
+                        className="fixed sm:absolute inset-x-4 sm:inset-auto sm:right-0 top-18 sm:top-auto sm:mt-3 sm:w-80 max-h-[420px] bg-midnight/95 backdrop-blur-3xl border border-white/10 rounded-[20px] sm:rounded-[14px] shadow-2xl z-50 overflow-hidden flex flex-col"
                       >
                         <div className="p-4 border-b border-white/5 bg-white/5 flex items-center justify-between">
                           <div className="flex items-center gap-2 text-gold">
                             <Sparkles size={14} />
-                            <span className="text-[11px] font-black uppercase tracking-widest">{t('Sacred Alerts', 'བརྡ་ལེན།')}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest">{t('Sacred Alerts', 'བརྡ་ལེན།')}</span>
                           </div>
                           {upcomingEvents.length > 0 && (
-                            <span className="text-[9px] font-black bg-gold/20 text-gold px-2 py-0.5 rounded-full uppercase">
+                            <span className="text-[8px] font-black bg-gold/20 text-gold px-2 py-0.5 rounded-full uppercase">
                               {n(upcomingEvents.length)} {t('Events', 'བྱུང་བ།')}
                             </span>
                           )}
@@ -1036,18 +1051,15 @@ export default function App() {
                                 }}
                                 className="w-full p-3 hover:bg-white/5 rounded-[10px] transition-all flex items-start gap-3 group text-left"
                               >
-                                <div className={cn(
-                                  "w-8 h-8 rounded-[8px] flex-shrink-0 flex items-center justify-center",
-                                  event.type === 'festival' ? "bg-gold/15 text-gold" : "bg-turquoise/15 text-turquoise"
-                                )}>
-                                  {event.type === 'festival' ? <Star size={14} /> : <StickyNote size={14} />}
-                                </div>
+                                  <div className="w-8 h-8 rounded-[8px] flex-shrink-0 flex items-center justify-center text-[16px]">
+                                    {event.symbol}
+                                  </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center justify-between gap-1">
-                                    <p className="text-[12.5px] font-bold text-white truncate group-hover:text-gold transition-colors">{t(event.title, event.titleTib)}</p>
-                                    <span className="text-[9px] font-black text-stone-500 uppercase flex-shrink-0">{n(format(event.date, 'MMM d'))}</span>
+                                    <p className="text-[11px] font-bold text-white truncate group-hover:text-gold transition-colors">{t(event.title, event.titleTib)}</p>
+                                    <span className="text-[8px] font-black text-stone-500 uppercase flex-shrink-0">{n(format(event.date, 'MMM d'))}</span>
                                   </div>
-                                  <p className="text-[10.5px] text-stone-500 truncate leading-tight mt-0.5">
+                                  <p className="text-[9.5px] text-stone-500 truncate leading-tight mt-0.5">
                                     {event.note ? event.note : t('Sacred observance day', 'རྩ་ཆེན་གྱི་དུས་བཟང་།') }
                                   </p>
                                 </div>
@@ -1058,7 +1070,7 @@ export default function App() {
 
                         {upcomingEvents.length > 0 && (
                           <div className="p-3 bg-white/5 border-t border-white/5 text-center">
-                            <p className="text-[9px] font-black text-stone-600 uppercase tracking-widest">{t('Celestial Guidance for 2026', '༢༠༢༦ ལོའི་ལམ་སྟོན།')}</p>
+                            <p className="text-[8px] font-black text-stone-600 uppercase tracking-widest">{t('Celestial Guidance for 2026', '༢༠༢༦ ལོའི་ལམ་སྟོན།')}</p>
                           </div>
                         )}
                       </motion.div>
@@ -1090,11 +1102,11 @@ export default function App() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="max-w-lg mx-auto pb-32 pt-28"
+              className="max-w-lg mx-auto pb-32 pt-20"
             >
               {/* Modern Native Segmented Control */}
-              <div className="px-4 mb-8">
-                <div className="relative flex bg-stone-900/50 p-1 rounded-[10px] backdrop-blur-md border border-white/5">
+              <div className="px-4 mb-4">
+                <div className="relative flex bg-stone-900/50 p-1 rounded-[10px] backdrop-blur-2xl border border-white/5">
                   {[
                     { id: 'guidance', label: t(UI_LABELS.DAY.en, UI_LABELS.DAY.tib), icon: <Sun size={14} /> },
                     { id: 'astro', label: t(UI_LABELS.ASTRO.en, UI_LABELS.ASTRO.tib), icon: <Compass size={14} /> },
@@ -1108,13 +1120,6 @@ export default function App() {
                         homeTab === sub.id ? "text-white" : "text-stone-500"
                       )}
                     >
-                      {homeTab === sub.id && (
-                        <motion.div
-                          layoutId="home-segmented-pill"
-                          className="absolute inset-0 bg-white/10 rounded-[10px] shadow-sm"
-                          transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
-                        />
-                      )}
                       <span className="relative z-10 flex items-center gap-2">
                         {sub.icon}
                         <span>{sub.label}</span>
@@ -1187,12 +1192,12 @@ export default function App() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="max-w-lg mx-auto pb-32 pt-28"
+              className="max-w-lg mx-auto pb-32 pt-20"
             >
               {/* Modern Calendar Header */}
-              <header className="px-4 flex flex-col gap-6 mb-10">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
+              <header className="px-4 flex flex-col gap-3 mb-6">
+                <div className="flex items-center justify-center">
+                  <div className="space-y-1 text-center">
                     <h2 className="text-[10px] font-black text-gold uppercase tracking-widest leading-none">
                       {t('Tib. Year', 'བོད་ལོ།')} {n(tibSelected?.year)} • {tibSelected?.yearName}
                     </h2>
@@ -1204,36 +1209,48 @@ export default function App() {
                           : <>{format(currentDate, 'yyyy')}</>}
                     </h2>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={handlePrevMonth} className="p-3 bg-white/5 rounded-[10px] active:scale-90 transition-transform"><ChevronLeft size={20} /></button>
-                    <button onClick={handleNextMonth} className="p-3 bg-white/5 rounded-[10px] active:scale-90 transition-transform"><ChevronRight size={20} /></button>
-                  </div>
                 </div>
 
-                <div className="relative flex bg-stone-900/50 p-1 rounded-[10px] backdrop-blur-md border border-white/5">
-                  {[
-                    { id: 'week', label: t('Week', 'བདུན་ཕྲག') },
-                    { id: 'month', label: t('Month', 'ཟླ་བ།') },
-                    { id: 'year', label: t('Year', 'ལོ་འཁོར།') }
-                  ].map((v) => (
-                    <button
-                      key={v.id}
-                      onClick={() => setCalendarView(v.id as 'week' | 'month' | 'year')}
-                      className={cn(
-                        "relative z-10 flex-1 py-3 rounded-[10px] text-[11.5px] font-black uppercase tracking-widest transition-colors duration-300",
-                        calendarView === v.id ? "text-white" : "text-stone-500"
-                      )}
-                    >
-                      {calendarView === v.id && (
-                        <motion.div
-                          layoutId="calendar-segmented-pill"
-                          className="absolute inset-0 bg-white/10 rounded-[10px] shadow-sm"
-                          transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
-                        />
-                      )}
-                      <span className="relative z-10">{v.label}</span>
-                    </button>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={handlePrevMonth}
+                    className="w-10 h-10 flex items-center justify-center active:scale-90 transition-all text-stone-400 hover:text-white"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  
+                  <div className="flex-1 relative flex bg-stone-900/50 p-1 rounded-[10px] backdrop-blur-2xl border border-white/5">
+                    {[
+                      { id: 'week', label: t('Week', 'བདུན་ཕྲག') },
+                      { id: 'month', label: t('Month', 'ཟླ་བ།') },
+                      { id: 'year', label: t('Year', 'ལོ་འཁོར།') }
+                    ].map((v) => (
+                      <button
+                        key={v.id}
+                        onClick={() => setCalendarView(v.id as 'week' | 'month' | 'year')}
+                        className={cn(
+                          "relative z-10 flex-1 py-3 rounded-[10px] text-[11.5px] font-black uppercase tracking-widest transition-colors duration-300",
+                          calendarView === v.id ? "text-white" : "text-stone-500"
+                        )}
+                      >
+                        {calendarView === v.id && (
+                          <motion.div
+                            layoutId="calendar-segmented-pill"
+                            className="absolute inset-0 bg-white/10 rounded-[10px] shadow-sm"
+                            transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
+                          />
+                        )}
+                        <span className="relative z-10">{v.label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <button 
+                    onClick={handleNextMonth}
+                    className="w-10 h-10 flex items-center justify-center active:scale-90 transition-all text-stone-400 hover:text-white"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
                 </div>
               </header>
 
@@ -1310,7 +1327,7 @@ export default function App() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="px-4 py-5 max-w-lg mx-auto pb-32 space-y-8 pt-28"
+              className="px-4 py-5 max-w-lg mx-auto pb-32 space-y-8 pt-20"
             >
               {/* Celestial Profile Header */}
               <header className="flex flex-col items-center justify-center gap-6 mb-10 pt-4 relative">
@@ -1536,7 +1553,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsProfileSheetOpen(false)}
-              className="fixed inset-0 bg-midnight/80 backdrop-blur-md z-[100]"
+              className="fixed inset-0 bg-midnight/90 backdrop-blur-2xl z-[100]"
             />
             <motion.div
               initial={{ y: '105%' }}
@@ -1863,7 +1880,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsPrivacySheetOpen(false)}
-              className="fixed inset-0 bg-midnight/80 backdrop-blur-md z-[200]"
+              className="fixed inset-0 bg-midnight/90 backdrop-blur-2xl z-[200]"
             />
             <motion.div
               initial={{ y: '100%' }}
@@ -1925,7 +1942,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsSearchSheetOpen(false)}
-              className="fixed inset-0 bg-midnight/80 backdrop-blur-md z-[100]"
+              className="fixed inset-0 bg-midnight/90 backdrop-blur-2xl z-[100]"
             />
             <motion.div
               initial={{ y: '105%' }}
@@ -2037,7 +2054,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsFestivalSheetOpen(false)}
-              className="fixed inset-0 bg-midnight/80 backdrop-blur-md z-[100]"
+              className="fixed inset-0 bg-midnight/90 backdrop-blur-2xl z-[100]"
             />
             <motion.div
               initial={{ y: '105%' }}
@@ -2115,7 +2132,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsNoteSheetOpen(false)}
-              className="fixed inset-0 bg-midnight/80 backdrop-blur-md z-[100]"
+              className="fixed inset-0 bg-midnight/90 backdrop-blur-2xl z-[100]"
             />
             <motion.div
               initial={{ y: '105%' }}
