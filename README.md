@@ -10,9 +10,9 @@ This README provides a deep technical dive into the architecture, logic, and cal
 The application is a high-performance React SPA designed for offline-first, mobile-native experiences.
 
 ### Component Structure
-- **Orchestration**: `App.tsx` handles global state, routing, and the `tibView` (active viewing date) management.
 - **View Layer**: Modular components (Home, Calendar, Profile) consuming memoized data derived from the core logic.
 - **UI System**: Built with `framer-motion` for hardware-accelerated drag gestures and `lucide-react` for iconography.
+- **Design Philosophy**: Adheres to a "Digital Sanctuary" aesthetic—prioritizing minimalism, high information density, and serene, high-contrast visual hierarchies.
 
 ---
 
@@ -66,6 +66,7 @@ All user-facing strings are centralized in `src/constants.ts`.
 - `pnpm dev`: Standard dev server with HMR.
 - `pnpm build`: Optimizes assets and generates a flat distribution for deployment.
 - `pnpm preview`: Local testing of the production bundle.
+- `pnpm commit`: Preferred workflow for staged changes.
 
 ---
 
@@ -97,6 +98,12 @@ The application is continuously deployed via **Vercel**:
 ## 📜 Documentation Reference
 For the traditional and historical foundations, refer to:
 - [Tibetan Calendar Logic & Tradition](TIBETAN_CALENDAR_DOCS.md)
+
+---
+
+## 👥 Contributors
+- **Lead Developer**: [Paljor Dawa](https://github.com/paljordawa)
+- **AI Pairing**: [Antigravity](https://antigravity.google) (Google DeepMind)
 
 ---
 > [!NOTE]
