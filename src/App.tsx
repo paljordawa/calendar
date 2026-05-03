@@ -27,7 +27,7 @@ import {
   Share,
   Zap
 } from 'lucide-react';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday as isDateToday, parseISO, isWithinInterval, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks, getWeekOfMonth } from 'date-fns';
+import { format, addMonths, subMonths, addYears, subYears, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday as isDateToday, parseISO, isWithinInterval, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks, getWeekOfMonth } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { getTibetanDate, getTibetanYearInfo, FESTIVALS, MONTHLY_OBSERVANCES, TibetanDate, ANIMALS, ELEMENTS, COMBINATIONS } from './lib/tibetanCalendar';
 import { cn, cn_id, UI_IDS, toTibetanNumerals } from './lib/utils';
@@ -115,11 +115,12 @@ export default function App() {
   const [isSearchSheetOpen, setIsSearchSheetOpen] = useState(false);
   const [isNotificationSheetOpen, setIsNotificationSheetOpen] = useState(false);
   const [isPrivacySheetOpen, setIsPrivacySheetOpen] = useState(false);
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const [showHeader, setShowHeader] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [direction, setDirection] = useState(0);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(1);
   const [searchRange, setSearchRange] = useState({
     start: format(new Date(), 'yyyy-MM-dd'),
     end: format(addMonths(new Date(), 1), 'yyyy-MM-dd')
@@ -160,27 +161,6 @@ export default function App() {
       return aDate.getTime() - bDate.getTime();
     });
   }, []);
-
-  const handleHomeSwipe = (event: any, info: any) => {
-    const threshold = 50;
-    const currentIndex = HOME_TABS.indexOf(homeTab);
-    if (info.offset.x < -threshold && currentIndex < HOME_TABS.length - 1) {
-      setHomeTab(HOME_TABS[currentIndex + 1]);
-    } else if (info.offset.x > threshold && currentIndex > 0) {
-      setHomeTab(HOME_TABS[currentIndex - 1]);
-    }
-  };
-
-  const handleCalendarSwipe = (event: any, info: any) => {
-    const threshold = 50;
-    const currentIndex = CALENDAR_VIEWS.indexOf(calendarView);
-    if (info.offset.x < -threshold && currentIndex < CALENDAR_VIEWS.length - 1) {
-      setCalendarView(CALENDAR_VIEWS[currentIndex + 1]);
-    } else if (info.offset.x > threshold && currentIndex > 0) {
-      setCalendarView(CALENDAR_VIEWS[currentIndex - 1]);
-    }
-  };
-
   const powerDays = useMemo(() => {
     if (!userData.birthAnimal) return null;
     return POWER_DAYS[userData.birthAnimal];
@@ -327,12 +307,6 @@ export default function App() {
     return null;
   }, [userData.birthDateSystem, userData.tibetanBirthYear, userData.tibetanBirthMonth, userData.tibetanBirthDay]);
 
-  const STICKERS = [
-    '🕉️', '🧘', '🔥', '💧', '☀️', '🌙', '🏔️', '🏠',
-    '🎨', '💼', '💊', '✈️', '🍲', '💰', '🌳', '🕯️',
-    '⚡', '🌈', '🏔️', '☸️', '🐚', '📿', '🏔️', '🥣'
-  ];
-
   const handleBirthDateChange = (dateStr: string) => {
     setUserData(prev => ({ ...prev, birthDate: dateStr || undefined }));
   };
@@ -364,8 +338,6 @@ export default function App() {
       customFestivals: (prev.customFestivals || []).filter(f => f.id !== id)
     }));
   };
-
-  const [onboardingStep, setOnboardingStep] = useState(1);
 
   // Sync Birth Data (Animal/Element) based on date changes
   useEffect(() => {
@@ -402,8 +374,10 @@ export default function App() {
     setDirection(-1);
     if (calendarView === 'week') {
       setCurrentDate(subWeeks(currentDate, 1));
-    } else {
+    } else if (calendarView === 'month') {
       setCurrentDate(subMonths(currentDate, 1));
+    } else if (calendarView === 'year') {
+      setCurrentDate(subYears(currentDate, 1));
     }
   };
 
@@ -411,8 +385,49 @@ export default function App() {
     setDirection(1);
     if (calendarView === 'week') {
       setCurrentDate(addWeeks(currentDate, 1));
-    } else {
+    } else if (calendarView === 'month') {
       setCurrentDate(addMonths(currentDate, 1));
+    } else if (calendarView === 'year') {
+      setCurrentDate(addYears(currentDate, 1));
+    }
+  };
+
+
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchEndX.current = null;
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    const distance = touchStartX.current - touchEndX.current;
+    const minSwipeDistance = 50;
+    
+    if (activeTab === 'calendar') {
+      const currentIndex = CALENDAR_VIEWS.indexOf(calendarView);
+      if (distance > minSwipeDistance && currentIndex < CALENDAR_VIEWS.length - 1) {
+        // Swipe Left -> Next Tab
+        setCalendarView(CALENDAR_VIEWS[currentIndex + 1]);
+      } else if (distance < -minSwipeDistance && currentIndex > 0) {
+        // Swipe Right -> Prev Tab
+        setCalendarView(CALENDAR_VIEWS[currentIndex - 1]);
+      }
+    } else if (activeTab === 'home') {
+      const currentIndex = HOME_TABS.indexOf(homeTab);
+      if (distance > minSwipeDistance && currentIndex < HOME_TABS.length - 1) {
+        // Swipe Left -> Next Tab
+        setHomeTab(HOME_TABS[currentIndex + 1]);
+      } else if (distance < -minSwipeDistance && currentIndex > 0) {
+        // Swipe Right -> Prev Tab
+        setHomeTab(HOME_TABS[currentIndex - 1]);
+      }
     }
   };
 
@@ -1016,7 +1031,7 @@ export default function App() {
                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        className="fixed sm:absolute inset-x-4 sm:inset-auto sm:right-0 top-18 sm:top-auto sm:mt-3 sm:w-80 max-h-[420px] bg-midnight/95 backdrop-blur-3xl border border-white/10 rounded-[20px] sm:rounded-[14px] shadow-2xl z-50 overflow-hidden flex flex-col"
+                        className="fixed sm:absolute inset-x-4 sm:inset-auto sm:right-0 top-18 sm:top-auto sm:mt-3 sm:w-80 max-h-[420px] bg-stone-900 border border-white/10 rounded-[20px] sm:rounded-[14px] shadow-2xl z-50 overflow-hidden flex flex-col"
                       >
                         <div className="p-4 border-b border-white/5 bg-white/5 flex items-center justify-between">
                           <div className="flex items-center gap-2 text-gold">
@@ -1095,18 +1110,19 @@ export default function App() {
           </div>
         </motion.header>
 
-        <AnimatePresence mode="popLayout">
+        <div className="flex-1 overflow-hidden relative">
           {activeTab === 'home' && (
-            <motion.div
-              key={`home-${userData.language}`}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="max-w-lg mx-auto pb-32 pt-20"
+            <div
+              key="home"
+              className="flex-1 h-full overflow-y-auto pt-20 pb-24 no-scrollbar"
+              onScroll={handleMainScroll}
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
             >
               {/* Modern Native Segmented Control */}
               <div className="px-4 mb-4">
-                <div className="relative flex bg-stone-900/50 p-1 rounded-[10px] backdrop-blur-2xl border border-white/5">
+                <div className="relative flex bg-stone-900 p-1 rounded-[10px] border border-white/5">
                   {[
                     { id: 'guidance', label: t(UI_LABELS.DAY.en, UI_LABELS.DAY.tib), icon: <Sun size={14} /> },
                     { id: 'astro', label: t(UI_LABELS.ASTRO.en, UI_LABELS.ASTRO.tib), icon: <Compass size={14} /> },
@@ -1116,10 +1132,16 @@ export default function App() {
                       key={sub.id}
                       onClick={() => setHomeTab(sub.id as HomeTab)}
                       className={cn(
-                        "relative z-10 flex-1 flex items-center justify-center gap-2 py-3 rounded-[10px] text-[11.5px] font-black uppercase tracking-widest transition-colors duration-300",
-                        homeTab === sub.id ? "text-white" : "text-stone-500"
+                        "relative z-10 flex-1 flex items-center justify-center gap-2 py-3 rounded-[8px] text-[11px] font-black uppercase tracking-widest transition-all duration-300",
+                        homeTab === sub.id ? "text-midnight" : "text-stone-500 hover:text-stone-300"
                       )}
                     >
+                      {homeTab === sub.id && (
+                        <motion.div
+                          layoutId="home-segmented-pill"
+                          className="absolute inset-0 bg-gold rounded-[8px] shadow-lg shadow-gold/20"
+                        />
+                      )}
                       <span className="relative z-10 flex items-center gap-2">
                         {sub.icon}
                         <span>{sub.label}</span>
@@ -1129,12 +1151,8 @@ export default function App() {
                 </div>
               </div>
 
-              <motion.div
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.2}
-                onDragEnd={handleHomeSwipe}
-                className="px-4 space-y-8 touch-pan-y"
+              <div
+                className="px-4 space-y-8"
               >
                 {homeTab === 'guidance' && (
                   <TodayTab
@@ -1182,17 +1200,14 @@ export default function App() {
                     setActiveTab={setActiveTab}
                   />
                 )}
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
           )}
 
           {activeTab === 'calendar' && (
-            <motion.div
-              key={`calendar-${userData.language}`}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="max-w-lg mx-auto pb-32 pt-20"
+            <div
+              key="calendar"
+              className="flex-1 h-full overflow-y-auto pt-20 pb-24 no-scrollbar"
             >
               {/* Modern Calendar Header */}
               <header className="px-4 flex flex-col gap-3 mb-6">
@@ -1219,7 +1234,7 @@ export default function App() {
                     <ChevronLeft size={20} />
                   </button>
                   
-                  <div className="flex-1 relative flex bg-stone-900/50 p-1 rounded-[10px] backdrop-blur-2xl border border-white/5">
+                  <div className="flex-1 relative flex bg-stone-900 p-1 rounded-[10px] border border-white/5">
                     {[
                       { id: 'week', label: t('Week', 'བདུན་ཕྲག') },
                       { id: 'month', label: t('Month', 'ཟླ་བ།') },
@@ -1234,10 +1249,8 @@ export default function App() {
                         )}
                       >
                         {calendarView === v.id && (
-                          <motion.div
-                            layoutId="calendar-segmented-pill"
+                          <div
                             className="absolute inset-0 bg-white/10 rounded-[10px] shadow-sm"
-                            transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
                           />
                         )}
                         <span className="relative z-10">{v.label}</span>
@@ -1254,12 +1267,11 @@ export default function App() {
                 </div>
               </header>
 
-              <motion.div
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.2}
-                onDragEnd={handleCalendarSwipe}
-                className="flex-1 flex flex-col space-y-6 touch-pan-y"
+              <div
+                className="flex-1 flex flex-col space-y-6"
+                onTouchStart={onTouchStart}
+                onTouchMove={onTouchMove}
+                onTouchEnd={onTouchEnd}
               >
                 {calendarView === 'week' && (
                   <div className="px-4 space-y-6">
@@ -1317,17 +1329,14 @@ export default function App() {
                     />
                   </div>
                 )}
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
           )}
 
           {activeTab === 'profile' && (
-            <motion.div
-              key={`profile-${userData.language}`}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="px-4 py-5 max-w-lg mx-auto pb-32 space-y-8 pt-20"
+            <div
+              key="profile"
+              className="flex-1 h-full overflow-y-auto pt-20 pb-24 no-scrollbar"
             >
               {/* Celestial Profile Header */}
               <header className="flex flex-col items-center justify-center gap-6 mb-10 pt-4 relative">
@@ -1365,7 +1374,7 @@ export default function App() {
               </header>
 
               {/* Profile Info - Celestial Grid */}
-              <section className="space-y-4">
+              <section className="space-y-4 px-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="glass p-4 rounded-[10px] border border-white/5 space-y-4">
                     <div className="flex items-center gap-3">
@@ -1415,7 +1424,7 @@ export default function App() {
 
               {/* Yearly Horoscope & Power Days */}
               {userData.birthAnimal && userData.birthElement && (
-                <section className="space-y-6">
+                <section className="space-y-6 px-4">
                   {/* Dhun-Zur Alert */}
                   {yearlyHoroscope?.isDhunZur && (
                     <div className="p-3 rounded-[10px] bg-red-900/10 border border-red-900/20 flex items-start gap-4">
@@ -1462,9 +1471,8 @@ export default function App() {
                               <p className={cn("text-[9.5px] font-black uppercase", s.color.replace('bg-', 'text-'))}>{t(s.label, s.tib)}</p>
                             </div>
                             <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${s.percent}%` }}
+                              <div
+                                style={{ width: `${s.percent}%` }}
                                 className={cn("h-full glow shadow-sm", s.color)}
                               />
                             </div>
@@ -1524,7 +1532,7 @@ export default function App() {
               )}
 
               {/* Settings Button */}
-              <div className="pt-4 pb-2">
+              <div className="pt-4 pb-2 px-4">
                 <button
                   onClick={() => setIsSettingsSheetOpen(true)}
                   className="w-full flex items-center justify-center gap-2 p-4 glass rounded-[10px] border border-white/5 text-stone-400 hover:text-white transition-colors"
@@ -1539,9 +1547,9 @@ export default function App() {
                   {t(UI_LABELS.HONOUR_PATH.en, UI_LABELS.HONOUR_PATH.tib)}
                 </p>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
+        </div>
       </div>
 
       {/* Note & Reminder Bottom Sheet */}
@@ -1553,7 +1561,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsProfileSheetOpen(false)}
-              className="fixed inset-0 bg-midnight/90 backdrop-blur-2xl z-[100]"
+              className="fixed inset-0 bg-stone-950 z-[100]"
             />
             <motion.div
               initial={{ y: '105%' }}
@@ -1880,7 +1888,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsPrivacySheetOpen(false)}
-              className="fixed inset-0 bg-midnight/90 backdrop-blur-2xl z-[200]"
+              className="fixed inset-0 bg-stone-950 z-[200]"
             />
             <motion.div
               initial={{ y: '100%' }}
@@ -1942,7 +1950,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsSearchSheetOpen(false)}
-              className="fixed inset-0 bg-midnight/90 backdrop-blur-2xl z-[100]"
+              className="fixed inset-0 bg-stone-950 z-[100]"
             />
             <motion.div
               initial={{ y: '105%' }}
@@ -2054,7 +2062,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsFestivalSheetOpen(false)}
-              className="fixed inset-0 bg-midnight/90 backdrop-blur-2xl z-[100]"
+              className="fixed inset-0 bg-stone-950 z-[100]"
             />
             <motion.div
               initial={{ y: '105%' }}
@@ -2132,7 +2140,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsNoteSheetOpen(false)}
-              className="fixed inset-0 bg-midnight/90 backdrop-blur-2xl z-[100]"
+              className="fixed inset-0 bg-stone-950 z-[100]"
             />
             <motion.div
               initial={{ y: '105%' }}

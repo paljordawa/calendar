@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { format, isSameDay, startOfMonth } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn, toTibetanNumerals } from '../../lib/utils';
@@ -54,16 +53,7 @@ export function MonthView({
       </div>
 
 
-      <AnimatePresence mode="popLayout" custom={direction} initial={false}>
-        <motion.div
-          key={format(currentDate, 'yyyy-MM')}
-          custom={direction}
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 1.02 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="touch-pan-y"
-        >
+      <div className="touch-pan-y">
           <div className="grid grid-cols-7 gap-px text-[9px] font-black text-stone-600 tracking-[0.3em] uppercase mb-4 px-2">
             {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <div key={`${d}-${i}`} className="py-2 text-center">{d}</div>)}
           </div>
@@ -158,8 +148,7 @@ export function MonthView({
               );
             })}
           </div>
-        </motion.div>
-      </AnimatePresence>
+        </div>
     </div>
   );
 }

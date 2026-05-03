@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { format, isSameDay, startOfDay } from 'date-fns';
 import { cn, toTibetanNumerals } from '../../lib/utils';
 import { UI_LABELS, ANIMAL_ICONS, MENTSKHANG_SYMBOLS } from '../../constants';
@@ -37,11 +36,7 @@ export function WeekView({
   const isDateToday = (date: Date) => isSameDay(date, new Date());
 
   return (
-    <motion.div
-      key="week"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
+    <div
       className="space-y-4 pb-4"
     >
       <div className="space-y-3">
@@ -59,11 +54,9 @@ export function WeekView({
           const sticker = userData.stickers?.[format(date, 'yyyy-MM-dd')];
 
           return (
-            <motion.div
+            <div
               key={date.toISOString()}
               onClick={() => setSelectedDate(date)}
-              layout
-              whileTap={{ scale: 0.98 }}
               className={cn(
                 "p-3 rounded-[10px] cursor-pointer transition-all duration-300 border flex flex-col gap-3",
                 isSelected
@@ -161,8 +154,7 @@ export function WeekView({
                     <MoreHorizontal size={20} />
                   </button>
 
-                  <AnimatePresence>
-                    {openMenuId === date.toISOString() && (
+                  {openMenuId === date.toISOString() && (
                       <>
                         <div 
                           className="fixed inset-0 z-[60]" 
@@ -171,10 +163,7 @@ export function WeekView({
                             setOpenMenuId(null);
                           }} 
                         />
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.95, y: 10, x: -10 }}
-                          animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
-                          exit={{ opacity: 0, scale: 0.95, y: 10, x: -10 }}
+                        <div
                           className="absolute right-0 top-full mt-2 glass rounded-[10px] shadow-2xl border border-white/10 p-2 z-[70] min-w-[150px] flex flex-col gap-1"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -217,10 +206,9 @@ export function WeekView({
                               <span className="text-[12px] font-black uppercase tracking-widest text-red-400">{t('Delete Note', 'ཟིན་ཐོ་སུབ།')}</span>
                             </button>
                           )}
-                        </motion.div>
+                        </div>
                       </>
                     )}
-                  </AnimatePresence>
                 </div>
               </div>
 
@@ -233,7 +221,7 @@ export function WeekView({
                   {note}
                 </p>
               )}
-            </motion.div>
+            </div>
           );
         })}
       </div>
@@ -284,6 +272,6 @@ export function WeekView({
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

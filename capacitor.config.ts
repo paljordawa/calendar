@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.paljo.tibetastro',
+  appId: 'com.tibetalunarcalendar',
   appName: 'Tibetan Lunar Calendar',
   webDir: 'dist'
 };

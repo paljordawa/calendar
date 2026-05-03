@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Search, X, Trash2, MoreHorizontal, Sparkles, Copy, StickyNote, Compass } from 'lucide-react';
 import { format, parseISO, startOfDay, isSameDay } from 'date-fns';
 import { cn, toTibetanNumerals } from '../../lib/utils';
@@ -35,9 +34,7 @@ export function SacredTab({
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 10 }}
-      animate={{ opacity: 1, x: 0 }}
+    <div
       className="space-y-10 pb-20"
     >
       <header className="space-y-6">
@@ -110,17 +107,13 @@ export function SacredTab({
                     <MoreHorizontal size={20} />
                   </button>
 
-                  <AnimatePresence>
                     {openMenuId === f.id && (
                       <>
                         <div 
                           className="fixed inset-0 z-10" 
                           onClick={() => setOpenMenuId(null)} 
                         />
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 10, x: -10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 10, x: -10 }}
+                          <div
                             className="absolute right-0 bottom-full mb-2 glass rounded-[10px] shadow-2xl border border-white/10 p-2 z-20 min-w-[150px] flex flex-col gap-1"
                           >
                             <button
@@ -148,10 +141,9 @@ export function SacredTab({
                               <Trash2 size={14} className="text-red-400" />
                               <span className="text-[12px] font-black uppercase tracking-widest text-red-400">{t('Delete', 'སུབ་པ།')}</span>
                             </button>
-                          </motion.div>
+                          </div>
                       </>
                     )}
-                  </AnimatePresence>
                 </div>
               </div>
             ))}
@@ -213,17 +205,13 @@ export function SacredTab({
                       <MoreHorizontal size={20} />
                     </button>
 
-                    <AnimatePresence>
                       {openMenuId === i && (
                         <>
                           <div 
                             className="fixed inset-0 z-10" 
                             onClick={() => setOpenMenuId(null)} 
                           />
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 10, x: -10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 10, x: -10 }}
+                          <div
                             className="absolute right-0 bottom-full mb-2 glass rounded-[10px] shadow-2xl border border-white/10 p-2 z-20 min-w-[150px] flex flex-col gap-1"
                           >
                             <button
@@ -251,16 +239,15 @@ export function SacredTab({
                               <Copy size={14} className="text-gold" />
                               <span className="text-[12px] font-black uppercase tracking-widest text-white">{t('Copy Info', 'འདྲ་བཤུས།')}</span>
                             </button>
-                          </motion.div>
+                          </div>
                         </>
                       )}
-                    </AnimatePresence>
                   </div>
                 </div>
               );
             })}
         </div>
       </section>
-    </motion.div>
+    </div>
   );
 }

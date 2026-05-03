@@ -29,9 +29,7 @@ const SPECIAL_MONTHS = new Set([1, 4, 9]);
 
 export function YearView({ tibCurrent, t, n }: YearViewProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
       className="space-y-8 pb-4"
     >
       {/* Annual Essence Hero */}
@@ -80,11 +78,8 @@ export function YearView({ tibCurrent, t, n }: YearViewProps) {
             const isSpecial = SPECIAL_MONTHS.has(m);
 
             return (
-              <motion.div
+              <div
                 key={m}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: monthIdx * 0.03 }}
                 className={`relative flex items-start gap-4 rounded-[10px] p-3 border transition-all duration-300 group ${
                   isSpecial
                     ? 'bg-gold/5 border-gold/20 shadow-sm shadow-gold/5'
@@ -139,11 +134,11 @@ export function YearView({ tibCurrent, t, n }: YearViewProps) {
                     </div>
                   )}
                 </div>
-              </motion.div>
+              </div>
             );
           })}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

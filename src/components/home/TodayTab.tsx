@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'motion/react';
 import { Sparkles, Bell, Calendar as CalendarIcon, ChevronRight, StickyNote, Zap } from 'lucide-react';
 import { parseISO, format } from 'date-fns';
 import { TodayCard } from './TodayCard';
@@ -46,11 +45,7 @@ export const TodayTab: React.FC<TodayTabProps> = ({
   const merit = getMeritMultiplier(tibCurrent.day, tibCurrent.month);
 
   return (
-    <motion.div
-      key="guidance"
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -10 }}
+    <div
       className="space-y-8"
     >
       {/* Persistent Lungta Energy Strip */}
@@ -60,7 +55,7 @@ export const TodayTab: React.FC<TodayTabProps> = ({
 
       {/* Alignment Onboarding Hint */}
       {!userData.birthDate && !userData.tibetanBirthYear && (
-        <motion.button
+        <button
           onClick={() => setActiveTab('profile')}
           className="p-4 rounded-[10px] glass text-white relative overflow-hidden group active:scale-[0.98] transition-all text-left block w-full shadow-2xl shadow-black/20"
         >
@@ -76,7 +71,7 @@ export const TodayTab: React.FC<TodayTabProps> = ({
               </p>
             </div>
           </div>
-        </motion.button>
+        </button>
       )}
 
       {/* Today Card Widget */}
@@ -155,9 +150,8 @@ export const TodayTab: React.FC<TodayTabProps> = ({
               .map(([dateStr, note]) => {
                 const sticker = userData.stickers?.[dateStr];
                 return (
-                  <motion.button
+                  <button
                     key={dateStr}
-                    whileHover={{ x: 4 }}
                     onClick={() => {
                       setSelectedDate(parseISO(dateStr));
                       setActiveTab('calendar');
@@ -191,12 +185,12 @@ export const TodayTab: React.FC<TodayTabProps> = ({
                       )}
                     </div>
                     <ChevronRight size={18} className="text-stone-800 group-hover:text-gold transition-colors flex-shrink-0" />
-                  </motion.button>
+                  </button>
                 );
               })}
           </div>
         </section>
       )}
-    </motion.div>
+    </div>
   );
 };

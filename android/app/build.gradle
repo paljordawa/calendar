@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.paljo.tibetastro"
+    namespace = "com.tibetalunarcalendar"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.paljo.tibetastro"
+        applicationId "com.tibetalunarcalendar"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -18,7 +18,7 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }

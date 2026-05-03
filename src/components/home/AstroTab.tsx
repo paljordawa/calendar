@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'motion/react';
 import { Compass, Zap, Sparkles, Star, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -16,10 +15,7 @@ interface AstroTabProps {
 export function AstroTab({ userData, yearlyHoroscope, powerDays, t, toTibetanNumerals, setActiveTab, UI_LABELS }: AstroTabProps) {
   if (!userData.birthAnimal) {
     return (
-      <motion.div
-        key="astro-onboarding"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
+      <div
         className="p-4 rounded-[10px] bg-stone-100/50 border border-stone-200/50 text-center space-y-4"
       >
         <div className="w-16 h-16 flex items-center justify-center text-stone-300 mx-auto">
@@ -37,16 +33,12 @@ export function AstroTab({ userData, yearlyHoroscope, powerDays, t, toTibetanNum
         >
           {t(UI_LABELS.SET_BIRTH_DATE.en, UI_LABELS.SET_BIRTH_DATE.tib)}
         </button>
-      </motion.div>
+      </div>
     );
   }
 
   return (
-    <motion.div
-      key="astro"
-      initial={{ opacity: 0, x: 10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 10 }}
+    <div
       className="space-y-12"
     >
       {/* Yearly Energy Scores */}
@@ -79,11 +71,9 @@ export function AstroTab({ userData, yearlyHoroscope, powerDays, t, toTibetanNum
                 <div className="space-y-2">
                   <p className="text-[18px] font-serif font-black">{s.label}</p>
                   <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${s.percent}%` }}
+                    <div 
+                      style={{ width: `${s.percent}%` }}
                       className={cn("h-full rounded-full glow", s.color, s.glow)}
-                      transition={{ duration: 0.8, ease: "easeOut" }}
                     />
                   </div>
                 </div>
@@ -117,6 +107,6 @@ export function AstroTab({ userData, yearlyHoroscope, powerDays, t, toTibetanNum
           ))}
         </div>
       </section>
-    </motion.div>
+    </div>
   );
 }

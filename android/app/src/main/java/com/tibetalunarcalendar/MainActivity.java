@@ -1,4 +1,4 @@
-package com.paljo.tibetastro;
+package com.tibetalunarcalendar;
 
 import com.getcapacitor.BridgeActivity;
 

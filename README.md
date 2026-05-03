@@ -93,6 +93,45 @@ The application is continuously deployed via **Vercel**:
 - **Configuration**: Automatically handles SPA routing redirects and SSL certificates.
 - **Branch Strategy**: `main` branch deployments are production-ready.
 
+### Android Distribution (Play Store)
+The app is configured for Android via **Capacitor**:
+- **App ID**: `com.tibetalunarcalendar`
+- **App Name**: `Tibetan Lunar Calendar`
+
+#### 1. Prerequisites
+- **Android Studio**: Installed and configured with the latest Android SDK.
+- **Java**: JDK 17+ is required for the build process.
+
+#### 2. App Assets (Icons & Splash)
+Native assets are managed via `@capacitor/assets`:
+1. Create a folder named `assets` in the **root of the project**.
+2. Place a high-resolution `icon-only.png` and `splash.png` inside that folder.
+2. Run the generation command:
+   ```bash
+   npx @capacitor/assets generate --android
+   ```
+
+#### 3. Versioning
+To update the version for a new Play Store release, modify `android/app/build.gradle`:
+- `versionCode`: An integer that must be incremented for every release.
+- `versionName`: A string (e.g., "1.0.2") visible to users.
+
+#### 4. Production Build Workflow
+1. **Prepare Web Bundle**: 
+   ```bash
+   pnpm build
+   ```
+2. **Sync Native Project**: 
+   ```bash
+   npx cap sync android
+   ```
+3. **Generate Signed Bundle**: 
+   - Open Android Studio: `npx cap open android`
+   - Select **Build > Generate Signed Bundle / APK**.
+   - Create/Use a **Keystore** (Keep this file safe! If lost, you cannot update the app).
+   - Choose `release` variant and `V2 (Full APK Signature)`.
+   - Upload the resulting `.aab` file to the **Google Play Console**.
+
 ---
 
 ## 📜 Documentation Reference
